@@ -79,6 +79,13 @@ base.mjs (tseslint + import-x + prettier)
 7. **peerDependencies 检查** — 提示缺失依赖
 8. 支持 `--dry-run` 预览模式
 
+### 2.3.1 生成文件说明
+
+| 文件 | 作用 |
+|------|------|
+| `.prettierignore` | 排除二进制文件（图片、字体、APK 等），防止 Prettier 尝试格式化它们 |
+| `.gitattributes` | 统一文本文件 EOL 为 LF，标记二进制文件不做 EOL 转换和 diff |
+
 ### 2.4 动态 Scope 生成
 
 `commitlint/scopes.cjs` 通过以下方式实现智能 scope：

@@ -20,10 +20,12 @@ init 脚本会自动检测项目的 ESLint 版本和 CSS 预处理器，生成�
 | `.eslintrc.cjs` | ESLint 配置（v8 项目，TypeScript + Vue 3 + uni-app） |
 | `eslint.config.ts` | ESLint Flat Config（v9 项目，TypeScript + Vue 3 + uni-app） |
 | `.prettierrc.cjs` | Prettier 格式化配置 |
+| `.prettierignore` | Prettier 忽略文件（跳过二进制文件） |
 | `.stylelintrc.cjs` | Stylelint CSS/SCSS/Less 配置 |
 | `.commitlintrc.cjs` | Git commit 信息规范 |
 | `.versionrc.js` | 自动版本号 + CHANGELOG 生成 |
 | `.editorconfig` | 编辑器基础配置 |
+| `.gitattributes` | Git 文件类型处理（统一 EOL=LF，标记二进制文件） |
 | `.husky/commit-msg` | Git hook: commitlint |
 | `.husky/pre-commit` | Git hook: lint-staged |
 
