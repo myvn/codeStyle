@@ -1,0 +1,472 @@
+#!/usr/bin/env node
+/**
+ * my-code-style-init CLI
+ *
+ * Scaffolds lint/format/git config files into the current project.
+ * Auto-detects ESLint version and CSS preprocessor for optimal config generation.
+ *
+ * Usage:
+ *   npx my-code-style-init
+ *   npx my-code-style-init --dry-run
+ */
+
+const fs = require("fs")
+const path = require("path")
+const { execSync } = require("child_process")
+
+const PROJECT_ROOT = process.cwd()
+const PACKAGE_DIR = path.resolve(__dirname, "..")
+
+// --- Helpers ---
+
+function log(msg) {
+    console.log(`  ${msg}`)
+}
+
+function success(msg) {
+    console.log(`  ✓ ${msg}`)
+}
+
+function warn(msg) {
+    console.log(`  ⚠ ${msg}`)
+}
+
+function ensureDir(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true })
+    }
+}
+
+function writeFile(dest, content) {
+    const destDir = path.dirname(dest)
+    ensureDir(destDir)
+    fs.writeFileSync(dest, content, "utf8")
+}
+
+function fileExists(relative) {
+    return fs.existsSync(path.resolve(PROJECT_ROOT, relative))
+}
+
+function readTemplate(relativePath) {
+    return fs.readFileSync(path.resolve(PACKAGE_DIR, relativePath), "utf8")
+}
+
+function getProjectPkg() {
+    const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
+    if (!fs.existsSync(pkgPath)) return null
+    return JSON.parse(fs.readFileSync(pkgPath, "utf8"))
+}
+
+function getDependencyVersion(pkg, depName) {
+    return (pkg.dependencies && pkg.dependencies[depName])
+        || (pkg.devDependencies && pkg.devDependencies[depName])
+        || null
+}
+
+// --- Detection helpers ---
+
+/**
+ * Detect ESLint major version from package.json
+ * Returns 8, 9, or null (not installed)
+ */
+function detectEslintVersion() {
+    const pkg = getProjectPkg()
+    if (!pkg) return null
+    const version = getDependencyVersion(pkg, "eslint")
+    if (!version) return null
+    // Handle range specifiers like "^9.0.0", ">=8.0.0", "9.x"
+    const match = version.match(/(\d+)/)
+    return match ? parseInt(match[1], 10) : null
+}
+
+/**
+ * Detect CSS preprocessor in use
+ * Returns "scss", "less", or "none"
+ */
+function detectCssPreprocessor() {
+    const pkg = getProjectPkg()
+    if (!pkg) return "scss"
+    const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) }
+
+    const hasSass = allDeps["sass"] || allDeps["node-sass"] || allDeps["sass-loader"]
+    const hasLess = allDeps["less"] || allDeps["less-loader"]
+
+    if (hasLess && !hasSass) return "less"
+    if (hasSass) return "scss"
+    if (hasLess) return "less"
+
+    // Fallback: check for existing stylelint config
+    if (fileExists(".stylelintrc.cjs") || fileExists(".stylelintrc.js")) {
+        try {
+            const content = fs.readFileSync(
+                path.resolve(PROJECT_ROOT, ".stylelintrc.cjs"),
+                "utf8"
+            )
+            if (content.includes("postcss-less")) return "less"
+        } catch {}
+    }
+
+    return "scss" // default
+}
+
+/**
+ * Detect if project is a uni-app project
+ */
+function isUniAppProject() {
+    const pkg = getProjectPkg()
+    if (!pkg) return false
+    const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) }
+    return !!(allDeps["@dcloudio/uni-app"] || allDeps["uni-app"])
+}
+
+// --- Config templates ---
+
+function eslintrcContent(isUniApp) {
+    const importPath = isUniApp
+        ? "my-code-style/eslint/uniapp"
+        : "my-code-style/eslint/vue3"
+
+    return `// ESLint config — powered by my-code-style
+// https://www.npmjs.com/package/my-code-style
+const config = require("${importPath}")
+
+// 如果需要引入 unplugin-auto-import 生成的 globals，取消下面的注释：
+// config.extends = [...config.extends, "./.eslintrc-auto-import.json"]
+
+module.exports = config
+`
+}
+
+function eslintFlatConfigContent(isUniApp) {
+    const importPath = isUniApp
+        ? "my-code-style/eslint/flat/uniapp"
+        : "my-code-style/eslint/flat/vue3"
+
+    return `// ESLint Flat Config — powered by my-code-style
+// https://www.npmjs.com/package/my-code-style
+import uniappConfig from "${importPath}"
+
+export default uniappConfig
+`
+}
+
+function prettierrcContent() {
+    return `// Prettier config — powered by my-code-style
+module.exports = require("my-code-style/prettier")
+`
+}
+
+function prettierignoreContent() {
+    return readTemplate("src/prettierignore")
+}
+
+function stylelintrcContent() {
+    return `// Stylelint config — powered by my-code-style
+module.exports = require("my-code-style/stylelint")
+`
+}
+
+function commitlintrcContent() {
+    return `// Commitlint config — powered by my-code-style
+const base = require("my-code-style/commitlint")
+const { generateScopes, guessCurrentScope } = require("my-code-style/commitlint/scopes")
+
+const scopes = generateScopes("src")
+const scopeComplete = guessCurrentScope()
+
+module.exports = {
+    ...base,
+    prompt: {
+        ...base.prompt,
+        customScopesAlign: !scopeComplete ? "top" : "bottom",
+        defaultScope: scopeComplete,
+        scopes: [...scopes, "mock"],
+        allowEmptyIssuePrefixs: false,
+        allowCustomIssuePrefixs: false,
+    },
+}
+`
+}
+
+function versionrcContent() {
+    return `// standard-version config — powered by my-code-style
+module.exports = require("my-code-style/versionrc")
+`
+}
+
+function huskyCommitMsg() {
+    return `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx --no-install commitlint --edit
+`
+}
+
+function huskyPreCommit() {
+    return `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx --no-install -- lint-staged
+`
+}
+
+function editorconfigContent() {
+    return readTemplate("src/editorconfig")
+}
+
+function gitattributesContent() {
+    return readTemplate("src/gitattributes")
+}
+
+/**
+ * Generate the lint-staged config based on detected CSS preprocessor
+ */
+function getLintStagedConfig(cssPreprocessor) {
+    const styleFiles = cssPreprocessor === "less"
+        ? "**/*.{vue,css,less,html}"
+        : cssPreprocessor === "none"
+            ? "**/*.{vue,html}"
+            : "**/*.{vue,css,scss,html}"
+
+    return {
+        "**/*.{html,vue,ts,cjs,json,md}": ["prettier --write"],
+        "**/*.{vue,js,ts,jsx,tsx}": ["eslint --cache --fix"],
+        [styleFiles]: ["stylelint --fix"],
+    }
+}
+
+// --- Main ---
+
+function main() {
+    const dryRun = process.argv.includes("--dry-run")
+    const label = dryRun ? "[DRY RUN] " : ""
+
+    console.log("")
+    console.log("  my-code-style-init — 初始化项目配置")
+    console.log("")
+
+    if (dryRun) {
+        warn("Dry run mode — no files will be written")
+        console.log("")
+    }
+
+    // --- Detection phase ---
+    const eslintVersion = detectEslintVersion()
+    const cssPreprocessor = detectCssPreprocessor()
+    const uniApp = isUniAppProject()
+
+    // Determine ESLint format
+    const useFlatConfig = eslintVersion === 9
+    const eslintFormat = useFlatConfig ? "flat" : "eslintrc"
+
+    log(`检测到 ESLint 版本: ${eslintVersion || "未知"} → 使用 ${eslintFormat} 格式`)
+    log(`检测到 CSS 预处理器: ${cssPreprocessor}`)
+    if (uniApp) log(`检测到 uni-app 项目`)
+    console.log("")
+
+    // --- Build file list based on detection ---
+    const files = []
+
+    if (useFlatConfig) {
+        files.push({
+            path: "eslint.config.ts",
+            exists: fileExists("eslint.config.ts") || fileExists("eslint.config.js") || fileExists("eslint.config.mjs"),
+            content: eslintFlatConfigContent(uniApp),
+        })
+    } else {
+        files.push({
+            path: ".eslintrc.cjs",
+            exists: fileExists(".eslintrc.cjs"),
+            content: eslintrcContent(uniApp),
+        })
+    }
+
+    files.push({
+        path: ".prettierrc.cjs",
+        exists: fileExists(".prettierrc.cjs"),
+        content: prettierrcContent(),
+    })
+
+    files.push({
+        path: ".prettierignore",
+        exists: fileExists(".prettierignore"),
+        content: prettierignoreContent(),
+    })
+
+    // Stylelint: always generate, but note if no CSS preprocessor
+    if (cssPreprocessor !== "none") {
+        files.push({
+            path: ".stylelintrc.cjs",
+            exists: fileExists(".stylelintrc.cjs"),
+            content: stylelintrcContent(),
+        })
+    } else {
+        log("跳过 Stylelint 配置 (未检测到 CSS 预处理器)")
+    }
+
+    files.push({
+        path: ".commitlintrc.cjs",
+        exists: fileExists(".commitlintrc.cjs"),
+        content: commitlintrcContent(),
+    })
+
+    files.push({
+        path: ".versionrc.js",
+        exists: fileExists(".versionrc.js"),
+        content: versionrcContent(),
+    })
+
+    files.push({
+        path: ".editorconfig",
+        exists: fileExists(".editorconfig"),
+        content: editorconfigContent(),
+    })
+
+    files.push({
+        path: ".gitattributes",
+        exists: fileExists(".gitattributes"),
+        content: gitattributesContent(),
+    })
+
+    // Show what will be created/overwritten
+    for (const f of files) {
+        if (f.exists) {
+            warn(`${label}覆盖 ${f.path}`)
+        } else {
+            success(`${label}创建 ${f.path}`)
+        }
+    }
+
+    // Husky hooks
+    const huskyDir = path.resolve(PROJECT_ROOT, ".husky")
+    const hasHusky = fs.existsSync(huskyDir)
+    if (!hasHusky) {
+        success(`${label}创建 .husky/ 目录`)
+    }
+
+    const hooks = [
+        { path: ".husky/commit-msg", content: huskyCommitMsg() },
+        { path: ".husky/pre-commit", content: huskyPreCommit() },
+    ]
+
+    for (const h of hooks) {
+        if (fileExists(h.path)) {
+            warn(`${label}覆盖 ${h.path}`)
+        } else {
+            success(`${label}创建 ${h.path}`)
+        }
+    }
+
+    if (dryRun) {
+        console.log("")
+        warn("Dry run 结束，未修改任何文件")
+        console.log("")
+        return
+    }
+
+    // Actually write files
+    for (const f of files) {
+        writeFile(f.path, f.content)
+    }
+
+    // Husky
+    if (!hasHusky) {
+        ensureDir(huskyDir)
+    }
+    for (const h of hooks) {
+        writeFile(h.path, h.content)
+        fs.chmodSync(path.resolve(PROJECT_ROOT, h.path), 0o755)
+    }
+
+    // package.json scripts + lint-staged
+    modifyPackageJson({
+        scripts: {
+            prepare: "husky install",
+            release: "standard-version",
+            cz: "czg",
+        },
+        "lint-staged": getLintStagedConfig(cssPreprocessor),
+    })
+    success("更新 package.json (scripts + lint-staged)")
+
+    // Check for missing peerDependencies
+    checkPeerDeps({ useFlatConfig, cssPreprocessor })
+
+    console.log("")
+    success("配置初始化完成！")
+    console.log("")
+    console.log("  下一步：")
+    console.log("  1. 确保已安装 peerDependencies：")
+    console.log("     pnpm add -D my-code-style")
+    if (useFlatConfig) {
+        console.log("  2. Flat Config 需要的额外依赖：")
+        console.log("     pnpm add -D typescript-eslint globals eslint-plugin-import-x @eslint/js")
+    }
+    console.log("  3. 初始化 husky：")
+    console.log("     pnpm prepare")
+    console.log("  4. 使用 czg 提交 commit：")
+    console.log("     pnpm cz")
+    console.log("")
+}
+
+function modifyPackageJson(updates) {
+    const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
+    let pkg = {}
+    if (fileExists("package.json")) {
+        pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"))
+    }
+
+    // Merge scripts
+    if (updates.scripts) {
+        pkg.scripts = { ...pkg.scripts, ...updates.scripts }
+    }
+
+    // Merge lint-staged
+    if (updates["lint-staged"]) {
+        pkg["lint-staged"] = { ...pkg["lint-staged"], ...updates["lint-staged"] }
+    }
+
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 4) + "\n", "utf8")
+}
+
+function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {}) {
+    const baseDeps = [
+        "eslint",
+        "prettier",
+        "@commitlint/cli",
+        "husky",
+        "lint-staged",
+        "czg",
+        "standard-version",
+    ]
+
+    const flatDeps = useFlatConfig
+        ? ["typescript-eslint", "globals", "eslint-plugin-import-x", "@eslint/js"]
+        : []
+
+    const cssDeps = cssPreprocessor === "scss"
+        ? ["stylelint", "postcss-scss"]
+        : cssPreprocessor === "less"
+            ? ["stylelint", "postcss-less"]
+            : []
+
+    const allPeerDeps = [...baseDeps, ...flatDeps, ...cssDeps]
+
+    const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
+    if (!fileExists("package.json")) return
+
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"))
+    const allDeps = {
+        ...(pkg.dependencies || {}),
+        ...(pkg.devDependencies || {}),
+    }
+
+    const missing = allPeerDeps.filter((dep) => !allDeps[dep])
+    if (missing.length > 0) {
+        console.log("")
+        warn("以下 peerDependencies 未安装，建议安装：")
+        warn(`pnpm add -D ${missing.join(" ")}`)
+    }
+}
+
+main()
