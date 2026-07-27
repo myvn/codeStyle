@@ -17,6 +17,7 @@
         "./eslint/flat/uniapp": "./src/eslint/flat/uniapp.mjs",
         "./prettier": "./src/prettier/index.cjs",
         "./stylelint": "./src/stylelint/index.cjs",
+        "./stylelint/less": "./src/stylelint/less.cjs",
         "./stylelint/less-override": "./src/stylelint/less-override.cjs",
         "./commitlint": "./src/commitlint/base.cjs",
         "./commitlint/scopes": "./src/commitlint/scopes.cjs",

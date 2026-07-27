@@ -160,9 +160,13 @@ function prettierignoreContent() {
     return readTemplate("src/prettierignore")
 }
 
-function stylelintrcContent() {
+function stylelintrcContent(cssPreprocessor) {
+    const importPath = cssPreprocessor === "less"
+        ? "my-code-style/stylelint/less"
+        : "my-code-style/stylelint"
+
     return `// Stylelint config — powered by my-code-style
-module.exports = require("my-code-style/stylelint")
+module.exports = require("${importPath}")
 `
 }
 
@@ -298,7 +302,7 @@ function main() {
         files.push({
             path: ".stylelintrc.cjs",
             exists: fileExists(".stylelintrc.cjs"),
-            content: stylelintrcContent(),
+            content: stylelintrcContent(cssPreprocessor),
         })
     } else {
         log("跳过 Stylelint 配置 (未检测到 CSS 预处理器)")
