@@ -34,7 +34,10 @@ function guessCurrentScope() {
         const output = execSync("git status --porcelain || true").toString().trim()
         const line = output.split("\n").find((r) => r.includes("M  src"))
         if (!line) return undefined
-        return line.replace(/\//g, "%%").match(/src%%((\w|-)*)/)?.[1]?.replace(/s$/, "")
+        return line
+            .replace(/\//g, "%%")
+            .match(/src%%((\w|-)*)/)?.[1]
+            ?.replace(/s$/, "")
     } catch {
         return undefined
     }

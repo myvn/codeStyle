@@ -11,11 +11,7 @@ import { prettierRules, commonRules } from "./_shared.mjs"
 export default [
     // Ignore patterns
     {
-        ignores: [
-            "**/node_modules/**",
-            "**/dist/**",
-            "**/coverage/**",
-        ],
+        ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
     },
 
     // TypeScript recommended rules

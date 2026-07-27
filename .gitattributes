@@ -1,0 +1,19 @@
+* text eol=lf
+
+# Binary files — do not apply EOL conversion
+*.aar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.bmp binary
+*.dex binary
+*.DS_Store binary
+*.jar binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.apk binary
+*.plist binary

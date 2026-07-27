@@ -24,7 +24,11 @@ module.exports = {
         "prettier/prettier": ["error", { singleQuote: false, tabWidth: 4 }],
         // Import 相关
         "import/no-unresolved": "off",
-        "import/extensions": ["error", "ignorePackages", { js: "never", jsx: "never", ts: "never", tsx: "never" }],
+        "import/extensions": [
+            "error",
+            "ignorePackages",
+            { js: "never", jsx: "never", ts: "never", tsx: "never" },
+        ],
         "import/prefer-default-export": ["off"],
         "import/no-extraneous-dependencies": "off",
         // TypeScript

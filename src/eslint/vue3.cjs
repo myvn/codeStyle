@@ -3,10 +3,7 @@ const base = require("./base.cjs")
 
 module.exports = {
     ...base,
-    extends: [
-        ...base.extends,
-        "plugin:vue/vue3-essential",
-    ],
+    extends: [...base.extends, "plugin:vue/vue3-essential"],
     plugins: [...base.plugins, "vue"],
     overrides: [
         {
