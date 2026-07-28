@@ -36,6 +36,9 @@ export const commonRules = {
     "prefer-promise-reject-errors": "off",
     // Quotes
     quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }],
+    // Standard JS uses @stylistic style/quotes — disable to avoid conflict
+    "style/quotes": "off",
+    "style/semi": "off",
 }
 
 /**

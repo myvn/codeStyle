@@ -47,6 +47,9 @@ module.exports = {
         "prefer-promise-reject-errors": "off",
         // 引号规则
         quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }],
+        // Standard JS 使用 @stylistic 插件带来 style/quotes，关闭以免冲突
+        "style/quotes": "off",
+        "style/semi": "off",
     },
     settings: {
         "import/parsers": { "@typescript-eslint/parser": [".ts", ".tsx"] },
