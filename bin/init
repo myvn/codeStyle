@@ -405,10 +405,14 @@ function main() {
     if (useFlatConfig) {
         console.log("  2. Flat Config 需要的额外依赖：")
         console.log("     pnpm add -D typescript-eslint globals eslint-plugin-import-x @eslint/js")
+        console.log("  3. 初始化 husky：")
+        console.log("     pnpm prepare")
+        console.log("  4. 使用 czg 提交 commit：")
+    } else {
+        console.log("  2. 初始化 husky：")
+        console.log("     pnpm prepare")
+        console.log("  3. 使用 czg 提交 commit：")
     }
-    console.log("  3. 初始化 husky：")
-    console.log("     pnpm prepare")
-    console.log("  4. 使用 czg 提交 commit：")
     console.log("     pnpm cz")
     console.log("")
 }
