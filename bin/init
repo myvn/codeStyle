@@ -473,7 +473,14 @@ function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {})
     if (missing.length > 0) {
         console.log("")
         warn(`以下依赖未安装：${missing.join(", ")}`)
-        warn(`一键安装：pnpm add -D my-code-style ${missing.join(" ")}`)
+        console.log("")
+        warn("一键安装命令：")
+        console.log(`  pnpm add -D my-code-style \\`)
+        missing.forEach((dep, i) => {
+            const prefix = i === 0 ? "  " : "  "
+            const suffix = i < missing.length - 1 ? " \\" : ""
+            console.log(`${prefix}${dep}${suffix}`)
+        })
     }
 }
 
