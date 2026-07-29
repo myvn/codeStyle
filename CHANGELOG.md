@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-07-29
+
+### Breaking Changes
+
+- **最低 ESLint 升到 9**：`eslint >= 9.0.0`（原 `>=8.0.0`）
+- **最低 @typescript-eslint 升到 8**：`>=8.0.0`（原 `>=6.0.0`）
+- **eslint-config-prettier 安全版本**：`>=10.1.8`（修复 CVE-2025-54313 投毒）
+- **eslint-plugin-vue 升到 10**：`>=10.0.0`（支持 Flat Config）
+- **husky 升到 9**：`>=9.0.0`（原 `>=8.0.0`）
+- **commitlint 升到 19**：`>=19.0.0`
+
+### Fixes
+
+- **peerDependencies 版本对齐**：统一升级到主流最新版本要求
+- **stylelint-config-recommended**：`>=16.0.0`（原 `>=14.0.0`）
+- **stylelint-config-recess-order**：`>=5.0.0`（原 `>=4.0.0`）
+- **globals**：`>=16.0.0`（原 `>=15.0.0`）
+- **lint-staged**：`>=16.0.0`（原 `>=15.0.0`）
+- **eslint-plugin-import-x**：`>=4.0.0`（原 `>=3.0.0`）
+
 ## [1.0.2] - 2026-07-29
 
 ### Fixes
