@@ -472,8 +472,8 @@ function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {})
     const missing = allPeerDeps.filter((dep) => !allDeps[dep])
     if (missing.length > 0) {
         console.log("")
-        warn("以下 peerDependencies 未安装，建议安装：")
-        warn(`pnpm add -D ${missing.join(" ")}`)
+        warn(`以下依赖未安装：${missing.join(", ")}`)
+        warn(`一键安装：pnpm add -D my-code-style ${missing.join(" ")}`)
     }
 }
 
