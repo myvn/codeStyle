@@ -101,30 +101,32 @@ base.mjs (tseslint + import-x + prettier)
 
 | 工具 | 版本要求 | 用途 |
 |------|---------|------|
-| ESLint | >= 8.0 | JS/TS 代码规范检查 |
-| @typescript-eslint/parser | >= 6.0 | TypeScript AST 解析 |
-| @typescript-eslint/eslint-plugin | >= 6.0 | TypeScript 规则集 |
+| ESLint | >= 9.0 | JS/TS 代码规范检查 |
+| @typescript-eslint/parser | >= 8.0 | TypeScript AST 解析 |
+| @typescript-eslint/eslint-plugin | >= 8.0 | TypeScript 规则集 |
 | typescript-eslint | >= 8.0 | Flat Config 专用，提供 `tseslint.configs.recommended` |
 | @eslint/js | >= 9.0 | Flat Config 专用，提供 `js.configs.recommended` |
-| eslint-plugin-vue | >= 9.0 | Vue SFC 模板检查 |
-| eslint-plugin-prettier | >= 5.0 | ESLint 内运行 Prettier |
-| eslint-config-prettier | >= 9.0 | 关闭与 Prettier 冲突的规则 |
+| eslint-plugin-vue | >= 10.0 | Vue SFC 模板检查 |
+| eslint-plugin-prettier | >= 5.2 | ESLint 内运行 Prettier |
+| eslint-config-prettier | >= 10.1.8 | 关闭与 Prettier 冲突的规则（修复 CVE-2025-54313） |
 | eslint-plugin-import | >= 2.0 | 模块导入路径检查（v8 格式） |
-| eslint-plugin-import-x | >= 3.0 | 模块导入路径检查（Flat Config 专用 fork） |
+| eslint-plugin-import-x | >= 4.0 | 模块导入路径检查（Flat Config 专用 fork） |
 | eslint-import-resolver-typescript | >= 3.0 | TS path alias 解析 |
+| globals | >= 16.0 | Flat Config 环境声明（`globals.browser` 等） |
 | Prettier | >= 3.0 | 代码格式化 |
 | Stylelint | >= 16.0 | CSS/SCSS/Less 规范检查 |
-| stylelint-config-recommended-scss | >= 14.0 | SCSS 推荐规则 |
-| stylelint-config-recommended-vue | >= 1.0 | Vue SFC `<style>` 检查 |
+| stylelint-config-recommended | >= 16.0 | 基础推荐规则 |
+| stylelint-config-recommended-scss | >= 16.0 | SCSS 推荐规则 |
+| stylelint-config-recommended-vue | >= 2.0 | Vue SFC `<style>` 检查 |
 | stylelint-config-html | >= 1.0 | HTML/Vue 模板解析 |
-| stylelint-config-recess-order | >= 4.0 | CSS 属性排序 |
+| stylelint-config-recess-order | >= 5.0 | CSS 属性排序 |
 | stylelint-prettier | >= 5.0 | Stylelint 内运行 Prettier |
 | postcss-html | >= 1.0 | 解析 Vue `<style>` 块 |
 | postcss-scss | >= 4.0 | 解析 SCSS 语法 |
 | postcss-less | >= 6.0 | 解析 Less 语法 |
-| Commitlint | >= 18.0 | Git commit message 校验 |
-| Husky | >= 8.0 | Git hooks 管理 |
-| lint-staged | >= 15.0 | 暂存文件过滤检查 |
+| Commitlint | >= 19.0 | Git commit message 校验 |
+| Husky | >= 9.0 | Git hooks 管理 |
+| lint-staged | >= 16.0 | 暂存文件过滤检查 |
 | czg | >= 1.0 | 交互式 commit 提示 |
 | standard-version | >= 9.0 | 自动版本号 + CHANGELOG |
 
