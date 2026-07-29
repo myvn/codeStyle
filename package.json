@@ -1,11 +1,11 @@
 {
     "name": "my-code-style",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "description": "Lint/Format/Git 配置工程化 npm 包（ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version）",
     "type": "commonjs",
     "main": "src/eslint/uniapp.cjs",
     "bin": {
-        "my-code-style-init": "./bin/init.cjs"
+        "my-code-style-init": "./bin/init"
     },
     "exports": {
         ".": "./src/eslint/uniapp.cjs",

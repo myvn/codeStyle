@@ -1,2 +1,5 @@
 node_modules/
 *.log.idea/
+.idea/
+pnpm-lock.yaml
+.DS_Store
