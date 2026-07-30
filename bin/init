@@ -467,6 +467,10 @@ function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {})
 
     const allPeerDeps = [...baseDeps, ...flatDeps, ...cssDeps]
 
+    // Read peer dependency versions from my-code-style package.json
+    const packagePkg = JSON.parse(fs.readFileSync(path.resolve(PACKAGE_DIR, "package.json"), "utf8"))
+    const peerDeps = packagePkg.peerDependencies || {}
+
     const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
     if (!fileExists("package.json")) return
 
@@ -484,9 +488,10 @@ function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {})
         warn("一键安装命令：")
         console.log(`  pnpm add -D my-code-style \\`)
         missing.forEach((dep, i) => {
-            const prefix = i === 0 ? "  " : "  "
+            const version = peerDeps[dep] || ""
+            const depWithVersion = version ? `${dep}@${version}` : dep
             const suffix = i < missing.length - 1 ? " \\" : ""
-            console.log(`${prefix}${dep}${suffix}`)
+            console.log(`  ${depWithVersion}${suffix}`)
         })
     }
 }
