@@ -242,6 +242,13 @@ function getLintStagedConfig(cssPreprocessor) {
 // --- Main ---
 
 function main() {
+    // Handle --version / -v
+    if (process.argv.includes("--version") || process.argv.includes("-v")) {
+        const pkg = require("../package.json")
+        console.log(pkg.version)
+        return
+    }
+
     const dryRun = process.argv.includes("--dry-run")
     const label = dryRun ? "[DRY RUN] " : ""
 
