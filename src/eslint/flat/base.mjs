@@ -43,7 +43,7 @@ export default [
     // eslint-config-prettier MUST be last — disables conflicting ESLint rules
     eslintConfigPrettier,
 
-    // Global language options + shared rules
+    // Global language options for JS/TS
     {
         files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
         languageOptions: {
@@ -60,6 +60,11 @@ export default [
                 sourceType: "module",
             },
         },
+    },
+
+    // Shared rules for all JS, TS and Vue files
+    {
+        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue}"],
         rules: {
             ...prettierRules,
             ...commonRules,

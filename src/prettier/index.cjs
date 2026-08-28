@@ -10,8 +10,17 @@ module.exports = {
     htmlWhitespaceSensitivity: "ignore",
     overrides: [
         {
-            files: "*.json",
-            options: { trailingComma: "none" },
+            files: ["*.json", "*.json5"],
+            options: {
+                tabWidth: 2,
+                trailingComma: "none",
+            },
+        },
+        {
+            files: ["*.yml", "*.yaml"],
+            options: {
+                tabWidth: 2,
+            },
         },
         {
             files: "*.nvue",
@@ -19,3 +28,4 @@ module.exports = {
         },
     ],
 }
+

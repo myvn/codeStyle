@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
 - eslint-plugin-vue >= 10.0.0、husky >= 9.0.0、commitlint >= 19.0.0
 - stylelint-config-recommended >= 16.0.0、lint-staged >= 16.0.0
 
+### Fixes
+
+- `eslint-config-standard` 移入 peerDependenciesMeta optional（仅支持 ESLint 8）
+
 ## [1.0.2] - 2026-07-29
 
 ### Fixes

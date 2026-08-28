@@ -3,7 +3,13 @@ const base = require("./base.cjs")
 
 module.exports = {
     ...base,
+    parser: "vue-eslint-parser",
     extends: [...base.extends, "plugin:vue/vue3-essential"],
+    parserOptions: {
+        ...base.parserOptions,
+        parser: "@typescript-eslint/parser",
+        extraFileExtensions: [".vue"],
+    },
     plugins: [...base.plugins, "vue"],
     overrides: [
         {
@@ -19,5 +25,11 @@ module.exports = {
         "vue/multi-word-component-names": "off",
         "@typescript-eslint/no-explicit-any": "off",
         "vue/no-mutating-props": ["error", { shallowOnly: true }],
+        "vue/html-indent": ["error", 4],
+        "vue/script-indent": "off",
+        "vue/html-self-closing": "off",
+        "vue/max-attributes-per-line": "off",
+        "vue/singleline-html-element-content-newline": "off",
     },
 }
+

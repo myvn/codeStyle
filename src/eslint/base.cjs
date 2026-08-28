@@ -5,23 +5,40 @@ module.exports = {
         es2021: true,
         node: true,
     },
+    parser: "@typescript-eslint/parser",
     extends: [
         "eslint:recommended",
         "plugin:@typescript-eslint/recommended",
         "plugin:import/recommended",
-        "standard",
         "prettier",
         "plugin:prettier/recommended",
     ],
     parserOptions: {
         ecmaVersion: "latest",
-        parser: "@typescript-eslint/parser",
         sourceType: "module",
     },
     plugins: ["@typescript-eslint", "prettier", "import"],
     rules: {
         // Prettier 集成
-        "prettier/prettier": ["error", { singleQuote: false, tabWidth: 4 }],
+        "prettier/prettier": [
+            "error",
+            {
+                singleQuote: false,
+                tabWidth: 4,
+                semi: false,
+                trailingComma: "all",
+                endOfLine: "lf",
+            },
+        ],
+        // 格式化与风格
+        indent: ["error", 4],
+        semi: ["error", "never"],
+        quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }],
+        curly: ["error", "all"],
+        "comma-dangle": ["error", "always-multiline"],
+        "object-curly-spacing": ["error", "always"],
+        "array-bracket-spacing": ["error", "never"],
+
         // Import 相关
         "import/no-unresolved": "off",
         "import/extensions": [
@@ -29,12 +46,16 @@ module.exports = {
             "ignorePackages",
             { js: "never", jsx: "never", ts: "never", tsx: "never" },
         ],
-        "import/prefer-default-export": ["off"],
+        "import/prefer-default-export": "off",
         "import/no-extraneous-dependencies": "off",
+
         // TypeScript
         "@typescript-eslint/no-redeclare": "error",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+
         // 常用关闭
-        "no-console": ["off"],
+        "no-console": "off",
         "no-plusplus": "off",
         "no-shadow": "off",
         "no-underscore-dangle": "off",
@@ -42,12 +63,10 @@ module.exports = {
         "no-undef": "off",
         "no-unused-vars": "off",
         "no-param-reassign": "off",
-        "@typescript-eslint/no-unused-vars": "off",
         "no-redeclare": "off",
         "prefer-promise-reject-errors": "off",
-        // 引号规则
-        quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }],
-        // Standard JS 使用 @stylistic 插件带来 style/quotes，关闭以免冲突
+
+        // Standard JS 风格规则已通过手动配置实现，不再依赖 eslint-config-standard
         "style/quotes": "off",
         "style/semi": "off",
     },
@@ -56,3 +75,4 @@ module.exports = {
         "import/resolver": { typescript: {} },
     },
 }
+

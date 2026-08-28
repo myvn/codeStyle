@@ -54,7 +54,11 @@ function readTemplate(relativePath) {
 function getProjectPkg() {
     const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
     if (!fs.existsSync(pkgPath)) return null
-    return JSON.parse(fs.readFileSync(pkgPath, "utf8"))
+    try {
+        return JSON.parse(fs.readFileSync(pkgPath, "utf8"))
+    } catch {
+        return null
+    }
 }
 
 function getDependencyVersion(pkg, depName) {
@@ -98,8 +102,11 @@ function detectCssPreprocessor() {
     // Fallback: check for existing stylelint config
     if (fileExists(".stylelintrc.cjs") || fileExists(".stylelintrc.js")) {
         try {
+            const stylelintFile = fileExists(".stylelintrc.cjs")
+                ? ".stylelintrc.cjs"
+                : ".stylelintrc.js"
             const content = fs.readFileSync(
-                path.resolve(PROJECT_ROOT, ".stylelintrc.cjs"),
+                path.resolve(PROJECT_ROOT, stylelintFile),
                 "utf8"
             )
             if (content.includes("postcss-less")) return "less"
@@ -141,12 +148,15 @@ function eslintFlatConfigContent(isUniApp) {
     const importPath = isUniApp
         ? "my-code-style/eslint/flat/uniapp"
         : "my-code-style/eslint/flat/vue3"
+    const varName = isUniApp ? "uniappConfig" : "vue3Config"
 
     return `// ESLint Flat Config — powered by my-code-style
 // https://www.npmjs.com/package/my-code-style
-import uniappConfig from "${importPath}"
+import ${varName} from "${importPath}"
 
-export default uniappConfig
+export default [
+    ...${varName},
+]
 `
 }
 
@@ -280,8 +290,8 @@ function main() {
 
     if (useFlatConfig) {
         files.push({
-            path: "eslint.config.ts",
-            exists: fileExists("eslint.config.ts") || fileExists("eslint.config.js") || fileExists("eslint.config.mjs"),
+            path: "eslint.config.mjs",
+            exists: fileExists("eslint.config.mjs") || fileExists("eslint.config.js") || fileExists("eslint.config.ts"),
             content: eslintFlatConfigContent(uniApp),
         })
     } else {
@@ -392,7 +402,7 @@ function main() {
     // package.json scripts + lint-staged
     modifyPackageJson({
         scripts: {
-            prepare: "husky install",
+            prepare: "husky",
             release: "standard-version",
             cz: "czg",
         },
@@ -448,6 +458,7 @@ function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {})
     const baseDeps = [
         "eslint",
         "prettier",
+        "eslint-plugin-vue",
         "@commitlint/cli",
         "husky",
         "lint-staged",
@@ -456,13 +467,13 @@ function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {})
     ]
 
     const flatDeps = useFlatConfig
-        ? ["typescript-eslint", "globals", "eslint-plugin-import-x", "@eslint/js"]
-        : []
+        ? ["typescript-eslint", "vue-eslint-parser", "globals", "eslint-plugin-import-x", "@eslint/js", "eslint-plugin-prettier", "eslint-config-prettier"]
+        : ["@typescript-eslint/parser", "@typescript-eslint/eslint-plugin", "eslint-plugin-prettier", "eslint-config-prettier"]
 
     const cssDeps = cssPreprocessor === "scss"
-        ? ["stylelint", "postcss-scss"]
+        ? ["stylelint", "postcss-scss", "postcss-html"]
         : cssPreprocessor === "less"
-            ? ["stylelint", "postcss-less"]
+            ? ["stylelint", "postcss-less", "postcss-html"]
             : []
 
     const allPeerDeps = [...baseDeps, ...flatDeps, ...cssDeps]
