@@ -4,6 +4,11 @@ Lint/Format/Git 配置工程化 npm 包。适用于 Vue 3 + TypeScript + uni-app
 
 支持 ESLint v8 (.eslintrc.cjs) 和 ESLint v9 (Flat Config) 双格式，支持 SCSS 和 Less 样式检查。
 
+## 项目文档
+
+- [HTML 项目技术全景](docs/project-overview.html)：下载或克隆仓库后，用浏览器直接打开，查看项目结构、配置架构、接入流程与维护注意事项；支持离线阅读和打印。
+- [Markdown 技术文档](TECHNICAL_DOC.md)
+
 ## 快速开始
 
 ```bash
