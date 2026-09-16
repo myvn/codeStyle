@@ -20,8 +20,8 @@ export const prettierRules = {
  * Common rules shared across all flat config levels — mirrors base.cjs rules
  */
 export const commonRules = {
-    // 缩进与换行
-    indent: ["error", 4],
+    // 缩进由 Prettier 统一负责，关闭 ESLint 缩进避免打架
+    indent: "off",
     semi: ["error", "never"],
     quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }],
     curly: ["error", "all"],
@@ -31,11 +31,7 @@ export const commonRules = {
 
     // Import rules (using import-x for flat config compatibility)
     "import-x/no-unresolved": "off",
-    "import-x/extensions": [
-        "error",
-        "ignorePackages",
-        { js: "never", jsx: "never", ts: "never", tsx: "never" },
-    ],
+    "import-x/extensions": "off",
     "import-x/prefer-default-export": "off",
     "import-x/no-extraneous-dependencies": "off",
 
@@ -43,6 +39,9 @@ export const commonRules = {
     "@typescript-eslint/no-redeclare": "error",
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-unused-expressions": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/no-empty-object-type": "off",
 
     // Commonly disabled
     "no-console": "off",
@@ -52,6 +51,7 @@ export const commonRules = {
     "no-use-before-define": "off",
     "no-undef": "off",
     "no-unused-vars": "off",
+    "no-unused-expressions": "off",
     "no-param-reassign": "off",
     "no-redeclare": "off",
     "prefer-promise-reject-errors": "off",
@@ -76,4 +76,3 @@ export const uniappGlobals = {
     App: true,
     NodeJS: true,
 }
-

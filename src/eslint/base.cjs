@@ -31,7 +31,7 @@ module.exports = {
             },
         ],
         // 格式化与风格
-        indent: ["error", 4],
+        indent: "off",
         semi: ["error", "never"],
         quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }],
         curly: ["error", "all"],
@@ -53,6 +53,9 @@ module.exports = {
         "@typescript-eslint/no-redeclare": "error",
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-unused-vars": "off",
+        "@typescript-eslint/no-unused-expressions": "off",
+        "@typescript-eslint/ban-ts-comment": "off",
+        "@typescript-eslint/no-empty-object-type": "off",
 
         // 常用关闭
         "no-console": "off",
@@ -62,6 +65,7 @@ module.exports = {
         "no-use-before-define": "off",
         "no-undef": "off",
         "no-unused-vars": "off",
+        "no-unused-expressions": "off",
         "no-param-reassign": "off",
         "no-redeclare": "off",
         "prefer-promise-reject-errors": "off",
@@ -75,4 +79,3 @@ module.exports = {
         "import/resolver": { typescript: {} },
     },
 }
-

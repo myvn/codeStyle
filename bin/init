@@ -62,9 +62,12 @@ function getProjectPkg() {
 }
 
 function getDependencyVersion(pkg, depName) {
-    return (pkg.dependencies && pkg.dependencies[depName])
-        || (pkg.devDependencies && pkg.devDependencies[depName])
-        || null
+    return (
+        (pkg.dependencies && pkg.dependencies[depName]) ||
+        (pkg.devDependencies && pkg.devDependencies[depName]) ||
+        (pkg.peerDependencies && pkg.peerDependencies[depName]) ||
+        null
+    )
 }
 
 // --- Detection helpers ---
@@ -84,20 +87,60 @@ function detectEslintVersion() {
 }
 
 /**
+ * Detect if project is a uni-app project
+ */
+function isUniAppProject() {
+    const pkg = getProjectPkg()
+    if (!pkg) return false
+    const allDeps = {
+        ...(pkg.dependencies || {}),
+        ...(pkg.devDependencies || {}),
+        ...(pkg.peerDependencies || {}),
+    }
+    return !!(allDeps["@dcloudio/uni-app"] || allDeps["uni-app"])
+}
+
+/**
+ * Detect if project is a Vue project
+ */
+function isVueProject() {
+    const pkg = getProjectPkg()
+    if (!pkg) return false
+    const allDeps = {
+        ...(pkg.dependencies || {}),
+        ...(pkg.devDependencies || {}),
+        ...(pkg.peerDependencies || {}),
+    }
+    return !!(allDeps["vue"] || allDeps["@dcloudio/uni-app"] || allDeps["uni-app"])
+}
+
+/**
+ * Detect project type: "uniapp", "vue", or "base"
+ */
+function detectProjectType() {
+    if (isUniAppProject()) return "uniapp"
+    if (isVueProject()) return "vue"
+    return "base"
+}
+
+/**
  * Detect CSS preprocessor in use
  * Returns "scss", "less", or "none"
  */
 function detectCssPreprocessor() {
     const pkg = getProjectPkg()
     if (!pkg) return "scss"
-    const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) }
+    const allDeps = {
+        ...(pkg.dependencies || {}),
+        ...(pkg.devDependencies || {}),
+        ...(pkg.peerDependencies || {}),
+    }
 
     const hasSass = allDeps["sass"] || allDeps["node-sass"] || allDeps["sass-loader"]
     const hasLess = allDeps["less"] || allDeps["less-loader"]
 
     if (hasLess && !hasSass) return "less"
     if (hasSass) return "scss"
-    if (hasLess) return "less"
 
     // Fallback: check for existing stylelint config
     if (fileExists(".stylelintrc.cjs") || fileExists(".stylelintrc.js")) {
@@ -105,33 +148,29 @@ function detectCssPreprocessor() {
             const stylelintFile = fileExists(".stylelintrc.cjs")
                 ? ".stylelintrc.cjs"
                 : ".stylelintrc.js"
-            const content = fs.readFileSync(
-                path.resolve(PROJECT_ROOT, stylelintFile),
-                "utf8"
-            )
+            const content = fs.readFileSync(path.resolve(PROJECT_ROOT, stylelintFile), "utf8")
             if (content.includes("postcss-less")) return "less"
         } catch {}
+        return "scss"
     }
 
-    return "scss" // default
-}
+    // If not a Vue/uni-app project and no css preprocessor found, skip stylelint
+    if (!isVueProject()) {
+        return "none"
+    }
 
-/**
- * Detect if project is a uni-app project
- */
-function isUniAppProject() {
-    const pkg = getProjectPkg()
-    if (!pkg) return false
-    const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) }
-    return !!(allDeps["@dcloudio/uni-app"] || allDeps["uni-app"])
+    return "scss" // default for Vue/uni-app projects
 }
 
 // --- Config templates ---
 
-function eslintrcContent(isUniApp) {
-    const importPath = isUniApp
-        ? "my-code-style/eslint/uniapp"
-        : "my-code-style/eslint/vue3"
+function eslintrcContent(projectType) {
+    let importPath = "my-code-style/eslint"
+    if (projectType === "uniapp") {
+        importPath = "my-code-style/eslint/uniapp"
+    } else if (projectType === "vue") {
+        importPath = "my-code-style/eslint/vue3"
+    }
 
     return `// ESLint config — powered by my-code-style
 // https://www.npmjs.com/package/my-code-style
@@ -144,19 +183,22 @@ module.exports = config
 `
 }
 
-function eslintFlatConfigContent(isUniApp) {
-    const importPath = isUniApp
-        ? "my-code-style/eslint/flat/uniapp"
-        : "my-code-style/eslint/flat/vue3"
-    const varName = isUniApp ? "uniappConfig" : "vue3Config"
+function eslintFlatConfigContent(projectType) {
+    let importPath = "my-code-style/eslint/flat"
+    let varName = "baseConfig"
+    if (projectType === "uniapp") {
+        importPath = "my-code-style/eslint/flat/uniapp"
+        varName = "uniappConfig"
+    } else if (projectType === "vue") {
+        importPath = "my-code-style/eslint/flat/vue3"
+        varName = "vue3Config"
+    }
 
     return `// ESLint Flat Config — powered by my-code-style
 // https://www.npmjs.com/package/my-code-style
 import ${varName} from "${importPath}"
 
-export default [
-    ...${varName},
-]
+export default [...${varName}]
 `
 }
 
@@ -171,9 +213,8 @@ function prettierignoreContent() {
 }
 
 function stylelintrcContent(cssPreprocessor) {
-    const importPath = cssPreprocessor === "less"
-        ? "my-code-style/stylelint/less"
-        : "my-code-style/stylelint"
+    const importPath =
+        cssPreprocessor === "less" ? "my-code-style/stylelint/less" : "my-code-style/stylelint"
 
     return `// Stylelint config — powered by my-code-style
 module.exports = require("${importPath}")
@@ -209,19 +250,11 @@ module.exports = require("my-code-style/versionrc")
 }
 
 function huskyCommitMsg() {
-    return `#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx --no-install commitlint --edit
-`
+    return `npx --no-install commitlint --edit "\${1}"\n`
 }
 
 function huskyPreCommit() {
-    return `#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx --no-install -- lint-staged
-`
+    return `npx --no-install -- lint-staged\n`
 }
 
 function editorconfigContent() {
@@ -232,21 +265,26 @@ function gitattributesContent() {
     return readTemplate("src/gitattributes")
 }
 
+function gitignoreContent() {
+    return readTemplate("src/gitignore")
+}
+
 /**
  * Generate the lint-staged config based on detected CSS preprocessor
  */
 function getLintStagedConfig(cssPreprocessor) {
-    const styleFiles = cssPreprocessor === "less"
-        ? "**/*.{vue,css,less,html}"
-        : cssPreprocessor === "none"
-            ? "**/*.{vue,html}"
-            : "**/*.{vue,css,scss,html}"
-
-    return {
-        "**/*.{html,vue,ts,cjs,json,md}": ["prettier --write"],
-        "**/*.{vue,js,ts,jsx,tsx}": ["eslint --cache --fix"],
-        [styleFiles]: ["stylelint --fix"],
+    const config = {
+        "**/*.{html,vue,ts,js,cjs,mjs,json,md}": ["prettier --write"],
+        "**/*.{vue,js,ts,jsx,tsx,cjs,mjs}": ["eslint --cache --fix"],
     }
+
+    if (cssPreprocessor !== "none") {
+        const styleFiles =
+            cssPreprocessor === "less" ? "**/*.{vue,css,less,html}" : "**/*.{vue,css,scss,html}"
+        config[styleFiles] = ["stylelint --fix"]
+    }
+
+    return config
 }
 
 // --- Main ---
@@ -274,15 +312,32 @@ function main() {
     // --- Detection phase ---
     const eslintVersion = detectEslintVersion()
     const cssPreprocessor = detectCssPreprocessor()
-    const uniApp = isUniAppProject()
+    const projectType = detectProjectType()
 
     // Determine ESLint format
-    const useFlatConfig = eslintVersion === 9
+    const hasLegacyConfigFile =
+        fileExists(".eslintrc.js") ||
+        fileExists(".eslintrc.cjs") ||
+        fileExists(".eslintrc.json") ||
+        fileExists(".eslintrc.yaml") ||
+        fileExists(".eslintrc.yml") ||
+        fileExists(".eslintrc")
+
+    const hasFlatConfigFile =
+        fileExists("eslint.config.mjs") ||
+        fileExists("eslint.config.js") ||
+        fileExists("eslint.config.ts") ||
+        fileExists("eslint.config.cjs")
+
+    // Default to Flat Config (ESLint 9+), unless ESLint 8 is installed or existing legacy config is present without flat config
+    const useFlatConfig = !(eslintVersion === 8 || (!hasFlatConfigFile && hasLegacyConfigFile))
     const eslintFormat = useFlatConfig ? "flat" : "eslintrc"
 
-    log(`检测到 ESLint 版本: ${eslintVersion || "未知"} → 使用 ${eslintFormat} 格式`)
+    log(`检测到 ESLint 版本: ${eslintVersion || "默认最新 (9+)"} → 使用 ${eslintFormat} 格式`)
+    log(
+        `检测到项目类型: ${projectType === "uniapp" ? "uni-app" : projectType === "vue" ? "Vue" : "Node/TS 基础"}`,
+    )
     log(`检测到 CSS 预处理器: ${cssPreprocessor}`)
-    if (uniApp) log(`检测到 uni-app 项目`)
     console.log("")
 
     // --- Build file list based on detection ---
@@ -291,14 +346,18 @@ function main() {
     if (useFlatConfig) {
         files.push({
             path: "eslint.config.mjs",
-            exists: fileExists("eslint.config.mjs") || fileExists("eslint.config.js") || fileExists("eslint.config.ts"),
-            content: eslintFlatConfigContent(uniApp),
+            exists:
+                fileExists("eslint.config.mjs") ||
+                fileExists("eslint.config.js") ||
+                fileExists("eslint.config.ts") ||
+                fileExists("eslint.config.cjs"),
+            content: eslintFlatConfigContent(projectType),
         })
     } else {
         files.push({
             path: ".eslintrc.cjs",
             exists: fileExists(".eslintrc.cjs"),
-            content: eslintrcContent(uniApp),
+            content: eslintrcContent(projectType),
         })
     }
 
@@ -348,6 +407,14 @@ function main() {
         exists: fileExists(".gitattributes"),
         content: gitattributesContent(),
     })
+
+    if (!fileExists(".gitignore")) {
+        files.push({
+            path: ".gitignore",
+            exists: false,
+            content: gitignoreContent(),
+        })
+    }
 
     // Show what will be created/overwritten
     for (const f of files) {
@@ -402,6 +469,9 @@ function main() {
     // package.json scripts + lint-staged
     modifyPackageJson({
         scripts: {
+            lint: "eslint .",
+            "lint:fix": "eslint . --fix",
+            format: "prettier --write .",
             prepare: "husky",
             release: "standard-version",
             cz: "czg",
@@ -411,7 +481,7 @@ function main() {
     success("更新 package.json (scripts + lint-staged)")
 
     // Check for missing peerDependencies
-    checkPeerDeps({ useFlatConfig, cssPreprocessor })
+    checkPeerDeps({ useFlatConfig, cssPreprocessor, projectType })
 
     console.log("")
     success("配置初始化完成！")
@@ -441,25 +511,38 @@ function modifyPackageJson(updates) {
         pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"))
     }
 
-    // Merge scripts
+    // Merge scripts: updates won't overwrite existing scripts with the same key
     if (updates.scripts) {
-        pkg.scripts = { ...pkg.scripts, ...updates.scripts }
+        pkg.scripts = { ...updates.scripts, ...(pkg.scripts || {}) }
     }
 
-    // Merge lint-staged
+    // Set lint-staged (replace existing lint-staged to avoid stale/duplicate patterns)
     if (updates["lint-staged"]) {
-        pkg["lint-staged"] = { ...pkg["lint-staged"], ...updates["lint-staged"] }
+        pkg["lint-staged"] = updates["lint-staged"]
     }
 
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 4) + "\n", "utf8")
 }
 
-function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {}) {
+function checkPeerDeps({
+    useFlatConfig = false,
+    cssPreprocessor = "scss",
+    projectType = "base",
+} = {}) {
+    const pkg = getProjectPkg()
+    if (!pkg) return
+
+    // If running within the package itself, skip external missing deps check
+    if (pkg.name === "my-code-style") {
+        return
+    }
+
     const baseDeps = [
         "eslint",
         "prettier",
-        "eslint-plugin-vue",
+        ...(projectType !== "base" ? ["eslint-plugin-vue"] : []),
         "@commitlint/cli",
+        "@commitlint/config-conventional",
         "husky",
         "lint-staged",
         "czg",
@@ -467,25 +550,59 @@ function checkPeerDeps({ useFlatConfig = false, cssPreprocessor = "scss" } = {})
     ]
 
     const flatDeps = useFlatConfig
-        ? ["typescript-eslint", "vue-eslint-parser", "globals", "eslint-plugin-import-x", "@eslint/js", "eslint-plugin-prettier", "eslint-config-prettier"]
-        : ["@typescript-eslint/parser", "@typescript-eslint/eslint-plugin", "eslint-plugin-prettier", "eslint-config-prettier"]
+        ? [
+              "typescript-eslint",
+              "eslint-import-resolver-typescript",
+              ...(projectType !== "base" ? ["vue-eslint-parser"] : []),
+              "globals",
+              "eslint-plugin-import-x",
+              "@eslint/js",
+              "eslint-plugin-prettier",
+              "eslint-config-prettier",
+          ]
+        : [
+              "@typescript-eslint/parser",
+              "@typescript-eslint/eslint-plugin",
+              ...(projectType !== "base" ? ["vue-eslint-parser"] : []),
+              "eslint-plugin-import",
+              "eslint-import-resolver-typescript",
+              "eslint-plugin-prettier",
+              "eslint-config-prettier",
+          ]
 
-    const cssDeps = cssPreprocessor === "scss"
-        ? ["stylelint", "postcss-scss", "postcss-html"]
-        : cssPreprocessor === "less"
-            ? ["stylelint", "postcss-less", "postcss-html"]
-            : []
+    const cssDeps =
+        cssPreprocessor === "scss"
+            ? [
+                  "stylelint",
+                  "postcss-scss",
+                  "postcss-html",
+                  "stylelint-config-recommended",
+                  "stylelint-config-recommended-scss",
+                  "stylelint-config-recommended-vue",
+                  "stylelint-config-html",
+                  "stylelint-config-recess-order",
+                  "stylelint-prettier",
+              ]
+            : cssPreprocessor === "less"
+              ? [
+                    "stylelint",
+                    "postcss-less",
+                    "postcss-html",
+                    "stylelint-config-recommended",
+                    "stylelint-config-recommended-vue",
+                    "stylelint-config-recess-order",
+                    "stylelint-prettier",
+                ]
+              : []
 
     const allPeerDeps = [...baseDeps, ...flatDeps, ...cssDeps]
 
     // Read peer dependency versions from my-code-style package.json
-    const packagePkg = JSON.parse(fs.readFileSync(path.resolve(PACKAGE_DIR, "package.json"), "utf8"))
+    const packagePkg = JSON.parse(
+        fs.readFileSync(path.resolve(PACKAGE_DIR, "package.json"), "utf8"),
+    )
     const peerDeps = packagePkg.peerDependencies || {}
 
-    const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
-    if (!fileExists("package.json")) return
-
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"))
     const allDeps = {
         ...(pkg.dependencies || {}),
         ...(pkg.devDependencies || {}),

@@ -11,7 +11,15 @@ import { prettierRules, commonRules } from "./_shared.mjs"
 export default [
     // Ignore patterns
     {
-        ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
+        ignores: [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/coverage/**",
+            "**/public/**",
+            "**/assets/iconfont/**",
+            "**/*.min.js",
+            "**/*.min.css",
+        ],
     },
 
     // TypeScript recommended rules
@@ -21,7 +29,7 @@ export default [
     // eslint-plugin-import-x configuration
     // Replaces: plugin:import/recommended + eslint-config-standard (via FlatCompat)
     {
-        files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
+        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue}"],
         plugins: {
             "import-x": importX,
         },
@@ -35,13 +43,6 @@ export default [
             },
         },
     },
-
-    // Prettier integration
-    // Replaces: extends: ["plugin:prettier/recommended"]
-    eslintPluginPrettierRecommended,
-
-    // eslint-config-prettier MUST be last — disables conflicting ESLint rules
-    eslintConfigPrettier,
 
     // Global language options for JS/TS
     {
@@ -66,8 +67,16 @@ export default [
     {
         files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue}"],
         rules: {
-            ...prettierRules,
             ...commonRules,
+            ...prettierRules,
+        },
+    },
+
+    // CommonJS files and config files legitimately need require()
+    {
+        files: ["**/*.cjs", "**/.*rc.js", "**/*.config.js"],
+        rules: {
+            "@typescript-eslint/no-require-imports": "off",
         },
     },
 
@@ -80,4 +89,10 @@ export default [
             },
         },
     },
+
+    // Prettier integration (replaces: extends: ["plugin:prettier/recommended"])
+    eslintPluginPrettierRecommended,
+
+    // eslint-config-prettier MUST be last — disables conflicting ESLint rules
+    eslintConfigPrettier,
 ]

@@ -91,12 +91,24 @@ function generateScopes(srcDirs = "src") {
 function guessCurrentScope() {
     try {
         const output = execSync("git status --porcelain || true").toString().trim()
-        const line = output.split("\n").find((r) => r.includes("M  src"))
+        if (!output) {
+            return undefined
+        }
+        const line = output.split("\n").find((r) => /(?:src\/|src\\)/.test(r))
         if (!line) {
             return undefined
         }
-        const rawName = line.replace(/\//g, "%%").match(/src%%((\w|-)*)/)?.[1]
-        return toSingular(rawName)
+        const match = line.match(/src[/\\]([^/\\]+)/)
+        const rawName = match?.[1]
+        if (!rawName) {
+            return undefined
+        }
+
+        const resolvedDir = path.resolve(process.cwd(), "src", rawName)
+        if (fs.existsSync(resolvedDir) && fs.statSync(resolvedDir).isDirectory()) {
+            return toSingular(rawName)
+        }
+        return undefined
     } catch {
         return undefined
     }

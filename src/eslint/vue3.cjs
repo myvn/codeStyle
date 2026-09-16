@@ -25,11 +25,10 @@ module.exports = {
         "vue/multi-word-component-names": "off",
         "@typescript-eslint/no-explicit-any": "off",
         "vue/no-mutating-props": ["error", { shallowOnly: true }],
-        "vue/html-indent": ["error", 4],
+        "vue/html-indent": "off",
         "vue/script-indent": "off",
         "vue/html-self-closing": "off",
         "vue/max-attributes-per-line": "off",
         "vue/singleline-html-element-content-newline": "off",
     },
 }
-

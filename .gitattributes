@@ -1,0 +1,25 @@
+# Automatically normalize line endings (to LF) for all text-based files.
+* text=auto eol=lf
+
+# Windows scripts — must use CRLF
+*.{cmd,[cC][mM][dD]} text eol=crlf
+*.{bat,[bB][aA][tT]} text eol=crlf
+*.{ps1,[pP][sS]1} text eol=crlf
+
+# Binary files — do not apply EOL conversion
+*.aar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.bmp binary
+*.dex binary
+*.DS_Store binary
+*.jar binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.apk binary
+*.plist binary

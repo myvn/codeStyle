@@ -2,26 +2,56 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## 1.2.0 (2026-08-28)
-
-
-### Features
-
-* 一键安装命令带上版本号 a58ddf7
-* 一键安装提示，输出包含 my-code-style 的完整安装命令 3916ddd
-* 安装命令分行展示，避免终端截断 3d4ab9c
-* 添加 --version / -v 查看版本命令 14d6605
-* 添加 Less 专用 stylelint 配置，init 脚本自动选择 be34547
-
+## 1.3.1 (2026-09-16)
 
 ### Bug Fixes
 
-* **eslint:** 修复 ESLint v8/v9 规则覆盖、解析器配置及脚手架生成逻辑 5b4e357
-* peerDependencies 改用 ^ 范围，限制次版本号 b8deccd
-* 修复 init 输出步骤号跳跃（1→3→4） 5248766
-* 修复项目自身 ESLint 配置，添加 eslint.config.mjs 83f79a7
-* 关闭 standard 带来的 style/quotes 冲突 0a21a6b
-* 清理项目自身 init 脚本污染 c1b3b59
+- **stylelint:** 放行 SCSS `@extend` 类继承语法（`scss/at-extend-no-missing-placeholder: null`），放行空样式块（`block-no-empty: null`）
+- **stylelint:** 内置 `ignoreFiles`，自动忽略 `**/assets/iconfont/**`、`**/public/**` 及压缩文件
+- **eslint:** 允许 `// @ts-ignore` 注释（`@typescript-eslint/ban-ts-comment: off`）及 `{}` 类型（`@typescript-eslint/no-empty-object-type: off`）
+- **eslint:** 放行无用表达式报错（`no-unused-expressions: off`），Flat Config 默认忽略 `**/assets/iconfont/**` 与 `**/public/**`，避免历史或第三方资源阻断提交
+
+## 1.3.0 (2026-09-16)
+
+### Features
+
+- **init:** 智能识别工程类型（uni-app / Vue 3 / Node TS 基础库），按需分层生成配置
+- **init:** ESLint 检测支持 peerDependencies，未配置项目默认优先采用现代 Flat Config (ESLint 9+)
+- **init:** 无样式依赖的纯代码项目自动跳过 Stylelint 配置与任务挂载
+- **init:** 内置 `.gitignore` 模板，项目缺失时自动生成，杜绝误暂存 `node_modules`
+- **init:** 补齐 Stylelint 配套全量预设包及 `@commitlint/config-conventional` 到一键安装提示
+- **init:** `lint-staged` 写入改为整块规范化覆盖，彻底消除规则重复执行
+- **core:** 工具项目自身全面规范化，接入 ESLint 9 Flat Config 与 Husky 9 提交拦截
+
+### Bug Fixes
+
+- **eslint:** 修复 `eslintConfigPrettier` 顺序问题，置于配置末尾消除引号冲突
+- **eslint:** 放行 CommonJS 配置文件（`*.config.js`、`.*rc.js`、`*.cjs`）中的 `require()` 语法
+- **eslint:** 关闭 `indent` 与 `vue/html-indent`，缩进格式全权交由 Prettier 处理
+- **eslint:** 关闭 `import-x/extensions` 强制扩展名规则，补齐 `**/*.vue` 文件匹配
+- **stylelint:** 补齐宽松规则，放行现代伪类语法、选择器嵌套及层叠特异性限制
+- **husky:** 移除已废弃的 `husky.sh` 引用，升级全面兼容 Husky 9
+- **commitlint:** 重构 `guessCurrentScope`，提升跨平台路径及多文件暂存匹配精准度
+- **pkg:** 全部 31 项 `peerDependencies` 补充 `peerDependenciesMeta` 为 `optional`
+
+## 1.2.0 (2026-08-28)
+
+### Features
+
+- 一键安装命令带上版本号 a58ddf7
+- 一键安装提示，输出包含 my-code-style 的完整安装命令 3916ddd
+- 安装命令分行展示，避免终端截断 3d4ab9c
+- 添加 --version / -v 查看版本命令 14d6605
+- 添加 Less 专用 stylelint 配置，init 脚本自动选择 be34547
+
+### Bug Fixes
+
+- **eslint:** 修复 ESLint v8/v9 规则覆盖、解析器配置及脚手架生成逻辑 5b4e357
+- peerDependencies 改用 ^ 范围，限制次版本号 b8deccd
+- 修复 init 输出步骤号跳跃（1→3→4） 5248766
+- 修复项目自身 ESLint 配置，添加 eslint.config.mjs 83f79a7
+- 关闭 standard 带来的 style/quotes 冲突 0a21a6b
+- 清理项目自身 init 脚本污染 c1b3b59
 
 ## [1.1.0] - 2026-07-29
 

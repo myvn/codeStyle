@@ -18,31 +18,32 @@
 
 #### ESLint v8 (.eslintrc.cjs 格式)
 
-| 导出路径 | 实际文件 | 说明 |
-|---------|---------|------|
-| `my-code-style` | `src/eslint/uniapp.cjs` | 默认导出（uni-app 完整 ESLint 配置） |
-| `my-code-style/eslint` | `src/eslint/base.cjs` | 基础 TypeScript ESLint 配置 |
-| `my-code-style/eslint/vue3` | `src/eslint/vue3.cjs` | + Vue 3 规则 |
-| `my-code-style/eslint/uniapp` | `src/eslint/uniapp.cjs` | + uni-app globals |
+| 导出路径                      | 实际文件                | 说明                                 |
+| ----------------------------- | ----------------------- | ------------------------------------ |
+| `my-code-style`               | `src/eslint/uniapp.cjs` | 默认导出（uni-app 完整 ESLint 配置） |
+| `my-code-style/eslint`        | `src/eslint/base.cjs`   | 基础 TypeScript ESLint 配置          |
+| `my-code-style/eslint/vue3`   | `src/eslint/vue3.cjs`   | + Vue 3 规则                         |
+| `my-code-style/eslint/uniapp` | `src/eslint/uniapp.cjs` | + uni-app globals                    |
 
 #### ESLint v9 (Flat Config 格式)
 
-| 导出路径 | 实际文件 | 说明 |
-|---------|---------|------|
-| `my-code-style/eslint/flat` | `src/eslint/flat/base.mjs` | Flat Config 基础层（TS） |
-| `my-code-style/eslint/flat/vue3` | `src/eslint/flat/vue3.mjs` | + Vue 3 规则 |
-| `my-code-style/eslint/flat/uniapp` | `src/eslint/flat/uniapp.mjs` | + uni-app globals |
+| 导出路径                           | 实际文件                     | 说明                     |
+| ---------------------------------- | ---------------------------- | ------------------------ |
+| `my-code-style/eslint/flat`        | `src/eslint/flat/base.mjs`   | Flat Config 基础层（TS） |
+| `my-code-style/eslint/flat/vue3`   | `src/eslint/flat/vue3.mjs`   | + Vue 3 规则             |
+| `my-code-style/eslint/flat/uniapp` | `src/eslint/flat/uniapp.mjs` | + uni-app globals        |
 
 #### 其他配置
 
-| 导出路径 | 实际文件 | 说明 |
-|---------|---------|------|
-| `my-code-style/prettier` | `src/prettier/index.cjs` | Prettier 格式化配置 |
-| `my-code-style/stylelint` | `src/stylelint/index.cjs` | Stylelint CSS/SCSS/Less 配置 |
-| `my-code-style/stylelint/less-override` | `src/stylelint/less-override.cjs` | Less 专用覆写配置 |
-| `my-code-style/commitlint` | `src/commitlint/base.cjs` | Commitlint 提交规范 |
-| `my-code-style/commitlint/scopes` | `src/commitlint/scopes.cjs` | 动态 scope 工具函数 |
-| `my-code-style/versionrc` | `src/versionrc/index.cjs` | standard-version 版本号配置 |
+| 导出路径                                | 实际文件                          | 说明                        |
+| --------------------------------------- | --------------------------------- | --------------------------- |
+| `my-code-style/prettier`                | `src/prettier/index.cjs`          | Prettier 格式化配置         |
+| `my-code-style/stylelint`               | `src/stylelint/index.cjs`         | Stylelint SCSS / 默认配置   |
+| `my-code-style/stylelint/less`          | `src/stylelint/less.cjs`          | Less 专用独立配置           |
+| `my-code-style/stylelint/less-override` | `src/stylelint/less-override.cjs` | Less 专用覆写配置           |
+| `my-code-style/commitlint`              | `src/commitlint/base.cjs`         | Commitlint 提交规范         |
+| `my-code-style/commitlint/scopes`       | `src/commitlint/scopes.cjs`       | 动态 scope 工具函数         |
+| `my-code-style/versionrc`               | `src/versionrc/index.cjs`         | standard-version 版本号配置 |
 
 ### 2.2 配置链式继承
 
@@ -66,25 +67,26 @@ base.mjs (tseslint + import-x + prettier)
         └── uniapp.mjs (...vue3 + uniappGlobals)
 ```
 
-### 2.3 CLI 脚手架 (`bin/init.cjs`)
+### 2.3 CLI 脚手架 (`bin/init`)
 
-通过 `package.json` 的 `bin` 字段注册 `my-code-style-init` 命令，内置自动检测能力：
+通过 `package.json` 的 `bin` 字段注册 `my-code-style-init` 命令，内置高度智能的自动检测与生成能力：
 
-1. **检测 ESLint 版本** — 从项目 `package.json` 读取 eslint 版本号，决定生成 `.eslintrc.cjs`（v8）还是 `eslint.config.ts`（v9）
-2. **检测 CSS 预处理器** — 检查 sass/less 依赖，决定 Stylelint 的 syntax 和 lint-staged 的文件匹配
-3. **检测 uni-app 项目** — 检查 `@dcloudio/uni-app` 依赖，决定使用 uniapp 还是 vue3 配置
-4. **生成配置文件** — 根据检测结果生成对应格式的配置文件
-5. **注入 Git hooks** — 创建 `.husky/commit-msg` 和 `.husky/pre-commit`
-6. **修改 package.json** — 注入 scripts + lint-staged
-7. **peerDependencies 检查** — 提示缺失依赖
-8. 支持 `--dry-run` 预览模式
+1. **检测项目技术栈类型** — 识别 `uniapp`、`vue`、`base`（纯 Node/TS 库），生成最精准匹配的配置层级。
+2. **检测 ESLint 版本** — 支持读取 dependencies / devDependencies / peerDependencies；若未安装 ESLint 或未配置，默认优先采用现代 Flat Config（`eslint.config.mjs`）；仅当明确为 v8 时使用 `.eslintrc.cjs`。
+3. **检测 CSS 预处理器** — 检查 sass/less 依赖，若为纯代码库（无样式依赖）则自动跳过 Stylelint 配置与任务挂载。
+4. **生成配置文件** — 按检测结果生成 `eslint.config.mjs`、`.prettierrc.cjs` 等，若项目缺失 `.gitignore` 还会自动创建标准模板。
+5. **注入 Git hooks** — 采用 Husky 9 原生指令创建 `.husky/commit-msg` 和 `.husky/pre-commit`。
+6. **修改 package.json** — 注入便捷 scripts（`lint`、`lint:fix`、`format`、`prepare`、`release`、`cz`）并规范化覆盖 `lint-staged`。
+7. **peerDependencies 智能提示** — 自动计算缺失的生态依赖并输出分行一键安装命令（包含全套 Stylelint 预设）。
+8. 支持 `--dry-run` 预览模式。
 
 ### 2.3.1 生成文件说明
 
-| 文件 | 作用 |
-|------|------|
-| `.prettierignore` | 排除二进制文件（图片、字体、APK 等），防止 Prettier 尝试格式化它们 |
-| `.gitattributes` | 统一文本文件 EOL 为 LF，标记二进制文件不做 EOL 转换和 diff |
+| 文件              | 作用                                                              |
+| ----------------- | ----------------------------------------------------------------- |
+| `.prettierignore` | 排除二进制文件（图片、字体、APK 等）与产物，防止 Prettier 格式化  |
+| `.gitattributes`  | 统一文本文件 EOL 为 LF，标记二进制文件不做 EOL 转换和 diff        |
+| `.gitignore`      | 自动忽略 node_modules/、dist/、*.tgz、.eslintcache 等，防止误暂存 |
 
 ### 2.4 动态 Scope 生成
 
@@ -99,64 +101,64 @@ base.mjs (tseslint + import-x + prettier)
 
 ### 3.1 核心工具链
 
-| 工具 | 版本要求 | 用途 |
-|------|---------|------|
-| ESLint | >= 9.0 | JS/TS 代码规范检查 |
-| @typescript-eslint/parser | >= 8.0 | TypeScript AST 解析 |
-| @typescript-eslint/eslint-plugin | >= 8.0 | TypeScript 规则集 |
-| typescript-eslint | >= 8.0 | Flat Config 专用，提供 `tseslint.configs.recommended` |
-| @eslint/js | >= 9.0 | Flat Config 专用，提供 `js.configs.recommended` |
-| eslint-plugin-vue | >= 10.0 | Vue SFC 模板检查 |
-| eslint-plugin-prettier | >= 5.2 | ESLint 内运行 Prettier |
-| eslint-config-prettier | >= 10.1.8 | 关闭与 Prettier 冲突的规则（修复 CVE-2025-54313） |
-| eslint-plugin-import | >= 2.0 | 模块导入路径检查（v8 格式） |
-| eslint-plugin-import-x | >= 4.0 | 模块导入路径检查（Flat Config 专用 fork） |
-| eslint-import-resolver-typescript | >= 3.0 | TS path alias 解析 |
-| globals | >= 16.0 | Flat Config 环境声明（`globals.browser` 等） |
-| Prettier | >= 3.0 | 代码格式化 |
-| Stylelint | >= 16.0 | CSS/SCSS/Less 规范检查 |
-| stylelint-config-recommended | >= 16.0 | 基础推荐规则 |
-| stylelint-config-recommended-scss | >= 16.0 | SCSS 推荐规则 |
-| stylelint-config-recommended-vue | >= 2.0 | Vue SFC `<style>` 检查 |
-| stylelint-config-html | >= 1.0 | HTML/Vue 模板解析 |
-| stylelint-config-recess-order | >= 5.0 | CSS 属性排序 |
-| stylelint-prettier | >= 5.0 | Stylelint 内运行 Prettier |
-| postcss-html | >= 1.0 | 解析 Vue `<style>` 块 |
-| postcss-scss | >= 4.0 | 解析 SCSS 语法 |
-| postcss-less | >= 6.0 | 解析 Less 语法 |
-| Commitlint | >= 19.0 | Git commit message 校验 |
-| Husky | >= 9.0 | Git hooks 管理 |
-| lint-staged | >= 16.0 | 暂存文件过滤检查 |
-| czg | >= 1.0 | 交互式 commit 提示 |
-| standard-version | >= 9.0 | 自动版本号 + CHANGELOG |
+| 工具                              | 版本要求  | 用途                                                  |
+| --------------------------------- | --------- | ----------------------------------------------------- |
+| ESLint                            | >= 9.0    | JS/TS 代码规范检查                                    |
+| @typescript-eslint/parser         | >= 8.0    | TypeScript AST 解析                                   |
+| @typescript-eslint/eslint-plugin  | >= 8.0    | TypeScript 规则集                                     |
+| typescript-eslint                 | >= 8.0    | Flat Config 专用，提供 `tseslint.configs.recommended` |
+| @eslint/js                        | >= 9.0    | Flat Config 专用，提供 `js.configs.recommended`       |
+| eslint-plugin-vue                 | >= 10.0   | Vue SFC 模板检查                                      |
+| eslint-plugin-prettier            | >= 5.2    | ESLint 内运行 Prettier                                |
+| eslint-config-prettier            | >= 10.1.8 | 关闭与 Prettier 冲突的规则（修复 CVE-2025-54313）     |
+| eslint-plugin-import              | >= 2.0    | 模块导入路径检查（v8 格式）                           |
+| eslint-plugin-import-x            | >= 4.0    | 模块导入路径检查（Flat Config 专用 fork）             |
+| eslint-import-resolver-typescript | >= 3.0    | TS path alias 解析                                    |
+| globals                           | >= 16.0   | Flat Config 环境声明（`globals.browser` 等）          |
+| Prettier                          | >= 3.0    | 代码格式化                                            |
+| Stylelint                         | >= 16.0   | CSS/SCSS/Less 规范检查                                |
+| stylelint-config-recommended      | >= 16.0   | 基础推荐规则                                          |
+| stylelint-config-recommended-scss | >= 16.0   | SCSS 推荐规则                                         |
+| stylelint-config-recommended-vue  | >= 2.0    | Vue SFC `<style>` 检查                                |
+| stylelint-config-html             | >= 1.0    | HTML/Vue 模板解析                                     |
+| stylelint-config-recess-order     | >= 5.0    | CSS 属性排序                                          |
+| stylelint-prettier                | >= 5.0    | Stylelint 内运行 Prettier                             |
+| postcss-html                      | >= 1.0    | 解析 Vue `<style>` 块                                 |
+| postcss-scss                      | >= 4.0    | 解析 SCSS 语法                                        |
+| postcss-less                      | >= 6.0    | 解析 Less 语法                                        |
+| Commitlint                        | >= 19.0   | Git commit message 校验                               |
+| Husky                             | >= 9.0    | Git hooks 管理                                        |
+| lint-staged                       | >= 16.0   | 暂存文件过滤检查                                      |
+| czg                               | >= 1.0    | 交互式 commit 提示                                    |
+| standard-version                  | >= 9.0    | 自动版本号 + CHANGELOG                                |
 
 ### 3.2 Flat Config 关键替换
 
-| v8 (.eslintrc.cjs) | v9 (Flat Config) |
-|--------------------|------------------|
-| `extends: ["eslint:recommended"]` | `js.configs.recommended` |
-| `extends: ["plugin:@typescript-eslint/recommended"]` | `...tseslint.configs.recommended` |
-| `extends: ["plugin:vue/vue3-essential"]` | `...pluginVue.configs["flat/essential"]` |
-| `extends: ["plugin:prettier/recommended"]` | `eslintPluginPrettierRecommended` |
-| `extends: ["prettier"]` | `eslintConfigPrettier`（放最后） |
-| `extends: ["standard"]` | 不适用（flat 版尚未发布） |
-| `plugins: ["import"]` | `import from "eslint-plugin-import-x"` |
-| `env: { browser: true }` | `globals.browser`（`import from "globals"`） |
-| `parserOptions` | `languageOptions.parserOptions` |
-| `overrides` | 独立配置对象 + `files` 数组 |
+| v8 (.eslintrc.cjs)                                   | v9 (Flat Config)                             |
+| ---------------------------------------------------- | -------------------------------------------- |
+| `extends: ["eslint:recommended"]`                    | `js.configs.recommended`                     |
+| `extends: ["plugin:@typescript-eslint/recommended"]` | `...tseslint.configs.recommended`            |
+| `extends: ["plugin:vue/vue3-essential"]`             | `...pluginVue.configs["flat/essential"]`     |
+| `extends: ["plugin:prettier/recommended"]`           | `eslintPluginPrettierRecommended`            |
+| `extends: ["prettier"]`                              | `eslintConfigPrettier`（放最后）             |
+| `extends: ["standard"]`                              | 不适用（flat 版尚未发布）                    |
+| `plugins: ["import"]`                                | `import from "eslint-plugin-import-x"`       |
+| `env: { browser: true }`                             | `globals.browser`（`import from "globals"`） |
+| `parserOptions`                                      | `languageOptions.parserOptions`              |
+| `overrides`                                          | 独立配置对象 + `files` 数组                  |
 
 ### 3.3 编码规范
 
-| 规则 | 配置 |
-|------|------|
-| 引号 | 双引号（允许模板字符串和转义） |
-| 缩进 | 4 空格 |
-| 分号 | 关闭（`.nvue` 文件除外） |
-| 行宽 | 100 |
-| 尾逗号 | 全部（JSON 除外） |
-| 换行符 | LF |
-| 末尾空行 | 是 |
-| 尾部空白 | 自动裁剪（Markdown 除外） |
+| 规则     | 配置                           |
+| -------- | ------------------------------ |
+| 引号     | 双引号（允许模板字符串和转义） |
+| 缩进     | 4 空格                         |
+| 分号     | 关闭（`.nvue` 文件除外）       |
+| 行宽     | 100                            |
+| 尾逗号   | 全部（JSON 除外）              |
+| 换行符   | LF                             |
+| 末尾空行 | 是                             |
+| 尾部空白 | 自动裁剪（Markdown 除外）      |
 
 ---
 
@@ -187,10 +189,10 @@ npx my-code-style-init
 
 ### 场景 4：Git 提交规范
 
-| Hook | 触发时机 | 执行内容 |
-|------|---------|---------|
-| `pre-commit` | `git commit` 前 | `lint-staged` 仅检查暂存文件 |
-| `commit-msg` | 提交信息写入前 | `commitlint` 校验 commit message 格式 |
+| Hook         | 触发时机        | 执行内容                              |
+| ------------ | --------------- | ------------------------------------- |
+| `pre-commit` | `git commit` 前 | `lint-staged` 仅检查暂存文件          |
+| `commit-msg` | 提交信息写入前  | `commitlint` 校验 commit message 格式 |
 
 **提交流程**：
 
@@ -213,6 +215,7 @@ pnpm release
 ```
 
 根据 commit type 自动：
+
 1. 递增版本号（遵循语义化版本）
 2. 生成分类 CHANGELOG（`feat` → ✨ Features，`fix` → 🐛 Bug Fixes）
 3. 打 git tag
@@ -231,8 +234,8 @@ module.exports = {
 }
 ```
 
-```ts
-// eslint.config.ts — Flat Config 覆盖
+```js
+// eslint.config.mjs — Flat Config 覆盖
 import uniappConfig from "my-code-style/eslint/flat/uniapp"
 
 export default [
@@ -258,10 +261,10 @@ export default [
 ```
 ┌─────────────────────────────────────────────────────┐
 │  消费层（目标项目）                                    │
-│  .eslintrc.cjs / eslint.config.ts / .prettierrc.cjs  │
+│  .eslintrc.cjs / eslint.config.mjs / .prettierrc.cjs │
 │  通过 require/import 从 "my-code-style/xxx" 引用      │
 ├─────────────────────────────────────────────────────┤
-│  CLI 脚手架层  (bin/init.cjs)                        │
+│  CLI 脚手架层  (bin/init)                           │
 │  自动检测 ESLint 版本 + CSS 预处理器 + uni-app        │
 │  生成对应格式的配置 + 注入 Husky hooks + 修改 pkg     │
 ├─────────────────────────────────────────────────────┤
@@ -285,16 +288,17 @@ export default [
 
 ## 六、lint-staged 配置
 
-初始化后自动注入到 `package.json`，根据 CSS 预处理器动态调整样式文件匹配：
+初始化后自动规范化注入到 `package.json`，根据 CSS 预处理器动态调整样式文件匹配（纯代码项目自动跳过 stylelint）：
 
 ```json
 {
     "lint-staged": {
-        "**/*.{html,vue,ts,cjs,json,md}": ["prettier --write"],
-        "**/*.{vue,js,ts,jsx,tsx}": ["eslint --cache --fix"],
-        // SCSS 项目
+        "**/*.{html,vue,ts,js,cjs,mjs,json,md}": ["prettier --write"],
+        "**/*.{vue,js,ts,jsx,tsx,cjs,mjs}": ["eslint --cache --fix"],
+        // SCSS 项目：
         "**/*.{vue,css,scss,html}": ["stylelint --fix"]
-        // Less 项目则为 "**/*.{vue,css,less,html}"
+        // Less 项目：
+        // "**/*.{vue,css,less,html}": ["stylelint --fix"]
     }
 }
 ```
@@ -305,21 +309,24 @@ export default [
 
 ## 七、package.json 脚本
 
-初始化后注入的命令：
+初始化后注入的便捷命令：
 
-| 脚本 | 命令 | 说明 |
-|------|------|------|
-| `prepare` | `husky install` | 安装 Husky hooks（`pnpm install` 后自动执行） |
-| `release` | `standard-version` | 发布新版本 + 生成 CHANGELOG |
-| `cz` | `czg` | 交互式 commit 提示工具 |
+| 脚本       | 命令                 | 说明                                                  |
+| ---------- | -------------------- | ----------------------------------------------------- |
+| `lint`     | `eslint .`           | 执行 ESLint 全局代码规范检查                          |
+| `lint:fix` | `eslint . --fix`     | 执行 ESLint 自动修复                                  |
+| `format`   | `prettier --write .` | 全项目 Prettier 格式化                                |
+| `prepare`  | `husky`              | 初始化 Husky 9 Git hooks（`pnpm install` 后自动执行） |
+| `release`  | `standard-version`   | 发布新版本 + 生成规范 CHANGELOG                       |
+| `cz`       | `czg`                | 交互式 Commit 提交提示工具                            |
 
 ---
 
 ## 八、多项目接入矩阵
 
-| 项目 | ESLint 版本 | CSS | 接入方式 |
-|------|------------|-----|---------|
-| **speedy-travel** (uni-app) | v8 (.eslintrc.cjs) | SCSS | 无需改动，现有 `.eslintrc.cjs` 已匹配 |
-| **speedy-travel-v7-h5** | v9 (eslint.config.ts) | 无 | `npx my-code-style-init` → 生成 eslint.config.ts，跳过 stylelint |
-| **fengbo-front** | v8 + @antfu | Less | 保留 @antfu ESLint；init → 生成 .stylelintrc.cjs（含 Less） |
-| **新项目** | 自动检测 | 自动检测 | `npx my-code-style-init` 全自动 |
+| 项目                        | ESLint 版本            | CSS      | 接入方式                                                          |
+| --------------------------- | ---------------------- | -------- | ----------------------------------------------------------------- |
+| **speedy-travel** (uni-app) | v8 (.eslintrc.cjs)     | SCSS     | 无需改动，现有 `.eslintrc.cjs` 已匹配                             |
+| **speedy-travel-v7-h5**     | v9 (eslint.config.mjs) | 无       | `npx my-code-style-init` → 生成 eslint.config.mjs，跳过 stylelint |
+| **fengbo-front**            | v8 + @antfu            | Less     | 保留 @antfu ESLint；init → 生成 .stylelintrc.cjs（含 Less）       |
+| **新项目**                  | 自动检测               | 自动检测 | `npx my-code-style-init` 全自动                                   |

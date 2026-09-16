@@ -1,9 +1,10 @@
 node_modules/
+dist/
+coverage/
+*.local
 *.log
-.idea/
-pnpm-lock.yaml
 .DS_Store
+.idea/
+.vscode/
 *.tgz
 .eslintcache
-
-

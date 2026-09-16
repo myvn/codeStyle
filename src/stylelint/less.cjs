@@ -8,6 +8,14 @@ module.exports = {
         "stylelint-config-recess-order",
     ],
     plugins: ["stylelint-prettier"],
+    ignoreFiles: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/coverage/**",
+        "**/public/**",
+        "**/assets/iconfont/**",
+        "**/*.min.css",
+    ],
     overrides: [
         {
             files: ["**/*.{vue,html}"],
@@ -45,5 +53,12 @@ module.exports = {
         "no-duplicate-selectors": null,
         "selector-class-pattern": null,
         "font-family-no-missing-generic-family-keyword": null,
+        // 现代 CSS 语法与选择器宽松放行
+        "selector-not-notation": null,
+        "import-notation": null,
+        "media-feature-range-notation": null,
+        "no-descending-specificity": null,
+        // 业务样式容错放行
+        "block-no-empty": null,
     },
 }
