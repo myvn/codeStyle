@@ -1,0 +1,51 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置 Node.js 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: 安装基础依赖
+        run: npm install
+
+      - name: 安装测试隔离依赖环境
+        run: |
+          npm run test:integration:setup
+          npm run test:legacy:setup
+
+      - name: 执行全量测试套件 (门禁：测试全过才允许发布)
+        run: npm run test:all
+
+      - name: 检查发布文件清单 (防泄露测试/临时文件)
+        run: npm pack --dry-run
+
+      - name: 发布至 npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
