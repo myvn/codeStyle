@@ -45,6 +45,8 @@
     "format": "prettier --write .",
     "prepare": "husky",
     "release": "standard-version",
+    "release:push": "standard-version && git push --follow-tags origin HEAD",
+    "pub": "npm run release:push",
     "cz": "czg",
     "link": "pnpm link --global",
     "unlink": "pnpm unlink --global",
