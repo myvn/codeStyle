@@ -29,7 +29,7 @@ export default [
     // eslint-plugin-import-x configuration
     // Replaces: plugin:import/recommended + eslint-config-standard (via FlatCompat)
     {
-        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue,nvue}"],
+        files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx,vue,nvue}"],
         plugins: {
             "import-x": importX,
         },
@@ -44,9 +44,9 @@ export default [
         },
     },
 
-    // Global language options for JS/TS
+    // Global language options for JS/TS/JSX/TSX
     {
-        files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
+        files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",
@@ -59,13 +59,16 @@ export default [
             parserOptions: {
                 ecmaVersion: "latest",
                 sourceType: "module",
+                ecmaFeatures: {
+                    jsx: true,
+                },
             },
         },
     },
 
-    // Shared rules for all JS, TS and Vue files
+    // Shared rules for all JS, TS, JSX, TSX and Vue files
     {
-        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue,nvue}"],
+        files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx,vue,nvue}"],
         rules: {
             ...commonRules,
             ...prettierRules,

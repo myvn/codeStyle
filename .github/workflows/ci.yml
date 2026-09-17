@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js (${{ matrix.node-version }})
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: 安装基础依赖
+        run: npm install
+
+      - name: 安装测试隔离依赖环境
+        run: |
+          npm run test:integration:setup
+          npm run test:legacy:setup
+
+      - name: 执行全量测试套件
+        run: npm run test:all

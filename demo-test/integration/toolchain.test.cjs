@@ -46,8 +46,14 @@ for (const [level, filePath, source] of [
         "page.vue",
         '<template><view>Hello</view></template>\n<script setup lang="ts">\nuni.showToast({ title: "Hello" })\n</script>\n',
     ],
+    ["base", "Header.jsx", 'export const Header = () => <div className="header">Title</div>\n'],
+    [
+        "base",
+        "Button.tsx",
+        "export interface ButtonProps {\n    label: string\n}\nexport const Button = (props: ButtonProps) => <button>{props.label}</button>\n",
+    ],
 ]) {
-    test(`ESLint 正常文件：${level}`, async () => {
+    test(`ESLint 正常文件：${level} (${filePath})`, async () => {
         const engine = await eslint(level)
         const formatted = await prettier.format(source, { ...prettierConfig, filepath: filePath })
         const [result] = await engine.lintText(formatted, { filePath })
@@ -72,6 +78,46 @@ test("ESLint 报出格式错误并修复；再次检查无错误", async () => {
     assert.ok(fixed.output)
     const [after] = await engine.lintText(fixed.output, { filePath: "bad.js" })
     assert.equal(after.errorCount, 0, JSON.stringify(after.messages))
+})
+
+test("ESLint (Flat Config) 识别并修复 JSX/TSX 格式，拒绝语法错误", async () => {
+    const config = (await import(pathToFileURL(path.join(copy, "src/eslint/flat/base.mjs")).href))
+        .default
+    const engine = await eslint("base")
+    const fixer = new ESLint({
+        cwd: runtime,
+        overrideConfigFile: true,
+        overrideConfig: config,
+        fix: true,
+    })
+
+    // JSX format & fix
+    const unformattedJsx = 'export const App=()=><div>{"test"}</div>;\n'
+    const [jsxBefore] = await engine.lintText(unformattedJsx, { filePath: "App.jsx" })
+    assert.ok(jsxBefore.messages.some((m) => m.ruleId === "prettier/prettier"))
+    const [jsxFixed] = await fixer.lintText(unformattedJsx, { filePath: "App.jsx" })
+    assert.ok(jsxFixed.output)
+    const [jsxAfter] = await engine.lintText(jsxFixed.output, { filePath: "App.jsx" })
+    assert.equal(jsxAfter.errorCount, 0, JSON.stringify(jsxAfter.messages))
+
+    // TSX format & fix
+    const unformattedTsx = "export const Card=(props:{title:string})=><div>{props.title}</div>;\n"
+    const [tsxBefore] = await engine.lintText(unformattedTsx, { filePath: "Card.tsx" })
+    assert.ok(tsxBefore.messages.some((m) => m.ruleId === "prettier/prettier"))
+    const [tsxFixed] = await fixer.lintText(unformattedTsx, { filePath: "Card.tsx" })
+    assert.ok(tsxFixed.output)
+    const [tsxAfter] = await engine.lintText(tsxFixed.output, { filePath: "Card.tsx" })
+    assert.equal(tsxAfter.errorCount, 0, JSON.stringify(tsxAfter.messages))
+
+    // JSX/TSX syntax errors
+    const [badJsx] = await engine.lintText("export const App = () => <div><span></div>\n", {
+        filePath: "Bad.jsx",
+    })
+    assert.ok(badJsx.fatalErrorCount > 0)
+    const [badTsx] = await engine.lintText("export const Card = (props: {) => <div />\n", {
+        filePath: "Bad.tsx",
+    })
+    assert.ok(badTsx.fatalErrorCount > 0)
 })
 
 test("ESLint 拒绝 TypeScript 语法错误", async () => {
@@ -558,4 +604,149 @@ test("完整提交链拦截混合工程中的 Vue 内嵌 Less 语法错误", (t)
     assert.equal(p.git("rev-parse", "HEAD"), head)
     assert.equal(p.git("diff", "--cached", "--binary"), staged)
     assert.equal(p.read(name), source)
+})
+
+test("完整提交链：首次提交（无 HEAD 的全新仓库）通过 hooks 校验", (t) => {
+    const dir = fs.mkdtempSync(path.join(runtime, "unborn-head-"))
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+    const env = { ...process.env, HUSKY: "1", GIT_CONFIG_NOSYSTEM: "1" }
+    const run = (cmd, args) =>
+        spawnSync(cmd, args, { cwd: dir, encoding: "utf8", timeout: 60000, env })
+
+    run("git", ["init", "-q", "-b", "main"])
+    run("git", ["config", "user.name", "Demo Test"])
+    run("git", ["config", "user.email", "demo@example.invalid"])
+    run("git", ["config", "commit.gpgsign", "false"])
+
+    // DO NOT commit baseline - repository has NO HEAD yet!
+    fs.writeFileSync(
+        path.join(dir, "package.json"),
+        JSON.stringify({ name: "unborn-fixture", devDependencies: { eslint: "^9" } }),
+    )
+    const initRes = run(process.execPath, [path.join(root, "bin/init")])
+    assert.equal(initRes.status, 0, initRes.stderr)
+    const huskyRes = run(process.execPath, [
+        path.join(path.dirname(localRequire.resolve("husky")), "bin.js"),
+    ])
+    assert.equal(huskyRes.status, 0, huskyRes.stderr)
+
+    // Write valid file and stage it
+    fs.mkdirSync(path.join(dir, "src"), { recursive: true })
+    fs.writeFileSync(path.join(dir, "src/index.ts"), 'export const hello = "world"\n')
+    run("git", ["add", "."])
+
+    // First commit with valid conventional commit message
+    const commitRes = run("git", ["commit", "-m", "feat: initial commit on empty repo"])
+    assert.equal(commitRes.status, 0, commitRes.stdout + commitRes.stderr)
+
+    // Verify HEAD is now established
+    const logRes = run("git", ["log", "-1", "--oneline"])
+    assert.match(logRes.stdout, /feat: initial commit on empty repo/)
+})
+
+test("完整提交链：已有用户 git stash 在提交过程中得到保留", (t) => {
+    const p = commitProject(t)
+    // Create an existing stash before doing new work
+    p.write("src/stash-target.txt", "user WIP content before stash\n")
+    p.git("add", "src/stash-target.txt")
+    p.git("stash", "push", "-m", "user-existing-stash")
+
+    const stashListBefore = p.git("stash", "list")
+    assert.match(stashListBefore, /user-existing-stash/)
+
+    // Now stage a new file and commit
+    p.write("src/staged.ts", "const x: number = 1\nconsole.log(x)\n")
+    p.git("add", "src/staged.ts")
+    const commitRes = p.commit("feat: new commit with active stash")
+    assert.equal(commitRes.status, 0, commitRes.stdout + commitRes.stderr)
+
+    // Verify user stash is still intact
+    const stashListAfter = p.git("stash", "list")
+    assert.match(stashListAfter, /user-existing-stash/)
+    assert.equal(stashListBefore.trim(), stashListAfter.trim())
+})
+
+test("完整提交链：文件重命名 (git mv) 与删除 (git rm) 正常通过 lint-staged", (t) => {
+    const p = commitProject(t)
+    // Create and commit initial files
+    p.write("src/old-file.ts", "export const oldVal: number = 1\n")
+    p.write("src/to-delete.ts", "export const toDelete: number = 2\n")
+    p.git("add", "src/old-file.ts", "src/to-delete.ts")
+    const initCommit = p.commit("feat: add files to rename and delete")
+    assert.equal(initCommit.status, 0, initCommit.stdout + initCommit.stderr)
+
+    // Git rm to-delete.ts
+    p.git("rm", "src/to-delete.ts")
+
+    // Git mv old-file.ts to new-file.ts
+    p.git("mv", "src/old-file.ts", "src/new-file.ts")
+
+    // Commit changes
+    const commitRes = p.commit("refactor: rename and delete files")
+    assert.equal(commitRes.status, 0, commitRes.stdout + commitRes.stderr)
+
+    // Verify git log and status
+    assert.ok(!fs.existsSync(path.join(p.dir, "src/to-delete.ts")))
+    assert.ok(fs.existsSync(path.join(p.dir, "src/new-file.ts")))
+    const status = p.git("status", "--porcelain", "-uno")
+    assert.equal(status.trim(), "")
+    assert.equal(p.git("diff", "HEAD").trim(), "")
+})
+
+test("standard-version 在 ESM (type: module) 项目中读取 .versionrc.cjs 成功生成版本与 CHANGELOG", (t) => {
+    const dir = fs.mkdtempSync(path.join(runtime, "standard-version-esm-"))
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+    const run = (cmd, args) => spawnSync(cmd, args, { cwd: dir, encoding: "utf8", timeout: 60000 })
+
+    run("git", ["init", "-q", "-b", "main"])
+    run("git", ["config", "user.name", "Demo Test"])
+    run("git", ["config", "user.email", "demo@example.invalid"])
+    run("git", ["config", "commit.gpgsign", "false"])
+
+    // ESM package.json
+    fs.writeFileSync(
+        path.join(dir, "package.json"),
+        JSON.stringify(
+            {
+                name: "esm-release-consumer",
+                version: "1.0.0",
+                type: "module",
+            },
+            null,
+            2,
+        ),
+    )
+
+    // Use .versionrc.cjs referencing our local copy
+    fs.writeFileSync(
+        path.join(dir, ".versionrc.cjs"),
+        `module.exports = require(${JSON.stringify(path.join(copy, "src/versionrc/index.cjs"))})\n`,
+    )
+
+    run("git", ["add", "."])
+    const initCommit = run("git", ["commit", "-m", "feat: initial feature"])
+    assert.equal(initCommit.status, 0)
+
+    // Run standard-version binary from runtime
+    const svBin = path.join(runtime, "node_modules/.bin/standard-version")
+    const svRes = run(svBin, ["--skip.commit", "--skip.tag"])
+    assert.equal(svRes.status, 0, svRes.stdout + svRes.stderr)
+
+    // Verify bumped package.json and created CHANGELOG.md
+    const updatedPkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"))
+    assert.equal(updatedPkg.version, "1.1.0")
+    assert.ok(fs.existsSync(path.join(dir, "CHANGELOG.md")))
+    const changelog = fs.readFileSync(path.join(dir, "CHANGELOG.md"), "utf8")
+    assert.match(changelog, /1\.1\.0/)
+    assert.match(changelog, /initial feature/)
+
+    // Also verify that .versionrc.js in ESM throws ReferenceError with require
+    fs.unlinkSync(path.join(dir, ".versionrc.cjs"))
+    fs.writeFileSync(
+        path.join(dir, ".versionrc.js"),
+        `module.exports = require(${JSON.stringify(path.join(copy, "src/versionrc/index.cjs"))})\n`,
+    )
+    const svFailRes = run(svBin, ["--dry-run"])
+    assert.notEqual(svFailRes.status, 0)
+    assert.match(svFailRes.stderr, /ReferenceError: module is not defined in ES module scope/)
 })

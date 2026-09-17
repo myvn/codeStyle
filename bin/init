@@ -73,17 +73,96 @@ function getDependencyVersion(pkg, depName) {
 // --- Detection helpers ---
 
 /**
- * Detect ESLint major version from package.json
- * Returns 8, 9, or null (not installed)
+ * Detect if project is configured as ECMAScript Module (ESM)
  */
-function detectEslintVersion() {
-    const pkg = getProjectPkg()
+function isEsmProject(pkg = getProjectPkg()) {
+    return pkg?.type === "module"
+}
+
+/**
+ * Detect ESLint major version from package.json or installed node_modules
+ * Returns 8, 9, or null (not installed or ambiguous)
+ */
+function detectEslintVersion(pkg = getProjectPkg(), rootDir = PROJECT_ROOT) {
     if (!pkg) return null
-    const version = getDependencyVersion(pkg, "eslint")
-    if (!version) return null
-    // Handle range specifiers like "^9.0.0", ">=8.0.0", "9.x"
+
+    // 1. If eslint is installed in node_modules, read its actual major version directly
+    try {
+        const installedPkgPath = path.resolve(rootDir, "node_modules", "eslint", "package.json")
+        if (fs.existsSync(installedPkgPath)) {
+            const installedPkg = JSON.parse(fs.readFileSync(installedPkgPath, "utf8"))
+            const installedMajor = parseInt(installedPkg.version?.split(".")[0], 10)
+            if (!Number.isNaN(installedMajor)) {
+                return installedMajor
+            }
+        }
+    } catch {
+        // Fall through to package.json dependency declaration
+    }
+
+    // 2. Parse package.json dependency declaration
+    let version = getDependencyVersion(pkg, "eslint")
+    if (!version || typeof version !== "string") return null
+
+    version = version.trim()
+
+    // Handle npm alias: e.g. "npm:eslint@^8.57.0"
+    if (version.startsWith("npm:")) {
+        const atIdx = version.lastIndexOf("@")
+        if (atIdx > 3) {
+            version = version.slice(atIdx + 1).trim()
+        }
+    }
+
+    // Handle workspace protocol: e.g. "workspace:^8.0.0", "workspace:*"
+    if (version.startsWith("workspace:")) {
+        version = version.slice("workspace:".length).trim()
+        if (version === "*" || version === "^" || version === "~") {
+            return null
+        }
+    }
+
+    // Unspecified or dynamic ranges
+    if (
+        version === "*" ||
+        version === "" ||
+        version.startsWith("catalog:") ||
+        version.startsWith("file:") ||
+        version.startsWith("link:")
+    ) {
+        return null
+    }
+
+    // npm tag: latest
+    if (version === "latest") {
+        return 9
+    }
+
+    // Range spanning both 8 and 9 (e.g. "^8.57.0 || ^9.0.0")
+    if (version.includes("||")) {
+        const parts = version.split("||").map((s) => s.trim())
+        const has8 = parts.some((p) => /\b8(?:\.\d+)?/.test(p))
+        const has9 = parts.some((p) => /\b9(?:\.\d+)?/.test(p))
+        if (has8 && has9) {
+            log("ESLint 依赖同时支持 8 与 9 且未安装本地副本，默认采用 ESLint 9 Flat Config")
+            return 9
+        }
+    }
+
+    // Explicit major 8 vs 9
+    const isMajor8 = /\b8(?:\.|\.x|\b)/.test(version) && !/^\s*(?:>=|\^)\s*9/.test(version)
+    const isMajor9 = /\b9(?:\.|\.x|\b)/.test(version) && !/<\s*9/.test(version)
+
+    if (isMajor8 && !isMajor9) return 8
+    if (isMajor9 && !isMajor8) return 9
+
+    // Fallback: check leading digit if available
     const match = version.match(/(\d+)/)
-    return match ? parseInt(match[1], 10) : null
+    if (match) {
+        return parseInt(match[1], 10)
+    }
+
+    return null
 }
 
 /**
@@ -308,7 +387,7 @@ function getLintStagedConfig(cssPreprocessor) {
 
 function main() {
     const args = process.argv.slice(2)
-    const supported = new Set(["--dry-run", "--version", "-v", "--help", "-h"])
+    const supported = new Set(["--dry-run", "--backup", "--version", "-v", "--help", "-h"])
     const unknown = args.filter((arg) => !supported.has(arg))
     if (unknown.length) {
         console.error(`未知参数: ${unknown.join(", ")}；使用 --help 查看帮助`)
@@ -316,7 +395,9 @@ function main() {
         return
     }
     if (args.includes("--help") || args.includes("-h")) {
-        console.log("Usage: my-code-style-init [--dry-run] [--version|-v] [--help|-h]")
+        console.log("Usage: my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]")
+        console.log("  --backup   覆盖已有配置前将其备份到 .my-code-style-backup/ 目录")
+        console.log("  --dry-run  试运行，仅输出将执行的变更，不写入任何文件")
         console.log("初始化会覆盖部分配置和 hooks；请先备份并运行 --dry-run。")
         return
     }
@@ -387,6 +468,12 @@ function main() {
         fileExists("eslint.config.js") ||
         fileExists("eslint.config.ts") ||
         fileExists("eslint.config.cjs")
+
+    if (eslintVersion !== null && eslintVersion < 8) {
+        console.error(`不支持 ESLint ${eslintVersion} 版本；本配置包仅支持 ESLint 8 或 9，未修改任何文件`)
+        process.exitCode = 1
+        return
+    }
 
     // Do not silently mix an installed major version with an incompatible format.
     if (
@@ -468,9 +555,19 @@ function main() {
         content: commitlintrcContent(),
     })
 
+    const isEsm = isEsmProject()
+    let versionrcPath = ".versionrc.js"
+    if (fileExists(".versionrc.cjs") || isEsm) {
+        versionrcPath = ".versionrc.cjs"
+    }
+
+    if (isEsm && fileExists(".versionrc.js") && !fileExists(".versionrc.cjs")) {
+        warn("检测到 ESM 项目 (type: module) 存在旧的 .versionrc.js，standard-version 需使用 .versionrc.cjs")
+    }
+
     files.push({
-        path: ".versionrc.js",
-        exists: fileExists(".versionrc.js"),
+        path: versionrcPath,
+        exists: fileExists(versionrcPath),
         content: versionrcContent(),
     })
 
@@ -530,41 +627,134 @@ function main() {
         return
     }
 
-    // Actually write files
-    for (const f of files) {
-        writeFile(f.path, f.content)
-    }
-
-    // Husky
-    if (!hasHusky) {
-        ensureDir(huskyDir)
-    }
-    for (const h of hooks) {
-        writeFile(h.path, h.content)
-        fs.chmodSync(path.resolve(PROJECT_ROOT, h.path), 0o755)
+    // Optional backup of existing files before modifying
+    const backup = args.includes("--backup")
+    if (backup) {
+        const backupDir = path.resolve(PROJECT_ROOT, ".my-code-style-backup")
+        ensureDir(backupDir)
+        for (const item of [...files, ...hooks]) {
+            if (fileExists(item.path)) {
+                const srcPath = path.resolve(PROJECT_ROOT, item.path)
+                const targetPath = path.resolve(backupDir, item.path)
+                ensureDir(path.dirname(targetPath))
+                fs.copyFileSync(srcPath, targetPath)
+                log(`已备份 ${item.path} -> .my-code-style-backup/${item.path}`)
+            }
+        }
     }
 
     // ESLint 8 directory traversal defaults to .js; explicitly include typed
     // files and the selected component formats so `lint` cannot silently skip them.
     const legacyExtensions =
-        ".js,.cjs,.mjs,.ts,.mts,.cts" +
+        ".js,.cjs,.mjs,.ts,.mts,.cts,.jsx,.tsx" +
         (projectType !== "base" ? ",.vue" : "") +
         (projectType === "uniapp" ? ",.nvue" : "")
     const lintCommand = useFlatConfig ? "eslint ." : `eslint . --ext ${legacyExtensions}`
 
-    // package.json scripts + lint-staged
-    modifyPackageJson({
-        scripts: {
-            lint: lintCommand,
-            "lint:fix": `${lintCommand} --fix`,
-            format: "prettier --write .",
-            prepare: "husky",
-            release: "standard-version",
-            cz: "czg",
-        },
-        "lint-staged": getLintStagedConfig(cssPreprocessor),
-    })
-    success("更新 package.json (scripts + lint-staged)")
+    // Take snapshot of files and hooks before making any filesystem modifications
+    const snapshot = new Map()
+    for (const f of files) {
+        const abs = path.resolve(PROJECT_ROOT, f.path)
+        let existed = false
+        let isFile = false
+        let content = null
+        try {
+            if (fs.existsSync(abs)) {
+                existed = true
+                isFile = fs.statSync(abs).isFile()
+                if (isFile) content = fs.readFileSync(abs, "utf8")
+            }
+        } catch {}
+        snapshot.set(f.path, { existed, isFile, content })
+    }
+    for (const h of hooks) {
+        const abs = path.resolve(PROJECT_ROOT, h.path)
+        let existed = false
+        let isFile = false
+        let content = null
+        let mode = undefined
+        try {
+            if (fs.existsSync(abs)) {
+                existed = true
+                const stat = fs.statSync(abs)
+                isFile = stat.isFile()
+                mode = stat.mode
+                if (isFile) content = fs.readFileSync(abs, "utf8")
+            }
+        } catch {}
+        snapshot.set(h.path, { existed, isFile, content, mode })
+    }
+    const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
+    const hadPkg = fs.existsSync(pkgPath)
+    let pkgContent = null
+    try {
+        if (hadPkg && fs.statSync(pkgPath).isFile()) {
+            pkgContent = fs.readFileSync(pkgPath, "utf8")
+        }
+    } catch {}
+    const hadHuskyDir = fs.existsSync(huskyDir)
+
+    try {
+        // Actually write files
+        for (const f of files) {
+            writeFile(f.path, f.content)
+        }
+
+        // Husky
+        if (!hasHusky) {
+            ensureDir(huskyDir)
+        }
+        for (const h of hooks) {
+            writeFile(h.path, h.content)
+            fs.chmodSync(path.resolve(PROJECT_ROOT, h.path), 0o755)
+        }
+
+        // package.json scripts + lint-staged
+        modifyPackageJson({
+            scripts: {
+                lint: lintCommand,
+                "lint:fix": `${lintCommand} --fix`,
+                format: "prettier --write .",
+                prepare: "husky",
+                release: "standard-version",
+                cz: "czg",
+            },
+            "lint-staged": getLintStagedConfig(cssPreprocessor),
+        })
+        success("更新 package.json (scripts + lint-staged)")
+    } catch (err) {
+        console.error(`\n  ✖ 初始化写入失败: ${err.message}；正在回滚...`)
+        for (const [relPath, info] of snapshot.entries()) {
+            const abs = path.resolve(PROJECT_ROOT, relPath)
+            try {
+                if (info.existed && info.isFile) {
+                    fs.writeFileSync(abs, info.content, "utf8")
+                    if (info.mode !== undefined) {
+                        fs.chmodSync(abs, info.mode)
+                    }
+                } else if (!info.existed && fs.existsSync(abs)) {
+                    fs.rmSync(abs, { force: true, recursive: true })
+                }
+            } catch (rollbackErr) {
+                console.error(`  回滚文件失败: ${relPath} (${rollbackErr.message})`)
+            }
+        }
+        if (hadPkg) {
+            fs.writeFileSync(pkgPath, pkgContent, "utf8")
+        } else if (fs.existsSync(pkgPath)) {
+            fs.rmSync(pkgPath, { force: true })
+        }
+        if (!hadHuskyDir && fs.existsSync(huskyDir)) {
+            try {
+                if (fs.readdirSync(huskyDir).length === 0) {
+                    fs.rmdirSync(huskyDir)
+                }
+            } catch {}
+        }
+        console.error("  ✓ 已成功回滚所有更改，工作区已恢复原始状态。\n")
+        process.exitCode = 1
+        return
+    }
 
     // Check for missing peerDependencies
     checkPeerDeps({ useFlatConfig, cssPreprocessor, projectType })

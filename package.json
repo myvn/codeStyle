@@ -28,6 +28,10 @@
     "bin",
     "README.md"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "test": "node --test tests/*.test.cjs demo-test/*.test.cjs",
     "test:demo": "node --test demo-test/*.test.cjs",

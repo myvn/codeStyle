@@ -18,11 +18,15 @@ All notable changes to this project will be documented in this file. See [standa
 - **stylelint:** 默认配置兼容混合 Less 语法，放行与 Less 冲突的 `scss/operator-*` 及 `scss/no-global-function-names`，实现对 SCSS、Less 及 Vue 内嵌双样式的统一检查与修复。
 - **init:** 识别同时使用 Sass 与 Less 的混合项目（both），lint-staged 生成 `**/*.{html,css,scss,less}` 统一串行任务组，并在缺失依赖时同时提示安装 `postcss-scss` 与 `postcss-less`。
 - **eslint:** Flat Vue 配置完整匹配根目录及嵌套 .nvue，支持模块脚本和 TypeScript parser。
+- **eslint:** Flat Config 与传统配置全面补齐 JSX 与 TSX（`files: jsx,tsx`, `ecmaFeatures.jsx: true`），ESLint 8 模式下 `legacyExtensions` 包含 `.jsx,.tsx`，实现完整的语法解析、Prettier 格式化修复与全局目录扫描。
+- **versionrc:** 自动识别 ESM 项目（`type: "module"`）并生成 `.versionrc.cjs`，彻底解决 standard-version 使用 `require()` 加载 CommonJS 格式 `.versionrc.js` 时的 `ReferenceError`。
+- **init:** 强化 ESLint 版本识别逻辑，支持已安装 `node_modules/eslint` 实际版本直读、npm 别名（`npm:eslint@...`）、workspace 协议、`latest` 标签、多版本联合范围（`^8.57.0 || ^9.0.0` 默认 Flat Config），并拒绝非法版本（`< 8`）。
+- **init:** 增加初始化快照与异常事务回滚机制，新增 `--backup` 参数支持覆盖前自动备份已有配置文件至 `.my-code-style-backup/`。
 - **prettier:** .nvue 显式使用 Vue parser 并保留分号约定。
 
 ### Tests
 
-- 增加 CLI、配置契约、暂存区 scope 判定、混合预处理器及隔离工具链测试，共 101 项通过；不代表全量或跨平台覆盖。
+- 自动化测试套件扩充至 121 项全部通过（52 项 base + 44 项 integration + 25 项 legacy，0 失败），全面覆盖无 HEAD 仓库首次提交、已有 stash 保护、git mv/rm、ESM 版本递增与 JSX/TSX 实际校验。
 
 ## 1.3.1 (2026-09-16)
 

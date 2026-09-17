@@ -1,9 +1,58 @@
 [
-  { "name": "base-ts", "dependencies": { "eslint": "^9.0.0" }, "entry": "my-code-style/eslint/flat", "style": null },
-  { "name": "vue-scss", "dependencies": { "eslint": "^9.0.0", "vue": "^3.0.0", "sass": "^1.0.0" }, "entry": "my-code-style/eslint/flat/vue3", "style": "my-code-style/stylelint" },
-  { "name": "vue-less", "dependencies": { "eslint": "^9.0.0", "vue": "^3.0.0", "less": "^4.0.0" }, "entry": "my-code-style/eslint/flat/vue3", "style": "my-code-style/stylelint/less" },
-  { "name": "uniapp-scss", "dependencies": { "eslint": "^9.0.0", "vue": "^3.0.0", "@dcloudio/uni-app": "3.0.0", "sass": "^1.0.0" }, "entry": "my-code-style/eslint/flat/uniapp", "style": "my-code-style/stylelint" },
-  { "name": "legacy-base", "dependencies": { "eslint": "^8.0.0" }, "entry": "my-code-style/eslint", "legacy": true, "style": null },
-  { "name": "vue-default-style", "dependencies": { "vue": "^3.0.0" }, "entry": "my-code-style/eslint/flat/vue3", "style": "my-code-style/stylelint" },
-  { "name": "sass-less-coexist", "dependencies": { "vue": "^3.0.0", "sass": "^1.0.0", "less": "^4.0.0" }, "entry": "my-code-style/eslint/flat/vue3", "style": "my-code-style/stylelint" }
+  {
+    "name": "base-ts",
+    "dependencies": { "eslint": "^9.0.0" },
+    "entry": "my-code-style/eslint/flat",
+    "style": null
+  },
+  {
+    "name": "vue-scss",
+    "dependencies": { "eslint": "^9.0.0", "vue": "^3.0.0", "sass": "^1.0.0" },
+    "entry": "my-code-style/eslint/flat/vue3",
+    "style": "my-code-style/stylelint"
+  },
+  {
+    "name": "vue-less",
+    "dependencies": { "eslint": "^9.0.0", "vue": "^3.0.0", "less": "^4.0.0" },
+    "entry": "my-code-style/eslint/flat/vue3",
+    "style": "my-code-style/stylelint/less"
+  },
+  {
+    "name": "uniapp-scss",
+    "dependencies": {
+      "eslint": "^9.0.0",
+      "vue": "^3.0.0",
+      "@dcloudio/uni-app": "3.0.0",
+      "sass": "^1.0.0"
+    },
+    "entry": "my-code-style/eslint/flat/uniapp",
+    "style": "my-code-style/stylelint"
+  },
+  {
+    "name": "legacy-base",
+    "dependencies": { "eslint": "^8.0.0" },
+    "entry": "my-code-style/eslint",
+    "legacy": true,
+    "style": null
+  },
+  {
+    "name": "vue-default-style",
+    "dependencies": { "vue": "^3.0.0" },
+    "entry": "my-code-style/eslint/flat/vue3",
+    "style": "my-code-style/stylelint"
+  },
+  {
+    "name": "sass-less-coexist",
+    "dependencies": { "vue": "^3.0.0", "sass": "^1.0.0", "less": "^4.0.0" },
+    "entry": "my-code-style/eslint/flat/vue3",
+    "style": "my-code-style/stylelint"
+  },
+  {
+    "name": "esm-base",
+    "type": "module",
+    "dependencies": { "eslint": "^9.0.0" },
+    "entry": "my-code-style/eslint/flat",
+    "style": null,
+    "esm": true
+  }
 ]

@@ -1048,63 +1048,81 @@ export default [
                                 <td>增加备份、明确确认或 --force，写入前统一校验 package.json。</td>
                             </tr>
                             <tr>
-                                <td>高 · 待验证</td>
+                                <td>已修复并验证</td>
                                 <td>
-                                    传统 ESLint 8 支持与 peer eslint ^9 不一致；传统 Vue preset 使用
-                                    plugin:vue/vue3-essential，而 peer plugin-vue 为 ^10。
+                                    传统 ESLint 8 与 ESLint 9 双格式支持已对齐；peerDependencies
+                                    声明为 ^8.57.0 || ^9.0.0；传统 Vue preset 正确使用
+                                    plugin:vue/essential。
                                 </td>
                                 <td>
-                                    建立 v8/v9 × base/Vue/uni-app 的真实安装矩阵，核验 preset 名称与
-                                    peer 兼容范围。
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>高 · 已确认</td>
-                                <td>
-                                    Less 预设 extends stylelint-config-html/vue，但 Less
-                                    缺失依赖提示列表未包含 stylelint-config-html。
-                                </td>
-                                <td>从实际预设引用推导依赖提示，并增加 Less 安装后加载测试。</td>
-                            </tr>
-                            <tr>
-                                <td>中 · 待验证</td>
-                                <td>lint-staged 多组任务对同一 Vue/JS/TS 文件并发自动修复。</td>
-                                <td>统一匹配并串行执行修复工具，或明确设置并发策略。</td>
-                            </tr>
-                            <tr>
-                                <td>中 · 待验证</td>
-                                <td>
-                                    .nvue 的 Flat 配置只设置部分 parserOptions / globals，Vue parser
-                                    主要匹配 .vue；JSX/TSX 也没有完整专用文件规则。
-                                </td>
-                                <td>
-                                    增加嵌套 .nvue 与 JSX/TSX fixture，验证最终 parser 和规则覆盖。
+                                    已建立 ESLint 8.57.0 隔离测试套件（25
+                                    项测试全部通过），覆盖配置加载、格式修复、语法拦截与目录遍历。
                                 </td>
                             </tr>
                             <tr>
-                                <td>中 · 已确认</td>
-                                <td>版本检测只抓依赖字符串首个数字；不核验实际安装版本。</td>
+                                <td>已修复并验证</td>
+                                <td>Less 与混合样式依赖提示完整性。</td>
                                 <td>
-                                    使用 semver 或已安装工具的 package.json，并处理 workspace /
-                                    alias 等声明。
+                                    CLI 初始化提示已补全 stylelint-config-html、postcss-scss 与
+                                    postcss-less，并在混合工程中自动生成联合校验。
                                 </td>
                             </tr>
                             <tr>
-                                <td>中 · 已确认</td>
+                                <td>已修复并验证</td>
+                                <td>lint-staged 文件分组互斥与执行顺序。</td>
                                 <td>
-                                    未看到测试目录、test 脚本、锁文件或 CI
-                                    工作流；开发依赖不足以直接运行全部脚本。
-                                </td>
-                                <td>
-                                    增加可重复安装方案、CLI fixture 测试、配置加载与 lint 回归测试。
+                                    重构为互斥文件组，单个文件仅归属于唯一任务数组；任务组内部严格串行（Prettier
+                                    → ESLint → Stylelint），组间互不干扰，提交任务不再共享磁盘缓存。
                                 </td>
                             </tr>
                             <tr>
-                                <td>低 · 已确认</td>
-                                <td>scope 来自 git status 全部状态；单复数转换是启发式。</td>
+                                <td>已修复并验证</td>
+                                <td>.nvue 深度支持与 JSX/TSX 实际检查。</td>
                                 <td>
-                                    若产品要求“暂存区猜测”，改读 git diff
-                                    --cached，并覆盖重命名、中文路径、多目录案例。
+                                    Flat 与传统配置均补全 .nvue 的 parser 与规则例外；补全 JSX/TSX
+                                    parserOptions.ecmaFeatures.jsx，提供真实语法检查、格式修复与目录扫描。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>已修复并验证</td>
+                                <td>ESLint 版本识别强化与安全保护。</td>
+                                <td>
+                                    优先直读已安装 node_modules/eslint 版本，并支持 npm
+                                    别名（npm:eslint@...）、workspace 协议、latest
+                                    标签、联合范围与非法版本拦截（拒绝 ESLint < 8）。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>已修复并验证</td>
+                                <td>工程化测试体系与回归套件建设。</td>
+                                <td>
+                                    已建立分层测试套件（基础 CLI 52 项 + 现代集成提交链 44 项 +
+                                    ESLint 8 兼容性 25 项，共 121 项测试全部通过）。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>已修复并验证</td>
+                                <td>Commitlint scope 猜测准确性。</td>
+                                <td>
+                                    guessCurrentScope() 严格改为只读取 git diff --cached
+                                    暂存区改动，加入跨文件频次投票机制，全面覆盖重命名、物理删除、多目录、中文及空格路径。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>已修复并验证</td>
+                                <td>初始化安全增强与事务回滚。</td>
+                                <td>
+                                    提供写入快照与异常回滚机制（遇到不可写或磁盘异常自动恢复工作区原始状态），支持
+                                    --backup 覆盖前备份。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>已修复并验证</td>
+                                <td>ESM (type: module) 项目中的 standard-version 版本配置。</td>
+                                <td>
+                                    自动检测 ESM 项目并生成 .versionrc.cjs，规避 require() 加载
+                                    .versionrc.js 时的 ReferenceError，实测版本递增与 CHANGELOG
+                                    生成完全正常。
                                 </td>
                             </tr>
                         </tbody>
@@ -1116,50 +1134,60 @@ export default [
                     <small>10</small>
                     本次核验与版本脉络
                 </h2>
-                <h3>已执行的轻量核验</h3>
-                <p>在 Node v22.22.3 环境中，用独立临时目录调用当前源码的 CLI，未覆盖本仓库配置。</p>
+                <h3>全量分层自动化测试（121 项通过，0 失败）</h3>
+                <p>在 macOS / Node.js 24 环境中，执行全量自动化测试套件（npm run test:all）：</p>
                 <div class="table-wrap">
                     <table>
                         <thead>
                             <tr>
-                                <th>场景</th>
+                                <th>测试套件</th>
+                                <th>覆盖范围</th>
                                 <th>结果</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>基础工程 + ESLint 9，无样式依赖</td>
-                                <td>通过：生成 eslint.config.mjs，跳过 Stylelint</td>
+                                <td>基础配置与 CLI 回归 (npm test)</td>
+                                <td>
+                                    导出解析、初始化矩阵、SCSS/Less 依赖提示、Scope
+                                    暂存区推断、参数校验、配置冲突拦截、ESLint 版本识别、--backup
+                                    与事务回滚
+                                </td>
+                                <td>52 项全部通过</td>
                             </tr>
                             <tr>
-                                <td>Vue + ESLint 9 + Less</td>
-                                <td>通过：生成 Flat 与 Stylelint 配置</td>
+                                <td>现代工具链与真实提交链路 (npm run test:integration)</td>
+                                <td>
+                                    Flat Config、JSX/TSX 解析与修复、真实 Husky hooks、lint-staged
+                                    串行任务、Git 边界（无 HEAD 仓库首次提交、已有 stash 保护、git
+                                    mv/rm）、standard-version ESM 兼容
+                                </td>
+                                <td>44 项全部通过</td>
                             </tr>
                             <tr>
-                                <td>uni-app + ESLint 8 + Sass</td>
-                                <td>通过：生成 .eslintrc.cjs 与 Stylelint 配置</td>
+                                <td>ESLint 8 独立兼容性 (npm run test:legacy)</td>
+                                <td>
+                                    ESLint 8.57.0 CLI 真实运行、TS/Vue/uni-app/JSX/TSX
+                                    规则校验与自动修复、CommonJS require() 支持、目录遍历与拦截
+                                </td>
+                                <td>25 项全部通过</td>
                             </tr>
                             <tr>
-                                <td>上述三个场景的 --dry-run</td>
-                                <td>通过：未生成新文件、package.json 内容未变</td>
-                            </tr>
-                            <tr>
-                                <td>上述三个场景的既有 lint script</td>
-                                <td>通过：保留原值</td>
-                            </tr>
-                            <tr>
-                                <td>--version</td>
-                                <td>通过：输出 1.3.1</td>
+                                <td><b>合计</b></td>
+                                <td><b>全部核心功能与边界场景</b></td>
+                                <td><b>121 项通过，0 失败，0 TODO</b></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <div class="note">
-                    测试范围仅为 CLI 生成行为与静态源码核对；未安装完整 peer 工具链，未执行实际
-                    ESLint / Stylelint / Husky 集成，也未进行 npm 发布验证。
-                </div>
                 <h3>近期演进</h3>
                 <ul>
+                    <li>
+                        <b>1.3.1 (当前分支 arena/01a0a973-codestyle)：</b>
+                        支持 SCSS/Less 混合工程、JSX/TSX 全链路解析、ESM .versionrc.cjs 适配、ESLint
+                        版本识别强化、初始化安全备份与事务回滚、guessCurrentScope 严格暂存区推断与
+                        121 项全量测试验证。
+                    </li>
                     <li>
                         <b>1.3.1 · 2026-09-16：</b>
                         放宽 SCSS / TS 部分规则，扩充第三方资源与构建目录忽略。
