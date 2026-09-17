@@ -67,5 +67,10 @@ module.exports = {
         // 业务样式容错放行
         "block-no-empty": null,
         "scss/at-extend-no-missing-placeholder": null,
+        // 兼容混合 Less 及 Vue 内嵌 Less 语法，避免 stylelint-scss 规则解析崩溃或误报
+        "scss/operator-no-newline-after": null,
+        "scss/operator-no-newline-before": null,
+        "scss/operator-no-unspaced": null,
+        "scss/no-global-function-names": null,
     },
 }

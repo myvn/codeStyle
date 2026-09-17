@@ -125,7 +125,7 @@ function detectProjectType() {
 
 /**
  * Detect CSS preprocessor in use
- * Returns "scss", "less", or "none"
+ * Returns "scss", "less", "both", or "none"
  */
 function detectCssPreprocessor() {
     const pkg = getProjectPkg()
@@ -139,6 +139,7 @@ function detectCssPreprocessor() {
     const hasSass = allDeps["sass"] || allDeps["node-sass"] || allDeps["sass-loader"]
     const hasLess = allDeps["less"] || allDeps["less-loader"]
 
+    if (hasSass && hasLess) return "both"
     if (hasLess && !hasSass) return "less"
     if (hasSass) return "scss"
 
@@ -149,7 +150,11 @@ function detectCssPreprocessor() {
                 ? ".stylelintrc.cjs"
                 : ".stylelintrc.js"
             const content = fs.readFileSync(path.resolve(PROJECT_ROOT, stylelintFile), "utf8")
-            if (content.includes("postcss-less")) return "less"
+            const hasPostcssLess = content.includes("postcss-less")
+            const hasPostcssScss =
+                content.includes("postcss-scss") || content.includes("my-code-style/stylelint")
+            if (hasPostcssLess && hasPostcssScss) return "both"
+            if (hasPostcssLess) return "less"
         } catch {}
         return "scss"
     }
@@ -281,11 +286,14 @@ function getLintStagedConfig(cssPreprocessor) {
         componentTasks.push("stylelint --fix")
         styleTasks.push("stylelint --fix")
     }
-    const styleFiles = cssPreprocessor === "less"
-        ? "**/*.{html,css,less}"
-        : cssPreprocessor === "scss"
-          ? "**/*.{html,css,scss}"
-          : "**/*.{html,css}"
+    const styleFiles =
+        cssPreprocessor === "both"
+            ? "**/*.{html,css,scss,less}"
+            : cssPreprocessor === "less"
+              ? "**/*.{html,css,less}"
+              : cssPreprocessor === "scss"
+                ? "**/*.{html,css,scss}"
+                : "**/*.{html,css}"
     const config = {
         "**/*.{vue,nvue}": componentTasks,
         "**/*.{js,ts,jsx,tsx,cjs,mjs,mts,cts}": ["prettier --write", "eslint --fix"],
@@ -324,14 +332,20 @@ function main() {
     // remains supported, but malformed manifests must never be treated as empty.
     if (fileExists("package.json")) {
         try {
-            const pkg = JSON.parse(fs.readFileSync(path.resolve(PROJECT_ROOT, "package.json"), "utf8"))
+            const pkg = JSON.parse(
+                fs.readFileSync(path.resolve(PROJECT_ROOT, "package.json"), "utf8"),
+            )
             if (!pkg || typeof pkg !== "object" || Array.isArray(pkg)) {
                 throw new Error("package.json 必须是 JSON 对象")
             }
             for (const key of ["dependencies", "devDependencies", "peerDependencies", "scripts"]) {
                 if (pkg[key] === undefined) continue
-                if (!pkg[key] || typeof pkg[key] !== "object" || Array.isArray(pkg[key]) ||
-                    Object.values(pkg[key]).some((value) => typeof value !== "string")) {
+                if (
+                    !pkg[key] ||
+                    typeof pkg[key] !== "object" ||
+                    Array.isArray(pkg[key]) ||
+                    Object.values(pkg[key]).some((value) => typeof value !== "string")
+                ) {
                     throw new Error(`${key} 必须是值为字符串的对象`)
                 }
             }
@@ -375,14 +389,18 @@ function main() {
         fileExists("eslint.config.cjs")
 
     // Do not silently mix an installed major version with an incompatible format.
-    if ((eslintVersion >= 9 && hasLegacyConfigFile && !hasFlatConfigFile) ||
-        (eslintVersion === 8 && hasFlatConfigFile)) {
+    if (
+        (eslintVersion >= 9 && hasLegacyConfigFile && !hasFlatConfigFile) ||
+        (eslintVersion === 8 && hasFlatConfigFile)
+    ) {
         console.error("ESLint 版本与已有配置格式冲突；请先手动迁移或确认配置格式，未修改任何文件")
         process.exitCode = 1
         return
     }
     if (!eslintVersion && hasLegacyConfigFile && !hasFlatConfigFile) {
-        console.error("检测到传统 ESLint 配置但无法确定版本；请先声明 ESLint 版本或迁移到 Flat Config，未修改任何文件")
+        console.error(
+            "检测到传统 ESLint 配置但无法确定版本；请先声明 ESLint 版本或迁移到 Flat Config，未修改任何文件",
+        )
         process.exitCode = 1
         return
     }
@@ -393,7 +411,9 @@ function main() {
     log(
         `检测到项目类型: ${projectType === "uniapp" ? "uni-app" : projectType === "vue" ? "Vue" : "Node/TS 基础"}`,
     )
-    log(`检测到 CSS 预处理器: ${cssPreprocessor}`)
+    log(
+        `检测到 CSS 预处理器: ${cssPreprocessor === "both" ? "SCSS + Less (混合)" : cssPreprocessor}`,
+    )
     console.log("")
 
     // --- Build file list based on detection ---
@@ -526,7 +546,8 @@ function main() {
 
     // ESLint 8 directory traversal defaults to .js; explicitly include typed
     // files and the selected component formats so `lint` cannot silently skip them.
-    const legacyExtensions = ".js,.cjs,.mjs,.ts,.mts,.cts" +
+    const legacyExtensions =
+        ".js,.cjs,.mjs,.ts,.mts,.cts" +
         (projectType !== "base" ? ",.vue" : "") +
         (projectType === "uniapp" ? ",.nvue" : "")
     const lintCommand = useFlatConfig ? "eslint ." : `eslint . --ext ${legacyExtensions}`
@@ -636,10 +657,11 @@ function checkPeerDeps({
           ]
 
     const cssDeps =
-        cssPreprocessor === "scss"
+        cssPreprocessor === "both"
             ? [
                   "stylelint",
                   "postcss-scss",
+                  "postcss-less",
                   "postcss-html",
                   "stylelint-config-recommended",
                   "stylelint-config-recommended-scss",
@@ -648,18 +670,30 @@ function checkPeerDeps({
                   "stylelint-config-recess-order",
                   "stylelint-prettier",
               ]
-            : cssPreprocessor === "less"
+            : cssPreprocessor === "scss"
               ? [
                     "stylelint",
-                    "postcss-less",
+                    "postcss-scss",
                     "postcss-html",
                     "stylelint-config-recommended",
+                    "stylelint-config-recommended-scss",
                     "stylelint-config-recommended-vue",
                     "stylelint-config-html",
                     "stylelint-config-recess-order",
                     "stylelint-prettier",
                 ]
-              : []
+              : cssPreprocessor === "less"
+                ? [
+                      "stylelint",
+                      "postcss-less",
+                      "postcss-html",
+                      "stylelint-config-recommended",
+                      "stylelint-config-recommended-vue",
+                      "stylelint-config-html",
+                      "stylelint-config-recess-order",
+                      "stylelint-prettier",
+                  ]
+                : []
 
     const allPeerDeps = [...baseDeps, ...flatDeps, ...cssDeps]
 
@@ -682,9 +716,8 @@ function checkPeerDeps({
         warn("一键安装命令：")
         console.log(`  pnpm add -D my-code-style \\`)
         missing.forEach((dep, i) => {
-            const version = dep === "eslint"
-                ? (useFlatConfig ? "^9.0.0" : "^8.57.0")
-                : peerDeps[dep] || ""
+            const version =
+                dep === "eslint" ? (useFlatConfig ? "^9.0.0" : "^8.57.0") : peerDeps[dep] || ""
             const depWithVersion = version ? `${dep}@${version}` : dep
             const suffix = i < missing.length - 1 ? " \\" : ""
             console.log(`  ${depWithVersion}${suffix}`)

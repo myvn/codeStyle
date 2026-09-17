@@ -15,12 +15,14 @@ All notable changes to this project will be documented in this file. See [standa
 - **deps:** Vue parser 更新到 ^10.3.0，postcss-html / stylelint-config-html 更新到 ^2.0.0，修复当前预设依赖冲突。
 - **commitlint:** 移除包含 init 即跳过校验的宽泛过滤；初始化提交也应遵循 Conventional Commits。
 - **commitlint:** 重构 `guessCurrentScope`，严格只从 Git 暂存区（staged）提取修改，未暂存与未跟踪文件不影响判定；多目录采用频次投票策略确定主 scope，并覆盖重命名、删除（含目录全删）、多源码目录、中文及空格路径。
+- **stylelint:** 默认配置兼容混合 Less 语法，放行与 Less 冲突的 `scss/operator-*` 及 `scss/no-global-function-names`，实现对 SCSS、Less 及 Vue 内嵌双样式的统一检查与修复。
+- **init:** 识别同时使用 Sass 与 Less 的混合项目（both），lint-staged 生成 `**/*.{html,css,scss,less}` 统一串行任务组，并在缺失依赖时同时提示安装 `postcss-scss` 与 `postcss-less`。
 - **eslint:** Flat Vue 配置完整匹配根目录及嵌套 .nvue，支持模块脚本和 TypeScript parser。
 - **prettier:** .nvue 显式使用 Vue parser 并保留分号约定。
 
 ### Tests
 
-- 增加 CLI、配置契约、暂存区 scope 判定及隔离工具链测试，共 97 项通过；不代表全量或跨平台覆盖。
+- 增加 CLI、配置契约、暂存区 scope 判定、混合预处理器及隔离工具链测试，共 101 项通过；不代表全量或跨平台覆盖。
 
 ## 1.3.1 (2026-09-16)
 
