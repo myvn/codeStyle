@@ -71,7 +71,16 @@ module.exports = require("my-code-style/stylelint")
 // .commitlintrc.cjs
 const base = require("my-code-style/commitlint")
 const { generateScopes, guessCurrentScope } = require("my-code-style/commitlint/scopes")
-module.exports = { ...base, prompt: { ...base.prompt, scopes: generateScopes("src") } }
+const scopeComplete = guessCurrentScope()
+module.exports = {
+    ...base,
+    prompt: {
+        ...base.prompt,
+        customScopesAlign: !scopeComplete ? "top" : "bottom",
+        defaultScope: scopeComplete,
+        scopes: [...generateScopes("src"), "mock"],
+    },
+}
 
 // .versionrc.js
 module.exports = require("my-code-style/versionrc")

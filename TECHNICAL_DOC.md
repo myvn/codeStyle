@@ -92,8 +92,8 @@ base.mjs (tseslint + import-x + prettier)
 
 `commitlint/scopes.cjs` 通过以下方式实现智能 scope：
 
-- **generateScopes**：`fs.readdirSync` 读取 `src/` 下一级目录名，去掉末尾 `s` 作为 scope 列表
-- **guessCurrentScope**：执行 `git status --porcelain`，分析当前修改文件所在的 `src/` 子目录，自动填充默认 scope
+- **generateScopes**：读取源码目录（默认 `src/`）下一级子目录名，转为单数形式去重后作为 scope 列表
+- **guessCurrentScope**：读取 Git 暂存区（staged），分析暂存文件所在的源码子目录，按修改频次投票确定默认 scope（平票时按首个暂存记录，未暂存改动不参与）；支持重命名、删除、中文与空格路径
 
 ---
 

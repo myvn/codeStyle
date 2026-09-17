@@ -84,31 +84,130 @@ function generateScopes(srcDirs = "src") {
     return [...new Set(allScopes)]
 }
 
-/**
- * Guess the current scope from git status (modified files under src/)
- * @returns {string|undefined}
- */
-function guessCurrentScope() {
+function getStagedFiles(cwd) {
     try {
-        const output = execSync("git status --porcelain || true").toString().trim()
-        if (!output) {
-            return undefined
+        const output = execSync("git diff --cached --name-only -z", {
+            cwd,
+            stdio: ["pipe", "pipe", "ignore"],
+        }).toString()
+        return output.split("\0").filter(Boolean)
+    } catch {
+        try {
+            const output = execSync("git status --porcelain -z", {
+                cwd,
+                stdio: ["pipe", "pipe", "ignore"],
+            }).toString()
+            const parts = output.split("\0")
+            const staged = []
+            for (let i = 0; i < parts.length; i++) {
+                const entry = parts[i]
+                if (!entry) continue
+                const x = entry[0]
+                const isRenameOrCopy = x === "R" || x === "C"
+                const filePath = entry.slice(3)
+                if (x !== " " && x !== "?" && x !== "!") {
+                    if (filePath) staged.push(filePath)
+                }
+                if (isRenameOrCopy) {
+                    i++
+                }
+            }
+            return staged
+        } catch {
+            return []
         }
-        const line = output.split("\n").find((r) => /(?:src\/|src\\)/.test(r))
-        if (!line) {
-            return undefined
-        }
-        const match = line.match(/src[/\\]([^/\\]+)/)
-        const rawName = match?.[1]
-        if (!rawName) {
+    }
+}
+
+/**
+ * Guess the current scope from staged files in the git index.
+ * Only staged files are considered (unstaged and untracked changes are ignored).
+ * Multi-directory strategy: votes by the number of staged changes under each candidate scope directory;
+ * in case of a tie, the first encountered scope among staged files is chosen.
+ *
+ * @param {string|string[]} [srcDirs="src"] - Source directory name(s) relative to cwd
+ * @returns {string|undefined} Guessed scope name, or undefined if none matched
+ */
+function guessCurrentScope(srcDirs = "src") {
+    try {
+        const cwd = process.cwd()
+        const rawPrefix = execSync("git rev-parse --show-prefix", {
+            cwd,
+            stdio: ["pipe", "pipe", "ignore"],
+        })
+            .toString()
+            .trim()
+        const prefix = rawPrefix.replace(/\\/g, "/")
+
+        const stagedFiles = getStagedFiles(cwd)
+        if (!stagedFiles || stagedFiles.length === 0) {
             return undefined
         }
 
-        const resolvedDir = path.resolve(process.cwd(), "src", rawName)
-        if (fs.existsSync(resolvedDir) && fs.statSync(resolvedDir).isDirectory()) {
-            return toSingular(rawName)
+        const normalizedDirs = (Array.isArray(srcDirs) ? srcDirs : [srcDirs])
+            .map((d) => d.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""))
+            .filter(Boolean)
+
+        const candidateScopes = []
+
+        for (const file of stagedFiles) {
+            const normalizedFile = file.replace(/\\/g, "/")
+            if (prefix && !normalizedFile.startsWith(prefix)) {
+                continue
+            }
+            const relativeToCwd = prefix ? normalizedFile.slice(prefix.length) : normalizedFile
+
+            for (const srcDir of normalizedDirs) {
+                const dirPrefix = srcDir ? `${srcDir}/` : ""
+                if (relativeToCwd.startsWith(dirPrefix)) {
+                    const subPath = relativeToCwd.slice(dirPrefix.length)
+                    const segments = subPath.split("/").filter(Boolean)
+                    // Must have at least 2 segments (directory + file) to belong to a scope directory
+                    if (segments.length >= 2) {
+                        const rawName = segments[0]
+                        const resolvedDir = path.resolve(cwd, srcDir, rawName)
+                        if (fs.existsSync(resolvedDir)) {
+                            if (fs.statSync(resolvedDir).isDirectory()) {
+                                candidateScopes.push(toSingular(rawName))
+                                break
+                            }
+                        } else {
+                            // If deleted on disk, having segments >= 2 indicates it was a directory in git
+                            candidateScopes.push(toSingular(rawName))
+                            break
+                        }
+                    }
+                }
+            }
         }
-        return undefined
+
+        if (candidateScopes.length === 0) {
+            return undefined
+        }
+
+        // Multi-directory selection strategy: vote by frequency; first encountered breaks ties
+        const counts = new Map()
+        const order = []
+
+        for (const scope of candidateScopes) {
+            if (!counts.has(scope)) {
+                counts.set(scope, 0)
+                order.push(scope)
+            }
+            counts.set(scope, counts.get(scope) + 1)
+        }
+
+        let bestScope = undefined
+        let maxCount = 0
+        for (const scope of order) {
+            const count = counts.get(scope)
+            if (count > maxCount) {
+                maxCount = count
+                bestScope = scope
+            }
+        }
+
+        return bestScope
     } catch {
         return undefined
     }

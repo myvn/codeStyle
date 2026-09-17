@@ -14,12 +14,13 @@ All notable changes to this project will be documented in this file. See [standa
 - **init:** 写入前校验参数和 package.json，保护已有 ESLint 配置并拦截版本/格式冲突；补全 Less 的 stylelint-config-html 依赖提示。
 - **deps:** Vue parser 更新到 ^10.3.0，postcss-html / stylelint-config-html 更新到 ^2.0.0，修复当前预设依赖冲突。
 - **commitlint:** 移除包含 init 即跳过校验的宽泛过滤；初始化提交也应遵循 Conventional Commits。
+- **commitlint:** 重构 `guessCurrentScope`，严格只从 Git 暂存区（staged）提取修改，未暂存与未跟踪文件不影响判定；多目录采用频次投票策略确定主 scope，并覆盖重命名、删除（含目录全删）、多源码目录、中文及空格路径。
 - **eslint:** Flat Vue 配置完整匹配根目录及嵌套 .nvue，支持模块脚本和 TypeScript parser。
 - **prettier:** .nvue 显式使用 Vue parser 并保留分号约定。
 
 ### Tests
 
-- 增加 CLI、配置契约及隔离工具链测试，共 91 项通过；不代表全量或跨平台覆盖。
+- 增加 CLI、配置契约、暂存区 scope 判定及隔离工具链测试，共 97 项通过；不代表全量或跨平台覆盖。
 
 ## 1.3.1 (2026-09-16)
 
