@@ -23,7 +23,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: 安装基础依赖
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: 安装测试隔离依赖环境
         run: |

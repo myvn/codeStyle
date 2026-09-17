@@ -43,7 +43,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "prepare": "husky",
+    "prepare": "node -e \"if (!process.env.CI) { try { require('child_process').execSync('husky', { stdio: 'ignore' }) } catch {} }\"",
     "release": "standard-version",
     "release:push": "standard-version && git push --follow-tags origin HEAD",
     "pub": "npm run release:push",
