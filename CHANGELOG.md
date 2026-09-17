@@ -1,32 +1,17 @@
-# Changelog
+## 变更日志
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+## [1.4.0](https://github.com/myvn/codeStyle/compare/v1.2.0...v1.4.0) (2026-09-17)
 
-## Unreleased
+### 🐛 Bug Fixes | Bug 修复
 
-### Bug Fixes
+- **commitlint:** guessCurrentScope 仅基于暂存区推断并补充频次投票与全场景回归 ([3f5f8ea](https://github.com/myvn/codeStyle/commit/3f5f8ea1a4526621006025ce2d86608dd53e9b2d))
+- harden initialization and lint workflows with integration tests ([7079998](https://github.com/myvn/codeStyle/commit/707999895ac4d80d311537bd833584694c7a8510))
+- **stylelint:** 支持混合 SCSS 与 Less 工程并在组件内嵌/独立样式中全量检查与修复 ([e5a1b7e](https://github.com/myvn/codeStyle/commit/e5a1b7e4992f40cf6b4f97fa75e3c755b57fb257))
 
-- **eslint8:** 支持范围明确为 ^8.57.0 || ^9.0.0；修正 Vue 插件 10 的传统预设名，补齐 CommonJS require 与 nvue 模块脚本/分号覆写。
-- **init:** 传统 lint 脚本显式指定 JS/TS 及对应组件扩展名，避免目录扫描漏检；依赖提示按配置格式推荐 ESLint 主版本。
+### ✨ Features | 新功能
 
-- **lint-staged:** 改为互斥文件组内串行执行，补齐 nvue，移除提交任务共享 ESLint 缓存；Stylelint 显式解析 nvue 内嵌样式。
-
-- **init:** 写入前校验参数和 package.json，保护已有 ESLint 配置并拦截版本/格式冲突；补全 Less 的 stylelint-config-html 依赖提示。
-- **deps:** Vue parser 更新到 ^10.3.0，postcss-html / stylelint-config-html 更新到 ^2.0.0，修复当前预设依赖冲突。
-- **commitlint:** 移除包含 init 即跳过校验的宽泛过滤；初始化提交也应遵循 Conventional Commits。
-- **commitlint:** 重构 `guessCurrentScope`，严格只从 Git 暂存区（staged）提取修改，未暂存与未跟踪文件不影响判定；多目录采用频次投票策略确定主 scope，并覆盖重命名、删除（含目录全删）、多源码目录、中文及空格路径。
-- **stylelint:** 默认配置兼容混合 Less 语法，放行与 Less 冲突的 `scss/operator-*` 及 `scss/no-global-function-names`，实现对 SCSS、Less 及 Vue 内嵌双样式的统一检查与修复。
-- **init:** 识别同时使用 Sass 与 Less 的混合项目（both），lint-staged 生成 `**/*.{html,css,scss,less}` 统一串行任务组，并在缺失依赖时同时提示安装 `postcss-scss` 与 `postcss-less`。
-- **eslint:** Flat Vue 配置完整匹配根目录及嵌套 .nvue，支持模块脚本和 TypeScript parser。
-- **eslint:** Flat Config 与传统配置全面补齐 JSX 与 TSX（`files: jsx,tsx`, `ecmaFeatures.jsx: true`），ESLint 8 模式下 `legacyExtensions` 包含 `.jsx,.tsx`，实现完整的语法解析、Prettier 格式化修复与全局目录扫描。
-- **versionrc:** 自动识别 ESM 项目（`type: "module"`）并生成 `.versionrc.cjs`，彻底解决 standard-version 使用 `require()` 加载 CommonJS 格式 `.versionrc.js` 时的 `ReferenceError`。
-- **init:** 强化 ESLint 版本识别逻辑，支持已安装 `node_modules/eslint` 实际版本直读、npm 别名（`npm:eslint@...`）、workspace 协议、`latest` 标签、多版本联合范围（`^8.57.0 || ^9.0.0` 默认 Flat Config），并拒绝非法版本（`< 8`）。
-- **init:** 增加初始化快照与异常事务回滚机制，新增 `--backup` 参数支持覆盖前自动备份已有配置文件至 `.my-code-style-backup/`。
-- **prettier:** .nvue 显式使用 Vue parser 并保留分号约定。
-
-### Tests
-
-- 自动化测试套件扩充至 121 项全部通过（52 项 base + 44 项 integration + 25 项 legacy，0 失败），全面覆盖无 HEAD 仓库首次提交、已有 stash 保护、git mv/rm、ESM 版本递增与 JSX/TSX 实际校验。
+- **core:** upgrade cli init, relax stylelint/eslint rules and bump v1.3.1 ([285c49b](https://github.com/myvn/codeStyle/commit/285c49b1f07707f7f998308d37f718e8d0af0d19))
+- **init:** 支持 ESM versionrc、JSX/TSX 检查、版本识别强化与初始化事务回滚 ([89e8eb6](https://github.com/myvn/codeStyle/commit/89e8eb6677db00802636201148119d1fe208abe3))
 
 ## 1.3.1 (2026-09-16)
 
