@@ -288,22 +288,21 @@ export default [
 
 ## 六、lint-staged 配置
 
-初始化后自动规范化注入到 `package.json`，根据 CSS 预处理器动态调整样式文件匹配（纯代码项目自动跳过 stylelint）：
+初始化后自动规范化注入到 `package.json`。采用**互斥文件分组**策略：每个文件仅归属于唯一任务数组，组内任务严格串行执行（格式化 → 语法检查 → 样式修复），彻底消除并发竞争与磁盘缓存冲突：
 
 ```json
 {
     "lint-staged": {
-        "**/*.{html,vue,ts,js,cjs,mjs,json,md}": ["prettier --write"],
-        "**/*.{vue,js,ts,jsx,tsx,cjs,mjs}": ["eslint --cache --fix"],
-        // SCSS 项目：
-        "**/*.{vue,css,scss,html}": ["stylelint --fix"]
-        // Less 项目：
-        // "**/*.{vue,css,less,html}": ["stylelint --fix"]
+        "**/*.{vue,nvue}": ["prettier --write", "eslint --fix", "stylelint --fix"],
+        "**/*.{js,ts,jsx,tsx,cjs,mjs,mts,cts}": ["prettier --write", "eslint --fix"],
+        "**/*.{html,css,scss,less}": ["prettier --write", "stylelint --fix"],
+        "**/*.{json,json5,md,yml,yaml}": ["prettier --write"]
     }
 }
 ```
 
-同一文件可能匹配多条规则，lint-staged 会并行执行所有匹配的命令。
+- 若项目不包含 CSS 预处理器，自动跳过 `stylelint --fix` 任务。
+- 提交任务不再共享 ESLint 磁盘缓存，确保并发组运行安全。
 
 ---
 
@@ -311,14 +310,14 @@ export default [
 
 初始化后注入的便捷命令：
 
-| 脚本       | 命令                 | 说明                                                  |
-| ---------- | -------------------- | ----------------------------------------------------- |
-| `lint`     | `eslint .`           | 执行 ESLint 全局代码规范检查                          |
-| `lint:fix` | `eslint . --fix`     | 执行 ESLint 自动修复                                  |
-| `format`   | `prettier --write .` | 全项目 Prettier 格式化                                |
-| `prepare`  | `husky`              | 初始化 Husky 9 Git hooks（`pnpm install` 后自动执行） |
-| `release`  | `standard-version`   | 发布新版本 + 生成规范 CHANGELOG                       |
-| `cz`       | `czg`                | 交互式 Commit 提交提示工具                            |
+| 脚本       | 命令                                          | 说明                                                                  |
+| ---------- | --------------------------------------------- | --------------------------------------------------------------------- |
+| `lint`     | `eslint .` 或 `eslint . --ext ...` (ESLint 8) | 执行 ESLint 扫描（ESLint 8 显式覆盖 JS/TS/JSX/TSX/Vue/nvue 避免漏检） |
+| `lint:fix` | `npm run lint -- --fix`                       | 执行 ESLint 自动修复                                                  |
+| `format`   | `prettier --write .`                          | 全项目 Prettier 格式化                                                |
+| `prepare`  | `husky`                                       | 初始化 Husky 9 Git hooks（`pnpm install` 后自动执行）                 |
+| `release`  | `standard-version`                            | 发布新版本 + 生成规范 CHANGELOG                                       |
+| `cz`       | `czg`                                         | 交互式 Commit 提交提示工具                                            |
 
 ---
 
