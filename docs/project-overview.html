@@ -1,4 +1,549 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="my-code-style 项目源码梳理：配置架构、CLI 初始化、接入指南、Git 工作流与维护风险。"><title>my-code-style · 项目技术全景</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:30px}body{margin:0;background:#f5f7fa;color:#243248;font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.85}aside{position:fixed;inset:0 auto 0 0;width:248px;padding:32px 23px;background:#101e32;color:#b7c5d9;overflow:auto}.brand{font-size:21px;color:#fff;font-weight:750;letter-spacing:-.6px}.eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#4dcdb7}.side-label{font-size:11px;color:#8399b6;margin:30px 10px 10px}nav a{display:block;color:#b7c5d9;text-decoration:none;padding:7px 10px;border-radius:6px;font-size:13px}nav a:hover,nav a.active{color:white;background:#243c56}nav small{color:#5cbdaf;margin-right:10px}.side-bottom{font-size:11px;margin:28px 10px;color:#91a4bf}main{max-width:1300px;margin-left:248px;padding:52px 64px 70px}header{border-bottom:1px solid #dce3eb;padding-bottom:32px;margin-bottom:36px}h1{font-size:44px;letter-spacing:-1.5px;color:#13273e;line-height:1.25;margin:12px 0 18px}header p{max-width:680px;color:#607187}.meta{display:flex;gap:10px;flex-wrap:wrap}.meta span{font-size:12px;padding:4px 11px;border:1px solid #d4e1e4;border-radius:5px;background:white}.meta span:first-child{background:#d9f4ec;color:#167260;border-color:#bce5d8}section{background:#fff;border:1px solid #e0e6ee;padding:30px 34px;margin-bottom:22px;border-radius:12px}h2{font-size:24px;color:#152d47;margin:0 0 22px;letter-spacing:-.4px}h2 small{font-size:13px;vertical-align:middle;color:#209c87;margin-right:14px}h3{font-size:17px;color:#19354f;margin-top:28px}p{margin:12px 0}.lead{font-size:19px;color:#476078}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0}.cards article{background:#f3f8fa;padding:18px;border-radius:8px;border-top:3px solid #45af9e}.cards p{font-size:13px;margin-bottom:0}.source{color:#758196;font-size:12px;margin-top:20px}.table-wrap{overflow:auto;margin:20px 0}table{border-collapse:collapse;width:100%;font-size:13px}th{background:#eff4f8;color:#50657b;text-align:left;font-weight:600}th,td{padding:12px 14px;border-bottom:1px solid #e3eaf0;vertical-align:top}td:first-child{color:#1b5165;min-width:135px}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;background:#eef3f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{overflow:auto;background:#14283e;color:#d2e9ed;padding:22px;border-radius:8px;line-height:1.7;font-size:13px}pre code{padding:0;background:none;color:inherit;overflow-wrap:normal}.note,.warning{border-left:3px solid #3ba992;background:#eff9f6;padding:15px 18px;font-size:14px;margin:22px 0}.warning{border-color:#d79b36;background:#fff8eb;color:#755420}.flow{display:flex;align-items:center;gap:10px;margin:22px 0}.flow span{flex:1;padding:14px 8px;text-align:center;background:#f0f5f8;border:1px solid #dce6ef;border-radius:8px;color:#194864;font-weight:600;font-size:13px}.flow small{font-size:11px;font-weight:400;color:#607589}.flow i{font-style:normal;color:#289b88}footer{font-size:12px;color:#738196;text-align:center}button{border:1px solid #c7d7df;background:white;padding:9px 16px;border-radius:6px;cursor:pointer;color:#25445d;font:inherit;font-size:12px;margin-top:18px}a:focus-visible,button:focus-visible{outline:3px solid #39c5a9;outline-offset:3px}@media(min-width:1550px){main{margin-left:calc(248px + (100vw - 1550px)/2)}}@media(max-width:1000px){aside{width:210px;padding:24px 16px}main{margin-left:210px;padding:36px 25px}.cards{grid-template-columns:1fr}.flow{flex-wrap:wrap}.flow span{min-width:120px}}@media(max-width:700px){aside{position:relative;width:auto;padding:22px}nav{display:flex;flex-wrap:wrap;gap:3px}nav a{font-size:12px;padding:4px 8px}.side-label,.side-bottom{display:none}main{margin:0;padding:26px 14px}h1{font-size:34px}section{padding:24px 18px}h2{font-size:21px}.flow i{display:none}}@media print{body{background:white;color:#111;font-size:11px}aside,button{display:none}main{margin:0;padding:0;max-width:none}header{padding-bottom:15px}section{border:none;border-bottom:1px solid #ddd;border-radius:0;padding:18px 0;break-inside:auto}h2,h3{break-after:avoid}tr,pre,.note,.warning{break-inside:avoid}pre{white-space:pre-wrap;background:#f3f5f7;color:#111}.table-wrap{overflow:visible}h1{font-size:30px}a{color:inherit}}</style></head><body><aside><div class="eyebrow">Repository field guide</div><div class="brand">my-code-style<span style="color:#4dcdb7">.</span></div><div style="font-size:12px;margin-top:6px">代码规范 · 配置工程化</div><div class="side-label">文档目录 / CONTENTS</div><nav aria-label="文档目录"><a href="#overview"><small>01</small>项目概览</a><a href="#structure"><small>02</small>目录与职责</a><a href="#architecture"><small>03</small>配置架构</a><a href="#exports"><small>04</small>公共导出入口</a><a href="#cli"><small>05</small>初始化机制</a><a href="#rules"><small>06</small>规则与约定</a><a href="#workflow"><small>07</small>提交与版本流程</a><a href="#quickstart"><small>08</small>接入与日常使用</a><a href="#risks"><small>09</small>维护风险与改进建议</a><a href="#verification"><small>10</small>本次核验与版本脉络</a></nav><div class="side-bottom">源码快照 · v1.3.1<br>整理日期 · 2026.09.16<br>单文件 / 离线可读</div></aside><main><header><div class="eyebrow" style="color:#168977">Engineering / Technical overview</div><h1>一套规范，<br>连接整个开发流程。</h1><p>my-code-style 项目技术全景：从配置分层到脚手架生成，从本地格式化到提交与版本管理。面向接入开发者与后续维护者的源码阅读指南。</p><div class="meta"><span>v1.3.1</span><span>Node.js ≥18（包声明）</span><span>ESLint · Prettier · Stylelint</span><span>2026 / 09 / 16</span></div><button type="button" onclick="window.print()">打印 / 另存为 PDF</button></header><section id="overview"><h2><small>01</small>项目概览</h2><p class="lead">把分散在各个工程中的代码检查、格式化、提交约定与版本管理，收敛成一套可复用的 npm 配置。</p><div class="cards"><article><b>配置即产品</b><p>通过子路径导出配置对象或数组，业务工程使用 require / import 接入。</p></article><article><b>脚手架落地</b><p>my-code-style-init 检测目标工程，并写入配置、Git hooks 与 npm scripts。</p></article><article><b>分层适配</b><p>基础 JS/TS → Vue 3 → uni-app；样式支持 SCSS 与 Less。</p></article></div><p>这不是前端页面或后端服务：没有业务路由、数据库、应用启动入口或构建产物。主要交付物是 <code>src/</code> 中的配置和 <code>bin/init</code> CLI。</p><div class="table-wrap"><table><thead><tr><th>属性</th><th>仓库声明</th></tr></thead><tbody><tr><td>包名 / 版本</td><td>my-code-style / 1.3.1</td></tr><tr><td>模块制式</td><td>包级 CommonJS；传统配置用 .cjs，Flat Config 用 .mjs</td></tr><tr><td>运行环境</td><td>engines.node ≥18；实际工具链最低版本仍需检查各依赖 engines</td></tr><tr><td>依赖策略</td><td>31 个 peerDependencies 均标记 optional；devDependencies 仅 standard-version</td></tr><tr><td>发布范围</td><td>files 白名单：src、bin、README.md（npm 另有默认包含文件）</td></tr><tr><td>许可证</td><td>package.json 声明 MIT</td></tr></tbody></table></div></section><section id="structure"><h2><small>02</small>目录与职责</h2><pre><code>codeStyle/
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <meta
+            name="description"
+            content="my-code-style 项目源码梳理：配置架构、CLI 初始化、接入指南、Git 工作流与维护风险。"
+        />
+        <title>my-code-style · 项目技术全景</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            html {
+                scroll-behavior: smooth;
+                scroll-padding-top: 30px;
+            }
+            body {
+                margin: 0;
+                background: #f5f7fa;
+                color: #243248;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    "PingFang SC",
+                    "Microsoft YaHei",
+                    sans-serif;
+                line-height: 1.85;
+            }
+            aside {
+                position: fixed;
+                inset: 0 auto 0 0;
+                width: 248px;
+                padding: 32px 23px;
+                background: #101e32;
+                color: #b7c5d9;
+                overflow: auto;
+            }
+            .brand {
+                font-size: 21px;
+                color: #fff;
+                font-weight: 750;
+                letter-spacing: -0.6px;
+            }
+            .eyebrow {
+                font-size: 11px;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: #4dcdb7;
+            }
+            .side-label {
+                font-size: 11px;
+                color: #8399b6;
+                margin: 30px 10px 10px;
+            }
+            nav a {
+                display: block;
+                color: #b7c5d9;
+                text-decoration: none;
+                padding: 7px 10px;
+                border-radius: 6px;
+                font-size: 13px;
+            }
+            nav a:hover,
+            nav a.active {
+                color: white;
+                background: #243c56;
+            }
+            nav small {
+                color: #5cbdaf;
+                margin-right: 10px;
+            }
+            .side-bottom {
+                font-size: 11px;
+                margin: 28px 10px;
+                color: #91a4bf;
+            }
+            main {
+                max-width: 1300px;
+                margin-left: 248px;
+                padding: 52px 64px 70px;
+            }
+            header {
+                border-bottom: 1px solid #dce3eb;
+                padding-bottom: 32px;
+                margin-bottom: 36px;
+            }
+            h1 {
+                font-size: 44px;
+                letter-spacing: -1.5px;
+                color: #13273e;
+                line-height: 1.25;
+                margin: 12px 0 18px;
+            }
+            header p {
+                max-width: 680px;
+                color: #607187;
+            }
+            .meta {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .meta span {
+                font-size: 12px;
+                padding: 4px 11px;
+                border: 1px solid #d4e1e4;
+                border-radius: 5px;
+                background: white;
+            }
+            .meta span:first-child {
+                background: #d9f4ec;
+                color: #167260;
+                border-color: #bce5d8;
+            }
+            section {
+                background: #fff;
+                border: 1px solid #e0e6ee;
+                padding: 30px 34px;
+                margin-bottom: 22px;
+                border-radius: 12px;
+            }
+            h2 {
+                font-size: 24px;
+                color: #152d47;
+                margin: 0 0 22px;
+                letter-spacing: -0.4px;
+            }
+            h2 small {
+                font-size: 13px;
+                vertical-align: middle;
+                color: #209c87;
+                margin-right: 14px;
+            }
+            h3 {
+                font-size: 17px;
+                color: #19354f;
+                margin-top: 28px;
+            }
+            p {
+                margin: 12px 0;
+            }
+            .lead {
+                font-size: 19px;
+                color: #476078;
+            }
+            .cards {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 14px;
+                margin: 24px 0;
+            }
+            .cards article {
+                background: #f3f8fa;
+                padding: 18px;
+                border-radius: 8px;
+                border-top: 3px solid #45af9e;
+            }
+            .cards p {
+                font-size: 13px;
+                margin-bottom: 0;
+            }
+            .source {
+                color: #758196;
+                font-size: 12px;
+                margin-top: 20px;
+            }
+            .table-wrap {
+                overflow: auto;
+                margin: 20px 0;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 13px;
+            }
+            th {
+                background: #eff4f8;
+                color: #50657b;
+                text-align: left;
+                font-weight: 600;
+            }
+            th,
+            td {
+                padding: 12px 14px;
+                border-bottom: 1px solid #e3eaf0;
+                vertical-align: top;
+            }
+            td:first-child {
+                color: #1b5165;
+                min-width: 135px;
+            }
+            code {
+                font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+                font-size: 0.88em;
+                background: #eef3f7;
+                padding: 2px 5px;
+                border-radius: 4px;
+                overflow-wrap: anywhere;
+            }
+            pre {
+                overflow: auto;
+                background: #14283e;
+                color: #d2e9ed;
+                padding: 22px;
+                border-radius: 8px;
+                line-height: 1.7;
+                font-size: 13px;
+            }
+            pre code {
+                padding: 0;
+                background: none;
+                color: inherit;
+                overflow-wrap: normal;
+            }
+            .note,
+            .warning {
+                border-left: 3px solid #3ba992;
+                background: #eff9f6;
+                padding: 15px 18px;
+                font-size: 14px;
+                margin: 22px 0;
+            }
+            .warning {
+                border-color: #d79b36;
+                background: #fff8eb;
+                color: #755420;
+            }
+            .flow {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin: 22px 0;
+            }
+            .flow span {
+                flex: 1;
+                padding: 14px 8px;
+                text-align: center;
+                background: #f0f5f8;
+                border: 1px solid #dce6ef;
+                border-radius: 8px;
+                color: #194864;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            .flow small {
+                font-size: 11px;
+                font-weight: 400;
+                color: #607589;
+            }
+            .flow i {
+                font-style: normal;
+                color: #289b88;
+            }
+            footer {
+                font-size: 12px;
+                color: #738196;
+                text-align: center;
+            }
+            button {
+                border: 1px solid #c7d7df;
+                background: white;
+                padding: 9px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                color: #25445d;
+                font: inherit;
+                font-size: 12px;
+                margin-top: 18px;
+            }
+            a:focus-visible,
+            button:focus-visible {
+                outline: 3px solid #39c5a9;
+                outline-offset: 3px;
+            }
+            @media (min-width: 1550px) {
+                main {
+                    margin-left: calc(248px + (100vw - 1550px) / 2);
+                }
+            }
+            @media (max-width: 1000px) {
+                aside {
+                    width: 210px;
+                    padding: 24px 16px;
+                }
+                main {
+                    margin-left: 210px;
+                    padding: 36px 25px;
+                }
+                .cards {
+                    grid-template-columns: 1fr;
+                }
+                .flow {
+                    flex-wrap: wrap;
+                }
+                .flow span {
+                    min-width: 120px;
+                }
+            }
+            @media (max-width: 700px) {
+                aside {
+                    position: relative;
+                    width: auto;
+                    padding: 22px;
+                }
+                nav {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 3px;
+                }
+                nav a {
+                    font-size: 12px;
+                    padding: 4px 8px;
+                }
+                .side-label,
+                .side-bottom {
+                    display: none;
+                }
+                main {
+                    margin: 0;
+                    padding: 26px 14px;
+                }
+                h1 {
+                    font-size: 34px;
+                }
+                section {
+                    padding: 24px 18px;
+                }
+                h2 {
+                    font-size: 21px;
+                }
+                .flow i {
+                    display: none;
+                }
+            }
+            @media print {
+                body {
+                    background: white;
+                    color: #111;
+                    font-size: 11px;
+                }
+                aside,
+                button {
+                    display: none;
+                }
+                main {
+                    margin: 0;
+                    padding: 0;
+                    max-width: none;
+                }
+                header {
+                    padding-bottom: 15px;
+                }
+                section {
+                    border: none;
+                    border-bottom: 1px solid #ddd;
+                    border-radius: 0;
+                    padding: 18px 0;
+                    break-inside: auto;
+                }
+                h2,
+                h3 {
+                    break-after: avoid;
+                }
+                tr,
+                pre,
+                .note,
+                .warning {
+                    break-inside: avoid;
+                }
+                pre {
+                    white-space: pre-wrap;
+                    background: #f3f5f7;
+                    color: #111;
+                }
+                .table-wrap {
+                    overflow: visible;
+                }
+                h1 {
+                    font-size: 30px;
+                }
+                a {
+                    color: inherit;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <aside>
+            <div class="eyebrow">Repository field guide</div>
+            <div class="brand">
+                my-code-style
+                <span style="color: #4dcdb7">.</span>
+            </div>
+            <div style="font-size: 12px; margin-top: 6px">代码规范 · 配置工程化</div>
+            <div class="side-label">文档目录 / CONTENTS</div>
+            <nav aria-label="文档目录">
+                <a href="#overview">
+                    <small>01</small>
+                    项目概览
+                </a>
+                <a href="#structure">
+                    <small>02</small>
+                    目录与职责
+                </a>
+                <a href="#architecture">
+                    <small>03</small>
+                    配置架构
+                </a>
+                <a href="#exports">
+                    <small>04</small>
+                    公共导出入口
+                </a>
+                <a href="#cli">
+                    <small>05</small>
+                    初始化机制
+                </a>
+                <a href="#rules">
+                    <small>06</small>
+                    规则与约定
+                </a>
+                <a href="#workflow">
+                    <small>07</small>
+                    提交与版本流程
+                </a>
+                <a href="#quickstart">
+                    <small>08</small>
+                    接入与日常使用
+                </a>
+                <a href="#risks">
+                    <small>09</small>
+                    维护风险与改进建议
+                </a>
+                <a href="#verification">
+                    <small>10</small>
+                    本次核验与版本脉络
+                </a>
+            </nav>
+            <div class="side-bottom">
+                源码快照 · v1.3.1
+                <br />
+                整理日期 · 2026.09.16
+                <br />
+                单文件 / 离线可读
+            </div>
+        </aside>
+        <main>
+            <header>
+                <div class="eyebrow" style="color: #168977">Engineering / Technical overview</div>
+                <h1>
+                    一套规范，
+                    <br />
+                    连接整个开发流程。
+                </h1>
+                <p>
+                    my-code-style
+                    项目技术全景：从配置分层到脚手架生成，从本地格式化到提交与版本管理。面向接入开发者与后续维护者的源码阅读指南。
+                </p>
+                <div class="meta">
+                    <span>v1.3.1</span>
+                    <span>Node.js ≥18（包声明）</span>
+                    <span>ESLint · Prettier · Stylelint</span>
+                    <span>2026 / 09 / 16</span>
+                </div>
+                <button type="button" onclick="window.print()">打印 / 另存为 PDF</button>
+            </header>
+            <section id="overview">
+                <h2>
+                    <small>01</small>
+                    项目概览
+                </h2>
+                <p class="lead">
+                    把分散在各个工程中的代码检查、格式化、提交约定与版本管理，收敛成一套可复用的 npm
+                    配置。
+                </p>
+                <div class="cards">
+                    <article>
+                        <b>配置即产品</b>
+                        <p>通过子路径导出配置对象或数组，业务工程使用 require / import 接入。</p>
+                    </article>
+                    <article>
+                        <b>脚手架落地</b>
+                        <p>
+                            my-code-style-init 检测目标工程，并写入配置、Git hooks 与 npm scripts。
+                        </p>
+                    </article>
+                    <article>
+                        <b>分层适配</b>
+                        <p>基础 JS/TS → Vue 3 → uni-app；样式支持 SCSS 与 Less。</p>
+                    </article>
+                </div>
+                <p>
+                    这不是前端页面或后端服务：没有业务路由、数据库、应用启动入口或构建产物。主要交付物是
+                    <code>src/</code>
+                    中的配置和
+                    <code>bin/init</code>
+                    CLI。
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>属性</th>
+                                <th>仓库声明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>包名 / 版本</td>
+                                <td>my-code-style / 1.3.1</td>
+                            </tr>
+                            <tr>
+                                <td>模块制式</td>
+                                <td>包级 CommonJS；传统配置用 .cjs，Flat Config 用 .mjs</td>
+                            </tr>
+                            <tr>
+                                <td>运行环境</td>
+                                <td>engines.node ≥18；实际工具链最低版本仍需检查各依赖 engines</td>
+                            </tr>
+                            <tr>
+                                <td>依赖策略</td>
+                                <td>
+                                    31 个 peerDependencies 均标记 optional；devDependencies 仅
+                                    standard-version
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>发布范围</td>
+                                <td>files 白名单：src、bin、README.md（npm 另有默认包含文件）</td>
+                            </tr>
+                            <tr>
+                                <td>许可证</td>
+                                <td>package.json 声明 MIT</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="structure">
+                <h2>
+                    <small>02</small>
+                    目录与职责
+                </h2>
+                <pre><code>codeStyle/
 ├── bin/init                    # 无第三方运行依赖的初始化 CLI
 ├── src/
 │   ├── eslint/                 # base / vue3 / uniapp 传统配置
@@ -14,22 +559,409 @@
 ├── .husky/                     # 仓库自身的提交钩子
 ├── README.md                   # 使用说明
 ├── TECHNICAL_DOC.md             # 既有 Markdown 技术文档
-└── CHANGELOG.md                 # 版本记录</code></pre><p class="source">阅读路径：先看 package.json 的 exports，再看 bin/init 的 main，最后进入各配置层。根目录配置是本仓库的消费者配置，src 内文件才是发布给下游的公共实现。</p></section><section id="architecture"><h2><small>03</small>配置架构</h2><div class="flow"><span>目标项目<br><small>package.json / 已有配置</small></span><i>→</i><span>bin/init<br><small>检测 · 生成 · 依赖提示</small></span><i>→</i><span>本地配置<br><small>引用 my-code-style 子入口</small></span><i>→</i><span>工具执行<br><small>lint / format / commit / release</small></span></div><h3>ESLint 双轨、三层继承</h3><div class="table-wrap"><table><thead><tr><th>层级</th><th>传统配置（对象）</th><th>Flat Config（数组）</th></tr></thead><tbody><tr><td>基础</td><td>base.cjs：TS parser、recommended、import、Prettier</td><td>base.mjs：typescript-eslint、import-x、globals、Prettier</td></tr><tr><td>Vue 3</td><td>展开 base，设置 Vue parser、Vue essential 与业务覆写</td><td>展开 baseConfig，追加 flat/essential 与 .vue 文件规则</td></tr><tr><td>uni-app</td><td>展开 vue3，加入 uni、wx、Page、App 等 globals</td><td>展开 vue3Config，向 vue/ts/js/nvue 文件追加 globals</td></tr></tbody></table></div><p>传统配置用对象展开与 extends 组合；Flat Config 依靠数组次序叠加。<code>_shared.mjs</code> 集中维护通用规则、Prettier 规则与 uni-app globals，但传统配置仍有单独的规则副本。</p><div class="note">两套配置不完全等价：传统版启用 import/extensions，Flat 版关闭 import-x/extensions。Flat 基础数组末尾的 Prettier 推荐配置及 eslint-config-prettier 会覆盖前面部分同名规则，最终行为应以 ESLint 计算后的配置为准。</div><p class="source">依据：src/eslint/base.cjs、vue3.cjs、uniapp.cjs 与 src/eslint/flat/*.mjs。</p></section><section id="exports"><h2><small>04</small>公共导出入口</h2><p>以下映射直接来自当前 package.json。ESLint 9 消费者应显式选择 <code>/eslint/flat</code> 系列；根入口仍指向传统 uni-app 配置。</p><div class="table-wrap"><table><thead><tr><th>引用路径</th><th>实际文件</th></tr></thead><tbody><tr><td><code>my-code-style</code></td><td><code>./src/eslint/uniapp.cjs</code></td></tr><tr><td><code>my-code-style/eslint</code></td><td><code>./src/eslint/base.cjs</code></td></tr><tr><td><code>my-code-style/eslint/vue3</code></td><td><code>./src/eslint/vue3.cjs</code></td></tr><tr><td><code>my-code-style/eslint/uniapp</code></td><td><code>./src/eslint/uniapp.cjs</code></td></tr><tr><td><code>my-code-style/eslint/flat</code></td><td><code>./src/eslint/flat/base.mjs</code></td></tr><tr><td><code>my-code-style/eslint/flat/vue3</code></td><td><code>./src/eslint/flat/vue3.mjs</code></td></tr><tr><td><code>my-code-style/eslint/flat/uniapp</code></td><td><code>./src/eslint/flat/uniapp.mjs</code></td></tr><tr><td><code>my-code-style/prettier</code></td><td><code>./src/prettier/index.cjs</code></td></tr><tr><td><code>my-code-style/stylelint</code></td><td><code>./src/stylelint/index.cjs</code></td></tr><tr><td><code>my-code-style/stylelint/less</code></td><td><code>./src/stylelint/less.cjs</code></td></tr><tr><td><code>my-code-style/stylelint/less-override</code></td><td><code>./src/stylelint/less-override.cjs</code></td></tr><tr><td><code>my-code-style/commitlint</code></td><td><code>./src/commitlint/base.cjs</code></td></tr><tr><td><code>my-code-style/commitlint/scopes</code></td><td><code>./src/commitlint/scopes.cjs</code></td></tr><tr><td><code>my-code-style/versionrc</code></td><td><code>./src/versionrc/index.cjs</code></td></tr></tbody></table></div></section><section id="cli"><h2><small>05</small>初始化机制</h2><div class="table-wrap"><table><thead><tr><th>检测项</th><th>实际决策</th></tr></thead><tbody><tr><td>项目类型</td><td>合并 dependencies / devDependencies / peerDependencies；uni-app 优先，其次 vue，否则 base。</td></tr><tr><td>ESLint 版本</td><td>读取依赖字符串中的首个数字，并非解析已安装版本或完整 semver 范围。</td></tr><tr><td>配置格式</td><td>检测为 ESLint 8，或仅有传统配置且无 Flat 配置 → 传统格式；其余 → Flat。</td></tr><tr><td>样式类型</td><td>只有 Less → less；存在 Sass → scss（两者并存也选 scss）。否则检查已有 .stylelintrc.cjs/js 中的 postcss-less。</td></tr><tr><td>样式兜底</td><td>Vue/uni-app 默认 scss；普通项目没有相关依赖/配置则 none；缺失或无法读取 package.json 时检测函数默认 scss。</td></tr></tbody></table></div><h3>写入什么？</h3><p>生成选定的 ESLint 配置、Prettier 配置和忽略文件、可选 Stylelint 配置、Commitlint、versionrc、EditorConfig、gitattributes 以及两个 Husky hooks。<code>.gitignore</code> 仅在不存在时生成；hook 文件会设置为可执行。</p><div class="warning"><b>初始化不是安全合并器。</b>多数配置与已有 hooks 会直接覆盖；package.json 的 scripts 保留同名旧值，但 lint-staged 整块替换。Flat 模式始终写 eslint.config.mjs，并不会删除已有 eslint.config.js / ts / cjs，迁移时可能留下多个配置文件。</div><h3>CLI 参数</h3><pre><code>npx my-code-style-init --dry-run  # 只展示配置 / hook 创建或覆盖计划
+└── CHANGELOG.md                 # 版本记录</code></pre>
+                <p class="source">
+                    阅读路径：先看 package.json 的 exports，再看 bin/init 的
+                    main，最后进入各配置层。根目录配置是本仓库的消费者配置，src
+                    内文件才是发布给下游的公共实现。
+                </p>
+            </section>
+            <section id="architecture">
+                <h2>
+                    <small>03</small>
+                    配置架构
+                </h2>
+                <div class="flow">
+                    <span>
+                        目标项目
+                        <br />
+                        <small>package.json / 已有配置</small>
+                    </span>
+                    <i>→</i>
+                    <span>
+                        bin/init
+                        <br />
+                        <small>检测 · 生成 · 依赖提示</small>
+                    </span>
+                    <i>→</i>
+                    <span>
+                        本地配置
+                        <br />
+                        <small>引用 my-code-style 子入口</small>
+                    </span>
+                    <i>→</i>
+                    <span>
+                        工具执行
+                        <br />
+                        <small>lint / format / commit / release</small>
+                    </span>
+                </div>
+                <h3>ESLint 双轨、三层继承</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>层级</th>
+                                <th>传统配置（对象）</th>
+                                <th>Flat Config（数组）</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>基础</td>
+                                <td>base.cjs：TS parser、recommended、import、Prettier</td>
+                                <td>base.mjs：typescript-eslint、import-x、globals、Prettier</td>
+                            </tr>
+                            <tr>
+                                <td>Vue 3</td>
+                                <td>展开 base，设置 Vue parser、Vue essential 与业务覆写</td>
+                                <td>展开 baseConfig，追加 flat/essential 与 .vue 文件规则</td>
+                            </tr>
+                            <tr>
+                                <td>uni-app</td>
+                                <td>展开 vue3，加入 uni、wx、Page、App 等 globals</td>
+                                <td>展开 vue3Config，向 vue/ts/js/nvue 文件追加 globals</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    传统配置用对象展开与 extends 组合；Flat Config 依靠数组次序叠加。
+                    <code>_shared.mjs</code>
+                    集中维护通用规则、Prettier 规则与 uni-app
+                    globals，但传统配置仍有单独的规则副本。
+                </p>
+                <div class="note">
+                    两套配置不完全等价：传统版启用 import/extensions，Flat 版关闭
+                    import-x/extensions。Flat 基础数组末尾的 Prettier 推荐配置及
+                    eslint-config-prettier 会覆盖前面部分同名规则，最终行为应以 ESLint
+                    计算后的配置为准。
+                </div>
+                <p class="source">
+                    依据：src/eslint/base.cjs、vue3.cjs、uniapp.cjs 与 src/eslint/flat/*.mjs。
+                </p>
+            </section>
+            <section id="exports">
+                <h2>
+                    <small>04</small>
+                    公共导出入口
+                </h2>
+                <p>
+                    以下映射直接来自当前 package.json。ESLint 9 消费者应显式选择
+                    <code>/eslint/flat</code>
+                    系列；根入口仍指向传统 uni-app 配置。
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>引用路径</th>
+                                <th>实际文件</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>my-code-style</code></td>
+                                <td><code>./src/eslint/uniapp.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/eslint</code></td>
+                                <td><code>./src/eslint/base.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/eslint/vue3</code></td>
+                                <td><code>./src/eslint/vue3.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/eslint/uniapp</code></td>
+                                <td><code>./src/eslint/uniapp.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/eslint/flat</code></td>
+                                <td><code>./src/eslint/flat/base.mjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/eslint/flat/vue3</code></td>
+                                <td><code>./src/eslint/flat/vue3.mjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/eslint/flat/uniapp</code></td>
+                                <td><code>./src/eslint/flat/uniapp.mjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/prettier</code></td>
+                                <td><code>./src/prettier/index.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/stylelint</code></td>
+                                <td><code>./src/stylelint/index.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/stylelint/less</code></td>
+                                <td><code>./src/stylelint/less.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/stylelint/less-override</code></td>
+                                <td><code>./src/stylelint/less-override.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/commitlint</code></td>
+                                <td><code>./src/commitlint/base.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/commitlint/scopes</code></td>
+                                <td><code>./src/commitlint/scopes.cjs</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>my-code-style/versionrc</code></td>
+                                <td><code>./src/versionrc/index.cjs</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="cli">
+                <h2>
+                    <small>05</small>
+                    初始化机制
+                </h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>检测项</th>
+                                <th>实际决策</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>项目类型</td>
+                                <td>
+                                    合并 dependencies / devDependencies / peerDependencies；uni-app
+                                    优先，其次 vue，否则 base。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>ESLint 版本</td>
+                                <td>
+                                    读取依赖字符串中的首个数字，并非解析已安装版本或完整 semver
+                                    范围。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>配置格式</td>
+                                <td>
+                                    检测为 ESLint 8，或仅有传统配置且无 Flat 配置 → 传统格式；其余 →
+                                    Flat。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>样式类型</td>
+                                <td>
+                                    只有 Less → less；存在 Sass → scss（两者并存也选
+                                    scss）。否则检查已有 .stylelintrc.cjs/js 中的 postcss-less。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>样式兜底</td>
+                                <td>
+                                    Vue/uni-app 默认 scss；普通项目没有相关依赖/配置则
+                                    none；缺失或无法读取 package.json 时检测函数默认 scss。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>写入什么？</h3>
+                <p>
+                    生成选定的 ESLint 配置、Prettier 配置和忽略文件、可选 Stylelint
+                    配置、Commitlint、versionrc、EditorConfig、gitattributes 以及两个 Husky hooks。
+                    <code>.gitignore</code>
+                    仅在不存在时生成；hook 文件会设置为可执行。
+                </p>
+                <div class="warning">
+                    <b>初始化不是安全合并器。</b>
+                    多数配置与已有 hooks 会直接覆盖；package.json 的 scripts 保留同名旧值，但
+                    lint-staged 整块替换。Flat 模式始终写 eslint.config.mjs，并不会删除已有
+                    eslint.config.js / ts / cjs，迁移时可能留下多个配置文件。
+                </div>
+                <h3>CLI 参数</h3>
+                <pre><code>npx my-code-style-init --dry-run  # 只展示配置 / hook 创建或覆盖计划
 npx my-code-style-init            # 实际写入并提示缺少的依赖
-npx my-code-style-init --version  # 或 -v，输出包版本</code></pre><p><code>--dry-run</code> 在写入前返回，也不会执行后面的 package.json 更新和缺失依赖提示。CLI 不自动安装依赖、不执行 husky 初始化，也没有实现交互确认、回滚或 --help 分支；不要把未知参数当作安全的只读操作。</p><p class="source">依据：bin/init 的 detection helpers、main、modifyPackageJson、checkPeerDeps。</p></section><section id="rules"><h2><small>06</small>规则与约定</h2><div class="table-wrap"><table><thead><tr><th>模块</th><th>核心约定 / 边界</th></tr></thead><tbody><tr><td>Prettier</td><td>双引号、4 空格、无分号、行宽 100、尾逗号 all、LF；JSON/JSON5 为 2 空格且无尾逗号，YAML 为 2 空格，.nvue 开启分号。</td></tr><tr><td>ESLint</td><td>缩进交给 Prettier；要求控制语句花括号；允许 any、console、@ts-ignore、空对象类型；关闭多项未使用变量/表达式与 no-undef 检查。它不是严格类型检查的替代品。</td></tr><tr><td>Vue</td><td>禁用组件多单词命名要求；no-mutating-props 使用 shallowOnly: true；关闭多项模板排版规则。</td></tr><tr><td>Stylelint</td><td>默认预设面向 SCSS/Vue；Less 有独立预设和覆写片段。支持 rpx、page、deep/v-deep 等；放宽未知函数、空块、选择器特异性等规则。</td></tr><tr><td>忽略范围</td><td>Flat ESLint 与 Stylelint 内置忽略 node_modules、dist、coverage、public、assets/iconfont 和部分压缩文件；传统 ESLint 基础配置没有同样的 ignores。</td></tr><tr><td>Editor / Git</td><td>src 中的模板统一编辑器与 Git 文本处理；实际项目仍需检查已有忽略规则是否适合自身目录。</td></tr></tbody></table></div><p>Less-only 项目优先用 <code>my-code-style/stylelint/less</code>，不要把默认 SCSS 预设当作完全等价的 Less 配置。<code>less-override</code> 只是片段，合并时要同时保留原有 overrides 数组与 rules 对象。</p><p class="source">依据：src/prettier/index.cjs、src/stylelint/*.cjs、src/eslint/flat/_shared.mjs。</p></section><section id="workflow"><h2><small>07</small>提交与版本流程</h2><div class="flow"><span>git commit</span><i>→</i><span>pre-commit<br><small>lint-staged 修复暂存文件</small></span><i>→</i><span>commit-msg<br><small>commitlint 验证提交信息</small></span></div><pre><code># .husky/pre-commit
+npx my-code-style-init --version  # 或 -v，输出包版本</code></pre>
+                <p>
+                    <code>--dry-run</code>
+                    在写入前返回，也不会执行后面的 package.json 更新和缺失依赖提示。CLI
+                    不自动安装依赖、不执行 husky 初始化，也没有实现交互确认、回滚或 --help
+                    分支；不要把未知参数当作安全的只读操作。
+                </p>
+                <p class="source">
+                    依据：bin/init 的 detection helpers、main、modifyPackageJson、checkPeerDeps。
+                </p>
+            </section>
+            <section id="rules">
+                <h2>
+                    <small>06</small>
+                    规则与约定
+                </h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>模块</th>
+                                <th>核心约定 / 边界</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Prettier</td>
+                                <td>
+                                    双引号、4 空格、无分号、行宽 100、尾逗号 all、LF；JSON/JSON5 为
+                                    2 空格且无尾逗号，YAML 为 2 空格，.nvue 开启分号。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>ESLint</td>
+                                <td>
+                                    缩进交给 Prettier；要求控制语句花括号；允许
+                                    any、console、@ts-ignore、空对象类型；关闭多项未使用变量/表达式与
+                                    no-undef 检查。它不是严格类型检查的替代品。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Vue</td>
+                                <td>
+                                    禁用组件多单词命名要求；no-mutating-props 使用 shallowOnly:
+                                    true；关闭多项模板排版规则。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Stylelint</td>
+                                <td>
+                                    默认预设面向 SCSS/Vue；Less 有独立预设和覆写片段。支持
+                                    rpx、page、deep/v-deep
+                                    等；放宽未知函数、空块、选择器特异性等规则。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>忽略范围</td>
+                                <td>
+                                    Flat ESLint 与 Stylelint 内置忽略
+                                    node_modules、dist、coverage、public、assets/iconfont
+                                    和部分压缩文件；传统 ESLint 基础配置没有同样的 ignores。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Editor / Git</td>
+                                <td>
+                                    src 中的模板统一编辑器与 Git
+                                    文本处理；实际项目仍需检查已有忽略规则是否适合自身目录。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    Less-only 项目优先用
+                    <code>my-code-style/stylelint/less</code>
+                    ，不要把默认 SCSS 预设当作完全等价的 Less 配置。
+                    <code>less-override</code>
+                    只是片段，合并时要同时保留原有 overrides 数组与 rules 对象。
+                </p>
+                <p class="source">
+                    依据：src/prettier/index.cjs、src/stylelint/*.cjs、src/eslint/flat/_shared.mjs。
+                </p>
+            </section>
+            <section id="workflow">
+                <h2>
+                    <small>07</small>
+                    提交与版本流程
+                </h2>
+                <div class="flow">
+                    <span>git commit</span>
+                    <i>→</i>
+                    <span>
+                        pre-commit
+                        <br />
+                        <small>lint-staged 修复暂存文件</small>
+                    </span>
+                    <i>→</i>
+                    <span>
+                        commit-msg
+                        <br />
+                        <small>commitlint 验证提交信息</small>
+                    </span>
+                </div>
+                <pre><code># .husky/pre-commit
 npx --no-install -- lint-staged
 
 # .husky/commit-msg
 npx --no-install commitlint --edit &quot;${1}&quot;
 
 # 提交信息示例
-feat(component): 添加按钮加载状态</code></pre><h3>lint-staged</h3><p>HTML/Vue/TS/JS/CJS/MJS/JSON/Markdown 执行 Prettier；Vue/JS/TS/JSX/TSX/CJS/MJS 执行 ESLint；有样式配置时额外对 Vue/CSS/HTML 及所选 SCSS 或 Less 执行 Stylelint。多个匹配包含同一个文件，默认并发写入存在竞争风险，宜合并任务为单一有序管线。</p><h3>Commitlint 与 scope</h3><p>继承 conventional 规则；标题上限 108，subject/type 不可为空，放开 subject-case。支持 feat、fix、perf、style、docs、test、refactor、build、ci、chore、revert、wip、workflow、types、release。</p><ul><li><code>generateScopes("src")</code>：扫描直属子目录、转为单数、去重；也接收多个目录名。</li><li><code>guessCurrentScope()</code>：执行 git status --porcelain，取第一条包含 src 路径且对应目录存在的记录。因此包含工作区未暂存改动，并非仅暂存区，也不按修改数量投票。</li><li>生成器把 scopes/defaultScope 放入 prompt，额外加入 mock；这不是 scope-enum 强制校验。</li></ul><h3>版本管理边界</h3><p><code>pnpm release</code> 运行 standard-version：递增版本、生成 CHANGELOG、创建提交与标签（四个 skip 均为 false）。versionrc 显式配置 feat / fix 的中英文章节。它不会自动把包发布到 npm，也不会自动推送远端；发布权限与 CI 流程需另行建立。</p><p class="source">依据：bin/init、src/commitlint/*.cjs、src/versionrc/index.cjs、package.json。</p></section><section id="quickstart"><h2><small>08</small>接入与日常使用</h2><h3>01 / 在目标项目中初始化</h3><p>先保存已有配置，并确保目标项目有有效 package.json 与 Git 仓库。以下命令用于消费本包的工程，不建议对本仓库直接执行 init 来“安装依赖”。</p><pre><code>pnpm add -D my-code-style
+feat(component): 添加按钮加载状态</code></pre>
+                <h3>lint-staged</h3>
+                <p>
+                    采用互斥文件组按序串行执行：Vue/nvue
+                    文件组、脚本文件组、独立样式文件组与配置/文档文件组严格隔离，避免多任务并发写入竞争，并支持
+                    nvue 文件与组件内嵌样式的完整检查与修复。
+                </p>
+                <h3>Commitlint 与 scope</h3>
+                <p>
+                    继承 conventional 规则；标题上限 108，subject/type 不可为空，放开
+                    subject-case。支持
+                    feat、fix、perf、style、docs、test、refactor、build、ci、chore、revert、wip、workflow、types、release。
+                </p>
+                <ul>
+                    <li>
+                        <code>generateScopes("src")</code>
+                        ：扫描直属子目录、转为单数、去重；也接收多个目录名。
+                    </li>
+                    <li>
+                        <code>guessCurrentScope()</code>
+                        ：仅依据 Git
+                        暂存区（staged），按暂存文件所属目录频次投票确定（平票按首个记录，未暂存改动不参与）；支持重命名、删除、多目录、中文与空格路径。
+                    </li>
+                    <li>
+                        生成器把 scopes/defaultScope 放入 prompt，额外加入 mock；这不是 scope-enum
+                        强制校验。
+                    </li>
+                </ul>
+                <h3>版本管理边界</h3>
+                <p>
+                    <code>pnpm release</code>
+                    运行 standard-version：递增版本、生成 CHANGELOG、创建提交与标签（四个 skip 均为
+                    false）。versionrc 显式配置 feat / fix 的中英文章节。它不会自动把包发布到
+                    npm，也不会自动推送远端；发布权限与 CI 流程需另行建立。
+                </p>
+                <p class="source">
+                    依据：bin/init、src/commitlint/*.cjs、src/versionrc/index.cjs、package.json。
+                </p>
+            </section>
+            <section id="quickstart">
+                <h2>
+                    <small>08</small>
+                    接入与日常使用
+                </h2>
+                <h3>01 / 在目标项目中初始化</h3>
+                <p>
+                    先保存已有配置，并确保目标项目有有效 package.json 与 Git
+                    仓库。以下命令用于消费本包的工程，不建议对本仓库直接执行 init 来“安装依赖”。
+                </p>
+                <pre><code>pnpm add -D my-code-style
 npx my-code-style-init --dry-run
 # 确认覆盖范围后再执行
 npx my-code-style-init
 # 执行 CLI 输出的、按当前技术栈生成的完整缺失依赖安装命令
 pnpm prepare
-pnpm lint</code></pre><div class="note">optional peers 不代表无需依赖。只安装 my-code-style 不足以保证 lint / hooks 可执行；需要安装所选配置实际引用的工具、插件、解析器与预设。Node ≥18 也只是本包声明，推荐先核验所选依赖的 Node 要求。</div><h3>02 / 手动接入 Flat Config</h3><pre><code>// eslint.config.mjs（Vue 3 示例）
+pnpm lint</code></pre>
+                <div class="note">
+                    optional peers 不代表无需依赖。只安装 my-code-style 不足以保证 lint / hooks
+                    可执行；需要安装所选配置实际引用的工具、插件、解析器与预设。Node ≥18
+                    也只是本包声明，推荐先核验所选依赖的 Node 要求。
+                </div>
+                <h3>02 / 手动接入 Flat Config</h3>
+                <pre><code>// eslint.config.mjs（Vue 3 示例）
 import vue3Config from &quot;my-code-style/eslint/flat/vue3&quot;
 
 export default [
@@ -38,4 +970,241 @@ export default [
         files: [&quot;**/*.{js,ts,vue}&quot;],
         rules: { &quot;no-console&quot;: &quot;warn&quot; },
     },
-]</code></pre><p>纯 JS/TS 换成 <code>my-code-style/eslint/flat</code>；uni-app 换成 <code>my-code-style/eslint/flat/uniapp</code>。自定义规则放在数组后面。传统配置使用 require 并合并 rules，避免直接修改共享对象。</p><h3>03 / 常用脚本</h3><div class="table-wrap"><table><thead><tr><th>命令</th><th>作用</th></tr></thead><tbody><tr><td><code>pnpm lint</code></td><td>检查代码：eslint .</td></tr><tr><td><code>pnpm lint:fix</code></td><td>检查并自动修复</td></tr><tr><td><code>pnpm format</code></td><td>Prettier 重写项目文件，执行前确认忽略范围</td></tr><tr><td><code>pnpm cz</code></td><td>使用 czg 交互生成提交</td></tr><tr><td><code>pnpm release</code></td><td>生成版本、日志、提交与标签；不是 npm publish</td></tr><tr><td><code>pnpm pack</code></td><td>本仓库打包：npm pack</td></tr></tbody></table></div><p>CLI 不添加独立的 stylelint script；如需全量样式检查，可在目标工程补充 <code>stylelint "**/*.{vue,css,scss}"</code>（Less 工程替换扩展名）。</p></section><section id="risks"><h2><small>09</small>维护风险与改进建议</h2><p>以下区分已确认的实现行为与待集成验证的兼容性风险，不等同于已复现的工具链故障。</p><div class="table-wrap"><table><thead><tr><th>优先级</th><th>观察</th><th>建议</th></tr></thead><tbody><tr><td>高 · 已确认</td><td>初始化直接覆盖配置与 hooks，lint-staged 整块替换；无事务回滚。</td><td>增加备份、明确确认或 --force，写入前统一校验 package.json。</td></tr><tr><td>高 · 待验证</td><td>传统 ESLint 8 支持与 peer eslint ^9 不一致；传统 Vue preset 使用 plugin:vue/vue3-essential，而 peer plugin-vue 为 ^10。</td><td>建立 v8/v9 × base/Vue/uni-app 的真实安装矩阵，核验 preset 名称与 peer 兼容范围。</td></tr><tr><td>高 · 已确认</td><td>Less 预设 extends stylelint-config-html/vue，但 Less 缺失依赖提示列表未包含 stylelint-config-html。</td><td>从实际预设引用推导依赖提示，并增加 Less 安装后加载测试。</td></tr><tr><td>中 · 待验证</td><td>lint-staged 多组任务对同一 Vue/JS/TS 文件并发自动修复。</td><td>统一匹配并串行执行修复工具，或明确设置并发策略。</td></tr><tr><td>中 · 待验证</td><td>.nvue 的 Flat 配置只设置部分 parserOptions / globals，Vue parser 主要匹配 .vue；JSX/TSX 也没有完整专用文件规则。</td><td>增加嵌套 .nvue 与 JSX/TSX fixture，验证最终 parser 和规则覆盖。</td></tr><tr><td>中 · 已确认</td><td>版本检测只抓依赖字符串首个数字；不核验实际安装版本。</td><td>使用 semver 或已安装工具的 package.json，并处理 workspace / alias 等声明。</td></tr><tr><td>中 · 已确认</td><td>未看到测试目录、test 脚本、锁文件或 CI 工作流；开发依赖不足以直接运行全部脚本。</td><td>增加可重复安装方案、CLI fixture 测试、配置加载与 lint 回归测试。</td></tr><tr><td>低 · 已确认</td><td>scope 来自 git status 全部状态；单复数转换是启发式。</td><td>若产品要求“暂存区猜测”，改读 git diff --cached，并覆盖重命名、中文路径、多目录案例。</td></tr></tbody></table></div></section><section id="verification"><h2><small>10</small>本次核验与版本脉络</h2><h3>已执行的轻量核验</h3><p>在 Node v22.22.3 环境中，用独立临时目录调用当前源码的 CLI，未覆盖本仓库配置。</p><div class="table-wrap"><table><thead><tr><th>场景</th><th>结果</th></tr></thead><tbody><tr><td>基础工程 + ESLint 9，无样式依赖</td><td>通过：生成 eslint.config.mjs，跳过 Stylelint</td></tr><tr><td>Vue + ESLint 9 + Less</td><td>通过：生成 Flat 与 Stylelint 配置</td></tr><tr><td>uni-app + ESLint 8 + Sass</td><td>通过：生成 .eslintrc.cjs 与 Stylelint 配置</td></tr><tr><td>上述三个场景的 --dry-run</td><td>通过：未生成新文件、package.json 内容未变</td></tr><tr><td>上述三个场景的既有 lint script</td><td>通过：保留原值</td></tr><tr><td>--version</td><td>通过：输出 1.3.1</td></tr></tbody></table></div><div class="note">测试范围仅为 CLI 生成行为与静态源码核对；未安装完整 peer 工具链，未执行实际 ESLint / Stylelint / Husky 集成，也未进行 npm 发布验证。</div><h3>近期演进</h3><ul><li><b>1.3.1 · 2026-09-16：</b>放宽 SCSS / TS 部分规则，扩充第三方资源与构建目录忽略。</li><li><b>1.3.0 · 2026-09-16：</b>增加项目类型检测、默认 Flat、无样式项目跳过、Git 忽略模板、Husky 9 规范化。</li><li><b>1.2.0 · 2026-08-28：</b>依赖安装提示带版本、版本查询参数、Less 专用配置。</li></ul><p class="source">整理依据：当前工作树的 package.json、bin/init、src 全部配置与工具函数、根目录配置、README.md、TECHNICAL_DOC.md、CHANGELOG.md。以源码实际行为为主；本页不是旧 Markdown 文档的逐字转换。</p></section><footer>my-code-style / 项目技术全景 · 基于当前仓库源码整理<br>无需构建、无需网络依赖，直接用浏览器打开本文件。</footer></main><script>if ('IntersectionObserver' in window) { const links = document.querySelectorAll('nav a'); const observer = new IntersectionObserver(entries => { entries.forEach(entry => { if (entry.isIntersecting) { links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id)); } }); }, {rootMargin: '-5% 0px -70% 0px'}); document.querySelectorAll('section').forEach(section => observer.observe(section)); }</script></body></html>
+]</code></pre>
+                <p>
+                    纯 JS/TS 换成
+                    <code>my-code-style/eslint/flat</code>
+                    ；uni-app 换成
+                    <code>my-code-style/eslint/flat/uniapp</code>
+                    。自定义规则放在数组后面。传统配置使用 require 并合并
+                    rules，避免直接修改共享对象。
+                </p>
+                <h3>03 / 常用脚本</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>命令</th>
+                                <th>作用</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>pnpm lint</code></td>
+                                <td>检查代码：eslint .</td>
+                            </tr>
+                            <tr>
+                                <td><code>pnpm lint:fix</code></td>
+                                <td>检查并自动修复</td>
+                            </tr>
+                            <tr>
+                                <td><code>pnpm format</code></td>
+                                <td>Prettier 重写项目文件，执行前确认忽略范围</td>
+                            </tr>
+                            <tr>
+                                <td><code>pnpm cz</code></td>
+                                <td>使用 czg 交互生成提交</td>
+                            </tr>
+                            <tr>
+                                <td><code>pnpm release</code></td>
+                                <td>生成版本、日志、提交与标签；不是 npm publish</td>
+                            </tr>
+                            <tr>
+                                <td><code>pnpm pack</code></td>
+                                <td>本仓库打包：npm pack</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    CLI 不添加独立的 stylelint script；如需全量样式检查，可在目标工程补充
+                    <code>stylelint "**/*.{vue,css,scss}"</code>
+                    （Less 工程替换扩展名）。
+                </p>
+            </section>
+            <section id="risks">
+                <h2>
+                    <small>09</small>
+                    维护风险与改进建议
+                </h2>
+                <p>
+                    以下区分已确认的实现行为与待集成验证的兼容性风险，不等同于已复现的工具链故障。
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>优先级</th>
+                                <th>观察</th>
+                                <th>建议</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>高 · 已确认</td>
+                                <td>
+                                    初始化直接覆盖配置与 hooks，lint-staged 整块替换；无事务回滚。
+                                </td>
+                                <td>增加备份、明确确认或 --force，写入前统一校验 package.json。</td>
+                            </tr>
+                            <tr>
+                                <td>高 · 待验证</td>
+                                <td>
+                                    传统 ESLint 8 支持与 peer eslint ^9 不一致；传统 Vue preset 使用
+                                    plugin:vue/vue3-essential，而 peer plugin-vue 为 ^10。
+                                </td>
+                                <td>
+                                    建立 v8/v9 × base/Vue/uni-app 的真实安装矩阵，核验 preset 名称与
+                                    peer 兼容范围。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>高 · 已确认</td>
+                                <td>
+                                    Less 预设 extends stylelint-config-html/vue，但 Less
+                                    缺失依赖提示列表未包含 stylelint-config-html。
+                                </td>
+                                <td>从实际预设引用推导依赖提示，并增加 Less 安装后加载测试。</td>
+                            </tr>
+                            <tr>
+                                <td>中 · 待验证</td>
+                                <td>lint-staged 多组任务对同一 Vue/JS/TS 文件并发自动修复。</td>
+                                <td>统一匹配并串行执行修复工具，或明确设置并发策略。</td>
+                            </tr>
+                            <tr>
+                                <td>中 · 待验证</td>
+                                <td>
+                                    .nvue 的 Flat 配置只设置部分 parserOptions / globals，Vue parser
+                                    主要匹配 .vue；JSX/TSX 也没有完整专用文件规则。
+                                </td>
+                                <td>
+                                    增加嵌套 .nvue 与 JSX/TSX fixture，验证最终 parser 和规则覆盖。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>中 · 已确认</td>
+                                <td>版本检测只抓依赖字符串首个数字；不核验实际安装版本。</td>
+                                <td>
+                                    使用 semver 或已安装工具的 package.json，并处理 workspace /
+                                    alias 等声明。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>中 · 已确认</td>
+                                <td>
+                                    未看到测试目录、test 脚本、锁文件或 CI
+                                    工作流；开发依赖不足以直接运行全部脚本。
+                                </td>
+                                <td>
+                                    增加可重复安装方案、CLI fixture 测试、配置加载与 lint 回归测试。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>低 · 已确认</td>
+                                <td>scope 来自 git status 全部状态；单复数转换是启发式。</td>
+                                <td>
+                                    若产品要求“暂存区猜测”，改读 git diff
+                                    --cached，并覆盖重命名、中文路径、多目录案例。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="verification">
+                <h2>
+                    <small>10</small>
+                    本次核验与版本脉络
+                </h2>
+                <h3>已执行的轻量核验</h3>
+                <p>在 Node v22.22.3 环境中，用独立临时目录调用当前源码的 CLI，未覆盖本仓库配置。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>场景</th>
+                                <th>结果</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>基础工程 + ESLint 9，无样式依赖</td>
+                                <td>通过：生成 eslint.config.mjs，跳过 Stylelint</td>
+                            </tr>
+                            <tr>
+                                <td>Vue + ESLint 9 + Less</td>
+                                <td>通过：生成 Flat 与 Stylelint 配置</td>
+                            </tr>
+                            <tr>
+                                <td>uni-app + ESLint 8 + Sass</td>
+                                <td>通过：生成 .eslintrc.cjs 与 Stylelint 配置</td>
+                            </tr>
+                            <tr>
+                                <td>上述三个场景的 --dry-run</td>
+                                <td>通过：未生成新文件、package.json 内容未变</td>
+                            </tr>
+                            <tr>
+                                <td>上述三个场景的既有 lint script</td>
+                                <td>通过：保留原值</td>
+                            </tr>
+                            <tr>
+                                <td>--version</td>
+                                <td>通过：输出 1.3.1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="note">
+                    测试范围仅为 CLI 生成行为与静态源码核对；未安装完整 peer 工具链，未执行实际
+                    ESLint / Stylelint / Husky 集成，也未进行 npm 发布验证。
+                </div>
+                <h3>近期演进</h3>
+                <ul>
+                    <li>
+                        <b>1.3.1 · 2026-09-16：</b>
+                        放宽 SCSS / TS 部分规则，扩充第三方资源与构建目录忽略。
+                    </li>
+                    <li>
+                        <b>1.3.0 · 2026-09-16：</b>
+                        增加项目类型检测、默认 Flat、无样式项目跳过、Git 忽略模板、Husky 9 规范化。
+                    </li>
+                    <li>
+                        <b>1.2.0 · 2026-08-28：</b>
+                        依赖安装提示带版本、版本查询参数、Less 专用配置。
+                    </li>
+                </ul>
+                <p class="source">
+                    整理依据：当前工作树的 package.json、bin/init、src
+                    全部配置与工具函数、根目录配置、README.md、TECHNICAL_DOC.md、CHANGELOG.md。以源码实际行为为主；本页不是旧
+                    Markdown 文档的逐字转换。
+                </p>
+            </section>
+            <footer>
+                my-code-style / 项目技术全景 · 基于当前仓库源码整理
+                <br />
+                无需构建、无需网络依赖，直接用浏览器打开本文件。
+            </footer>
+        </main>
+        <script>
+            if ("IntersectionObserver" in window) {
+                const links = document.querySelectorAll("nav a")
+                const observer = new IntersectionObserver(
+                    (entries) => {
+                        entries.forEach((entry) => {
+                            if (entry.isIntersecting) {
+                                links.forEach((link) =>
+                                    link.classList.toggle(
+                                        "active",
+                                        link.getAttribute("href") === "#" + entry.target.id,
+                                    ),
+                                )
+                            }
+                        })
+                    },
+                    { rootMargin: "-5% 0px -70% 0px" },
+                )
+                document.querySelectorAll("section").forEach((section) => observer.observe(section))
+            }
+        </script>
+    </body>
+</html>
