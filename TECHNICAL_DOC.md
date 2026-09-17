@@ -73,7 +73,7 @@ base.mjs (tseslint + import-x + prettier)
 
 1. **检测项目技术栈类型** — 识别 `uniapp`、`vue`、`base`（纯 Node/TS 库），生成最精准匹配的配置层级。
 2. **检测 ESLint 版本** — 支持读取 dependencies / devDependencies / peerDependencies；若未安装 ESLint 或未配置，默认优先采用现代 Flat Config（`eslint.config.mjs`）；仅当明确为 v8 时使用 `.eslintrc.cjs`。
-3. **检测 CSS 预处理器** — 检查 sass/less 依赖，若为纯代码库（无样式依赖）则自动跳过 Stylelint 配置与任务挂载。
+3. **检测 CSS 预处理器** — 检查 sass/less 依赖；若同时包含两者则识别为混合工程（both），为 lint-staged 分配 `**/*.{html,css,scss,less}` 统一样式任务组，并在 Stylelint 统一配置中同时支持 SCSS、Less 及 Vue SFC 内嵌双预处理器；若为纯代码库（无样式依赖）则自动跳过 Stylelint 配置与任务挂载。
 4. **生成配置文件** — 按检测结果生成 `eslint.config.mjs`、`.prettierrc.cjs` 等，若项目缺失 `.gitignore` 还会自动创建标准模板。
 5. **注入 Git hooks** — 采用 Husky 9 原生指令创建 `.husky/commit-msg` 和 `.husky/pre-commit`。
 6. **修改 package.json** — 注入便捷 scripts（`lint`、`lint:fix`、`format`、`prepare`、`release`、`cz`）并规范化覆盖 `lint-staged`。
