@@ -29,6 +29,13 @@
     "README.md"
   ],
   "scripts": {
+    "test": "node --test tests/*.test.cjs demo-test/*.test.cjs",
+    "test:demo": "node --test demo-test/*.test.cjs",
+    "test:integration:setup": "node demo-test/setup-integration.cjs",
+    "test:integration": "node --test demo-test/integration/*.test.cjs",
+    "test:legacy:setup": "node demo-test/setup-legacy.cjs",
+    "test:legacy": "node --test demo-test/legacy/*.test.cjs",
+    "test:all": "npm test && npm run test:integration && npm run test:legacy",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -50,7 +57,7 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "czg": "^1.0.0",
-    "eslint": "^9.0.0",
+    "eslint": "^8.57.0 || ^9.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^3.0.0",
     "eslint-plugin-import": "^2.0.0",
@@ -60,20 +67,20 @@
     "globals": "^16.0.0",
     "husky": "^9.0.0",
     "lint-staged": "^16.0.0",
-    "postcss-html": "^1.0.0",
+    "postcss-html": "^2.0.0",
     "postcss-less": "^6.0.0",
     "postcss-scss": "^4.0.0",
     "prettier": "^3.0.0",
     "standard-version": "^9.0.0",
     "stylelint": "^16.0.0",
-    "stylelint-config-html": "^1.0.0",
+    "stylelint-config-html": "^2.0.0",
     "stylelint-config-recess-order": "^5.0.0",
     "stylelint-config-recommended": "^17.0.0",
     "stylelint-config-recommended-scss": "^16.0.0",
     "stylelint-config-recommended-vue": "^2.0.0",
     "stylelint-prettier": "^5.0.0",
     "typescript-eslint": "^8.0.0",
-    "vue-eslint-parser": "^9.0.0"
+    "vue-eslint-parser": "^10.3.0"
   },
   "peerDependenciesMeta": {
     "@commitlint/cli": {
@@ -184,11 +191,19 @@
   ],
   "license": "MIT",
   "lint-staged": {
-    "**/*.{html,vue,ts,js,cjs,mjs,json,md}": [
+    "**/*.{vue,nvue}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "**/*.{js,ts,jsx,tsx,cjs,mjs,mts,cts}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "**/*.{html,css}": [
       "prettier --write"
     ],
-    "**/*.{vue,js,ts,jsx,tsx,cjs,mjs}": [
-      "eslint --cache --fix"
+    "**/*.{json,json5,md,yml,yaml}": [
+      "prettier --write"
     ]
   }
 }

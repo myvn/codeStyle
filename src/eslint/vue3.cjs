@@ -4,21 +4,30 @@ const base = require("./base.cjs")
 module.exports = {
     ...base,
     parser: "vue-eslint-parser",
-    extends: [...base.extends, "plugin:vue/vue3-essential"],
+    extends: [...base.extends, "plugin:vue/essential"],
     parserOptions: {
         ...base.parserOptions,
         parser: "@typescript-eslint/parser",
-        extraFileExtensions: [".vue"],
+        extraFileExtensions: [".vue", ".nvue"],
     },
     plugins: [...base.plugins, "vue"],
     overrides: [
         {
             env: { node: true },
-            files: [".eslintrc.{js,cjs}", "*.nvue"],
+            files: [".eslintrc.{js,cjs}"],
             parserOptions: { sourceType: "script" },
             rules: { "vue/comment-directive": "off" },
         },
         ...(base.overrides || []),
+        {
+            files: ["**/*.nvue"],
+            parserOptions: { sourceType: "module" },
+            rules: {
+                "vue/comment-directive": "off",
+                semi: "off",
+                "prettier/prettier": ["error", { parser: "vue", semi: true }],
+            },
+        },
     ],
     rules: {
         ...base.rules,

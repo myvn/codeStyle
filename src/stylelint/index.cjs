@@ -19,7 +19,7 @@ module.exports = {
     ],
     overrides: [
         {
-            files: ["**/*.{vue,html}"],
+            files: ["**/*.{vue,nvue,html}"],
             customSyntax: "postcss-html",
         },
         {

@@ -12,19 +12,19 @@ export default [
     // Vue 3 essential rules
     ...pluginVue.configs["flat/essential"].map((config) => ({
         ...config,
-        files: ["**/*.vue"],
+        files: ["**/*.{vue,nvue}"],
     })),
 
     // Vue plugin setup and custom overrides
     {
-        files: ["**/*.vue"],
+        files: ["**/*.{vue,nvue}"],
         languageOptions: {
             parser: parserVue,
             parserOptions: {
                 parser: tseslint.parser,
                 sourceType: "module",
                 ecmaVersion: "latest",
-                extraFileExtensions: [".vue"],
+                extraFileExtensions: [".vue", ".nvue"],
             },
         },
         rules: {
@@ -41,14 +41,16 @@ export default [
 
     // .nvue specific overrides
     {
-        files: ["*.nvue"],
+        files: ["**/*.nvue"],
         languageOptions: {
             parserOptions: {
-                sourceType: "script",
+                sourceType: "module",
             },
         },
         rules: {
             "vue/comment-directive": "off",
+            // Prettier cannot infer a parser from the custom .nvue extension.
+            "prettier/prettier": ["error", { parser: "vue", semi: true }],
         },
     },
 ]

@@ -24,7 +24,7 @@ module.exports = {
         },
         {
             files: "*.nvue",
-            options: { semi: true },
+            options: { parser: "vue", semi: true },
         },
     ],
 }

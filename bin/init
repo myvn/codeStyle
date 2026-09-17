@@ -273,15 +273,24 @@ function gitignoreContent() {
  * Generate the lint-staged config based on detected CSS preprocessor
  */
 function getLintStagedConfig(cssPreprocessor) {
-    const config = {
-        "**/*.{html,vue,ts,js,cjs,mjs,json,md}": ["prettier --write"],
-        "**/*.{vue,js,ts,jsx,tsx,cjs,mjs}": ["eslint --cache --fix"],
-    }
-
+    // Disjoint groups: a file is owned by exactly one task array.
+    // lint-staged runs each array in order, while unrelated groups may run concurrently.
+    const componentTasks = ["prettier --write", "eslint --fix"]
+    const styleTasks = ["prettier --write"]
     if (cssPreprocessor !== "none") {
-        const styleFiles =
-            cssPreprocessor === "less" ? "**/*.{vue,css,less,html}" : "**/*.{vue,css,scss,html}"
-        config[styleFiles] = ["stylelint --fix"]
+        componentTasks.push("stylelint --fix")
+        styleTasks.push("stylelint --fix")
+    }
+    const styleFiles = cssPreprocessor === "less"
+        ? "**/*.{html,css,less}"
+        : cssPreprocessor === "scss"
+          ? "**/*.{html,css,scss}"
+          : "**/*.{html,css}"
+    const config = {
+        "**/*.{vue,nvue}": componentTasks,
+        "**/*.{js,ts,jsx,tsx,cjs,mjs,mts,cts}": ["prettier --write", "eslint --fix"],
+        [styleFiles]: styleTasks,
+        "**/*.{json,json5,md,yml,yaml}": ["prettier --write"],
     }
 
     return config
@@ -290,11 +299,47 @@ function getLintStagedConfig(cssPreprocessor) {
 // --- Main ---
 
 function main() {
+    const args = process.argv.slice(2)
+    const supported = new Set(["--dry-run", "--version", "-v", "--help", "-h"])
+    const unknown = args.filter((arg) => !supported.has(arg))
+    if (unknown.length) {
+        console.error(`未知参数: ${unknown.join(", ")}；使用 --help 查看帮助`)
+        process.exitCode = 1
+        return
+    }
+    if (args.includes("--help") || args.includes("-h")) {
+        console.log("Usage: my-code-style-init [--dry-run] [--version|-v] [--help|-h]")
+        console.log("初始化会覆盖部分配置和 hooks；请先备份并运行 --dry-run。")
+        return
+    }
+
     // Handle --version / -v
     if (process.argv.includes("--version") || process.argv.includes("-v")) {
         const pkg = require("../package.json")
         console.log(pkg.version)
         return
+    }
+
+    // Validate before detection or any filesystem writes. Missing package.json
+    // remains supported, but malformed manifests must never be treated as empty.
+    if (fileExists("package.json")) {
+        try {
+            const pkg = JSON.parse(fs.readFileSync(path.resolve(PROJECT_ROOT, "package.json"), "utf8"))
+            if (!pkg || typeof pkg !== "object" || Array.isArray(pkg)) {
+                throw new Error("package.json 必须是 JSON 对象")
+            }
+            for (const key of ["dependencies", "devDependencies", "peerDependencies", "scripts"]) {
+                if (pkg[key] === undefined) continue
+                if (!pkg[key] || typeof pkg[key] !== "object" || Array.isArray(pkg[key]) ||
+                    Object.values(pkg[key]).some((value) => typeof value !== "string")) {
+                    throw new Error(`${key} 必须是值为字符串的对象`)
+                }
+            }
+        } catch (error) {
+            console.error(`无法读取有效的 package.json：${error.message}；未修改任何文件`)
+            process.exitCode = 1
+            return
+        }
     }
 
     const dryRun = process.argv.includes("--dry-run")
@@ -329,8 +374,19 @@ function main() {
         fileExists("eslint.config.ts") ||
         fileExists("eslint.config.cjs")
 
-    // Default to Flat Config (ESLint 9+), unless ESLint 8 is installed or existing legacy config is present without flat config
-    const useFlatConfig = !(eslintVersion === 8 || (!hasFlatConfigFile && hasLegacyConfigFile))
+    // Do not silently mix an installed major version with an incompatible format.
+    if ((eslintVersion >= 9 && hasLegacyConfigFile && !hasFlatConfigFile) ||
+        (eslintVersion === 8 && hasFlatConfigFile)) {
+        console.error("ESLint 版本与已有配置格式冲突；请先手动迁移或确认配置格式，未修改任何文件")
+        process.exitCode = 1
+        return
+    }
+    if (!eslintVersion && hasLegacyConfigFile && !hasFlatConfigFile) {
+        console.error("检测到传统 ESLint 配置但无法确定版本；请先声明 ESLint 版本或迁移到 Flat Config，未修改任何文件")
+        process.exitCode = 1
+        return
+    }
+    const useFlatConfig = eslintVersion !== 8
     const eslintFormat = useFlatConfig ? "flat" : "eslintrc"
 
     log(`检测到 ESLint 版本: ${eslintVersion || "默认最新 (9+)"} → 使用 ${eslintFormat} 格式`)
@@ -343,7 +399,9 @@ function main() {
     // --- Build file list based on detection ---
     const files = []
 
-    if (useFlatConfig) {
+    if (hasFlatConfigFile || hasLegacyConfigFile) {
+        log("保留已有 ESLint 配置，不生成额外入口")
+    } else if (useFlatConfig) {
         files.push({
             path: "eslint.config.mjs",
             exists:
@@ -466,11 +524,18 @@ function main() {
         fs.chmodSync(path.resolve(PROJECT_ROOT, h.path), 0o755)
     }
 
+    // ESLint 8 directory traversal defaults to .js; explicitly include typed
+    // files and the selected component formats so `lint` cannot silently skip them.
+    const legacyExtensions = ".js,.cjs,.mjs,.ts,.mts,.cts" +
+        (projectType !== "base" ? ",.vue" : "") +
+        (projectType === "uniapp" ? ",.nvue" : "")
+    const lintCommand = useFlatConfig ? "eslint ." : `eslint . --ext ${legacyExtensions}`
+
     // package.json scripts + lint-staged
     modifyPackageJson({
         scripts: {
-            lint: "eslint .",
-            "lint:fix": "eslint . --fix",
+            lint: lintCommand,
+            "lint:fix": `${lintCommand} --fix`,
             format: "prettier --write .",
             prepare: "husky",
             release: "standard-version",
@@ -590,6 +655,7 @@ function checkPeerDeps({
                     "postcss-html",
                     "stylelint-config-recommended",
                     "stylelint-config-recommended-vue",
+                    "stylelint-config-html",
                     "stylelint-config-recess-order",
                     "stylelint-prettier",
                 ]
@@ -616,7 +682,9 @@ function checkPeerDeps({
         warn("一键安装命令：")
         console.log(`  pnpm add -D my-code-style \\`)
         missing.forEach((dep, i) => {
-            const version = peerDeps[dep] || ""
+            const version = dep === "eslint"
+                ? (useFlatConfig ? "^9.0.0" : "^8.57.0")
+                : peerDeps[dep] || ""
             const depWithVersion = version ? `${dep}@${version}` : dep
             const suffix = i < missing.length - 1 ? " \\" : ""
             console.log(`  ${depWithVersion}${suffix}`)

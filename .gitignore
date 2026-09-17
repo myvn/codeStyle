@@ -7,3 +7,8 @@ pnpm-lock.yaml
 .eslintcache
 
 
+# Isolated demo integration environment
+demo-test/.runtime/
+
+# ESLint 8 isolated validation
+demo-test/.runtime-legacy/

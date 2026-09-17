@@ -1,6 +1,5 @@
 // Commitlint base config (without project-specific dynamic scopes)
 module.exports = {
-    ignores: [(commit) => commit.includes("init")],
     extends: ["@commitlint/config-conventional"],
     rules: {
         "body-leading-blank": [2, "always"],
