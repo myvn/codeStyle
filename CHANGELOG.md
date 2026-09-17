@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## Unreleased
+
+### Bug Fixes
+
+- **eslint8:** 支持范围明确为 ^8.57.0 || ^9.0.0；修正 Vue 插件 10 的传统预设名，补齐 CommonJS require 与 nvue 模块脚本/分号覆写。
+- **init:** 传统 lint 脚本显式指定 JS/TS 及对应组件扩展名，避免目录扫描漏检；依赖提示按配置格式推荐 ESLint 主版本。
+
+- **lint-staged:** 改为互斥文件组内串行执行，补齐 nvue，移除提交任务共享 ESLint 缓存；Stylelint 显式解析 nvue 内嵌样式。
+
+- **init:** 写入前校验参数和 package.json，保护已有 ESLint 配置并拦截版本/格式冲突；补全 Less 的 stylelint-config-html 依赖提示。
+- **deps:** Vue parser 更新到 ^10.3.0，postcss-html / stylelint-config-html 更新到 ^2.0.0，修复当前预设依赖冲突。
+- **commitlint:** 移除包含 init 即跳过校验的宽泛过滤；初始化提交也应遵循 Conventional Commits。
+- **eslint:** Flat Vue 配置完整匹配根目录及嵌套 .nvue，支持模块脚本和 TypeScript parser。
+- **prettier:** .nvue 显式使用 Vue parser 并保留分号约定。
+
+### Tests
+
+- 增加 CLI、配置契约及隔离工具链测试，共 91 项通过；不代表全量或跨平台覆盖。
+
 ## 1.3.1 (2026-09-16)
 
 ### Bug Fixes

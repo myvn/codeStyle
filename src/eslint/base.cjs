@@ -18,6 +18,12 @@ module.exports = {
         sourceType: "module",
     },
     plugins: ["@typescript-eslint", "prettier", "import"],
+    overrides: [
+        {
+            files: ["**/*.cjs", "**/.*rc.js", "**/*.config.js"],
+            rules: { "@typescript-eslint/no-require-imports": "off" },
+        },
+    ],
     rules: {
         // Prettier 集成
         "prettier/prettier": [

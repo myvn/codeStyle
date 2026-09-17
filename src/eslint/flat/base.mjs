@@ -29,7 +29,7 @@ export default [
     // eslint-plugin-import-x configuration
     // Replaces: plugin:import/recommended + eslint-config-standard (via FlatCompat)
     {
-        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue}"],
+        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue,nvue}"],
         plugins: {
             "import-x": importX,
         },
@@ -65,7 +65,7 @@ export default [
 
     // Shared rules for all JS, TS and Vue files
     {
-        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue}"],
+        files: ["**/*.{js,mjs,cjs,ts,mts,cts,vue,nvue}"],
         rules: {
             ...commonRules,
             ...prettierRules,
