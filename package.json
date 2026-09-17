@@ -4,6 +4,14 @@
   "description": "Lint/Format/Git 配置工程化 npm 包（ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version）",
   "type": "commonjs",
   "main": "src/eslint/uniapp.cjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/myvn/codeStyle.git"
+  },
+  "homepage": "https://github.com/myvn/codeStyle#readme",
+  "bugs": {
+    "url": "https://github.com/myvn/codeStyle/issues"
+  },
   "bin": {
     "my-code-style-init": "./bin/init"
   },
