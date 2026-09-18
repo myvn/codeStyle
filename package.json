@@ -1,6 +1,6 @@
 {
   "name": "my-code-style",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Lint/Format/Git 配置工程化 npm 包（ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version）",
   "type": "commonjs",
   "main": "src/eslint/uniapp.cjs",

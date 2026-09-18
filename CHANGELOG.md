@@ -1,5 +1,15 @@
 ## 变更日志
 
+## [1.5.0](https://github.com/myvn/codeStyle/compare/v1.4.0...v1.5.0) (2026-09-18)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- 修复 ESLint 版本/样式检测误判、规则冲突与 scope 生成缺陷 ([033967b](https://github.com/myvn/codeStyle/commit/033967b0efadbb705bdafe5d4dfc34dbc90578c2))
+
+### ✨ Features | 新功能
+
+- **init:** 补全 peer 体检并按包管理器输出命令，新增初始化链路文档 ([0396198](https://github.com/myvn/codeStyle/commit/03961983be3a6f8cda96d4047450e7595ffefb97))
+
 ## [1.4.0](https://github.com/myvn/codeStyle/compare/v1.2.0...v1.4.0) (2026-09-17)
 
 ### 🐛 Bug Fixes | Bug 修复
