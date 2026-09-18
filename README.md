@@ -313,6 +313,8 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 | 串行套件 + 文件级并发 1（CI 旧形态） | 62.4s（hook 改造前同配置 70.3s）                |
 | 串行套件 + 自动并发 3（默认）        | 47.2s（hook 改造前同配置 51.8s）                |
 | `--parallel` 三套件 + 自动并发 3     | 43.0s（hook 改造前同配置 46.6s）                |
+| `node --test demo-test/integration/*.test.cjs`（Node 自己调度，等同旧命令） | 43.7s（只看集成套件那一段）      |
+| `npm run test:integration`（运行器调度，自动并发 3） | 30.6s（只看集成套件那一段）                    |
 | 串行套件 + 文件级并发 23（全部一波） | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL）      |
 
 （2 核沙箱里并行收益被 CPU 争抢吃掉大半，`--concurrency=1` 时单个文件只要 0.7–4.2s；
