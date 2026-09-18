@@ -25,34 +25,88 @@ const PLURAL_MAP = {
     assets: "asset",
 }
 
+// Plurals whose singular cannot be derived by rule: uncountables, irregulars,
+// and the "-e" + "s" words that would otherwise lose their stem ("caches" →
+// "cach"). Everything else is handled by the suffix rules below.
+const EXACT_SINGULAR = {
+    news: "news",
+    series: "series",
+    movies: "movie",
+    cookies: "cookie",
+    caches: "cache",
+    chases: "chase",
+    niches: "niche",
+}
+
+// Directory names that already read as singular (or are conventional as-is)
+const NON_PLURAL = [
+    "status",
+    "canvas",
+    "bus",
+    "pass",
+    "process",
+    "css",
+    "less",
+    "scss",
+    "js",
+    "ts",
+    "types",
+]
+
+// Singulars that legitimately end in "s"/"z" and therefore take "-es":
+// bus → buses, status → statuses. Without this list "buses" would follow the
+// "-se + s" reading and become "buse".
+const SIBILANT_SINGULARS = [
+    "bus",
+    "gas",
+    "canvas",
+    "alias",
+    "atlas",
+    "bias",
+    "virus",
+    "status",
+    "process",
+    "lens",
+    "plus",
+    "focus",
+    "campus",
+    "analysis",
+    "axis",
+    "basis",
+    "crisis",
+    "thesis",
+    "quiz",
+]
+
+// Unambiguous "-es" plurals: the stem ends in a doubled sibilant or a digraph
+// (classes, boxes, churches, dishes, buzzes, batches, fixes).
+const ES_PLURAL = /(?:ss|zz|ch|sh|x)es$/i
+// "-ses"/"-zes" are ambiguous: "cases" is case + s, "buses" is bus + es.
+const S_OR_Z_ES_PLURAL = /[sz]es$/i
+
 function toSingular(name) {
     if (!name) {
         return name
     }
-    if (PLURAL_MAP[name]) {
-        return PLURAL_MAP[name]
+    const lower = name.toLowerCase()
+    if (PLURAL_MAP[lower]) {
+        return PLURAL_MAP[lower]
     }
-    if (name.endsWith("ies") && name.length > 4) {
+    if (EXACT_SINGULAR[lower]) {
+        return EXACT_SINGULAR[lower]
+    }
+    if (NON_PLURAL.includes(lower)) {
+        return name
+    }
+    if (/ies$/i.test(name) && name.length > 4) {
         return name.slice(0, -3) + "y"
     }
-    if (/(?:[sxz]|[ch|sh])es$/.test(name)) {
+    if (ES_PLURAL.test(name)) {
         return name.slice(0, -2)
     }
-    const nonPluralEndingInS = [
-        "status",
-        "canvas",
-        "bus",
-        "pass",
-        "process",
-        "css",
-        "less",
-        "scss",
-        "js",
-        "ts",
-        "types",
-    ]
-    if (nonPluralEndingInS.includes(name.toLowerCase())) {
-        return name
+    if (S_OR_Z_ES_PLURAL.test(name)) {
+        const esStem = name.slice(0, -2).toLowerCase()
+        return SIBILANT_SINGULARS.includes(esStem) ? name.slice(0, -2) : name.slice(0, -1)
     }
     if (name.endsWith("s") && !name.endsWith("ss") && name.length > 3) {
         return name.slice(0, -1)
@@ -71,11 +125,15 @@ function generateScopes(srcDirs = "src") {
 
     for (const srcDir of dirs) {
         const resolved = path.resolve(process.cwd(), srcDir)
-        if (!fs.existsSync(resolved)) {
+        let entries
+        try {
+            // A missing path, a plain file, or an unreadable directory must not
+            // break the commitlint config load — just yield no scopes.
+            entries = fs.readdirSync(resolved, { withFileTypes: true })
+        } catch {
             continue
         }
-        const scopes = fs
-            .readdirSync(resolved, { withFileTypes: true })
+        const scopes = entries
             .filter((dirent) => dirent.isDirectory())
             .map((dirent) => toSingular(dirent.name))
         allScopes.push(...scopes)

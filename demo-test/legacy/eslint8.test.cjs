@@ -173,3 +173,32 @@ test("ESLint 8 Vue essential 规则实际生效：重复属性被拒绝", async 
         .lintText(await format(source, "Demo.vue"), { filePath: "Demo.vue" })
     assert.ok(result.messages.some((message) => message.ruleId === "vue/no-duplicate-attributes"))
 })
+
+test("ESLint 8 引号规则与 Prettier 一致：含双引号的字符串不产生不可修复错误", async (t) => {
+    const p = consumer(t, "base")
+    const formatted = await format(
+        "const greeting = 'say \"hi\" bye'\nconsole.log(greeting)\n",
+        "demo.ts",
+    )
+    const [result] = await p.engine().lintText(formatted, { filePath: "demo.ts" })
+    assert.equal(result.errorCount, 0, JSON.stringify(result.messages))
+    const [fixed] = await p.engine(true).lintText(formatted, { filePath: "demo.ts" })
+    assert.equal(fixed.output, undefined, "--fix 后不应残留错误")
+})
+
+test("ESLint 8 忽略构建产物：dist/ 中的错误不会污染 lint 结果", async (t) => {
+    const p = consumer(t, "base")
+    fs.mkdirSync(path.join(p.dir, "dist"), { recursive: true })
+    fs.writeFileSync(path.join(p.dir, "dist/bundle.js"), "const broken='x';console.log(broken);\n")
+    fs.writeFileSync(
+        path.join(p.dir, "demo.ts"),
+        await format("const ok: number = 1\nconsole.log(ok)\n", "demo.ts"),
+    )
+    const result = p.cli([".", "--ext", ".js,.ts", "--format", "json"])
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    const reports = JSON.parse(result.stdout)
+    assert.ok(
+        !reports.some((report) => report.filePath.includes("dist")),
+        `dist/ 不应被检查: ${JSON.stringify(reports.map((report) => report.filePath))}`,
+    )
+})

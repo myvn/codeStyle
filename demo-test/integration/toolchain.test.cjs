@@ -126,6 +126,65 @@ test("ESLint 拒绝 TypeScript 语法错误", async () => {
     assert.ok(result.fatalErrorCount > 0)
 })
 
+test("Flat Config：curly 规则生效并可修复（不被 eslint-config-prettier 关掉）", async () => {
+    const config = (await import(pathToFileURL(path.join(copy, "src/eslint/flat/base.mjs")).href))
+        .default
+    const source = "const value = 1\nif (value) console.log(value)\n"
+    const engine = new ESLint({ cwd: runtime, overrideConfigFile: true, overrideConfig: config })
+    const [before] = await engine.lintText(source, { filePath: "curly.ts" })
+    assert.ok(
+        before.messages.some((message) => message.ruleId === "curly"),
+        JSON.stringify(before.messages),
+    )
+    const fixer = new ESLint({
+        cwd: runtime,
+        overrideConfigFile: true,
+        overrideConfig: config,
+        fix: true,
+    })
+    const [fixed] = await fixer.lintText(source, { filePath: "curly.ts" })
+    assert.match(fixed.output, /if \(value\) \{/)
+    const [after] = await engine.lintText(fixed.output, { filePath: "curly.ts" })
+    assert.equal(after.errorCount, 0, JSON.stringify(after.messages))
+})
+
+test("Flat Config：引号规则与 Prettier 不冲突（含双引号的字符串可通过）", async () => {
+    const engine = await eslint("base")
+    const formatted = await prettier.format(
+        "const greeting = 'say \"hi\" bye'\nconsole.log(greeting)\n",
+        {
+            ...prettierConfig,
+            filepath: "quote.ts",
+        },
+    )
+    const [result] = await engine.lintText(formatted, { filePath: "quote.ts" })
+    assert.equal(result.errorCount, 0, JSON.stringify(result.messages))
+    const [fixed] = await new ESLint({
+        cwd: runtime,
+        overrideConfigFile: true,
+        overrideConfig: (
+            await import(pathToFileURL(path.join(copy, "src/eslint/flat/base.mjs")).href)
+        ).default,
+        fix: true,
+    }).lintText(formatted, { filePath: "quote.ts" })
+    assert.equal(fixed.output, undefined, "不应存在需要反复修复的残留错误")
+})
+
+test("Flat Config uni-app：.nvue 分号例外不产生 semi 冲突", async () => {
+    const engine = await eslint("uniapp")
+    const source =
+        '<template><view>{{ value }}</view></template>\n<script setup lang="ts">\nimport { ref } from "vue"\nconst value = ref<number>(1)\nuni.showToast({ title: "Hello" });\n</script>\n'
+    const formatted = await prettier.format(source, {
+        ...prettierConfig,
+        filepath: "Page.nvue",
+        parser: "vue",
+        semi: true,
+    })
+    const [result] = await engine.lintText(formatted, { filePath: "Page.nvue" })
+    assert.equal(result.errorCount, 0, JSON.stringify(result.messages))
+    assert.equal(result.warningCount, 0, JSON.stringify(result.messages))
+})
+
 for (const [entry, ext, source] of [
     ["stylelint", "scss", "$color: red;\n.demo { color: $color; }\n"],
     ["stylelint/less", "less", "@color: red;\n.demo { color: @color; }\n"],

@@ -27,6 +27,58 @@ test("不存在源码目录时返回空 scope 列表", (t) => {
     assert.deepEqual(JSON.parse(result.stdout), [])
 })
 
+test("目录转 scope：复数边界（-s 与 -es 不可互相误判）", (t) => {
+    const expected = {
+        interfaces: "interface",
+        cases: "case",
+        databases: "database",
+        devices: "device",
+        courses: "course",
+        prizes: "prize",
+        caches: "cache",
+        houses: "house",
+        news: "news",
+        series: "series",
+        classes: "class",
+        boxes: "box",
+        churches: "church",
+        statuses: "status",
+        processes: "process",
+        buses: "bus",
+        categories: "category",
+        movies: "movie",
+    }
+    const files = Object.fromEntries(
+        Object.keys(expected).map((name) => [`src/${name}/index.ts`, ""]),
+    )
+    const p = project(t, files)
+    const result = p.node(
+        `const { generateScopes } = require(${modulePath}); console.log(JSON.stringify(generateScopes()))`,
+    )
+    assert.equal(result.status, 0, result.stderr)
+    const scopes = JSON.parse(result.stdout)
+    for (const [plural, singular] of Object.entries(expected)) {
+        assert.ok(
+            scopes.includes(singular),
+            `${plural} 应转换为 ${singular}，实际: ${scopes.join(",")}`,
+        )
+    }
+    assert.equal(
+        scopes.length,
+        Object.keys(expected).length,
+        `不应产生重复/多余 scope: ${scopes.join(",")}`,
+    )
+})
+
+test("源码目录是文件时不抛异常，返回空列表", (t) => {
+    const p = project(t, { src: "// not a directory\n" })
+    const result = p.node(
+        `const { generateScopes } = require(${modulePath}); console.log(JSON.stringify(generateScopes()))`,
+    )
+    assert.equal(result.status, 0, `stderr: ${result.stderr}`)
+    assert.deepEqual(JSON.parse(result.stdout), [])
+})
+
 const { execSync } = require("node:child_process")
 
 function setupGit(dir) {

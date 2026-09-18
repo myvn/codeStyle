@@ -49,6 +49,10 @@ export default [
         },
         rules: {
             "vue/comment-directive": "off",
+            // .nvue uses semicolons (see src/prettier/index.cjs), so the base
+            // `semi: ["error", "never"]` rule must be disabled here — mirrors
+            // the legacy config in src/eslint/vue3.cjs.
+            semi: "off",
             // Prettier cannot infer a parser from the custom .nvue extension.
             "prettier/prettier": ["error", { parser: "vue", semi: true }],
         },

@@ -20,6 +20,17 @@ module.exports = {
             jsx: true,
         },
     },
+    // Mirrors the ignores of src/eslint/flat/base.mjs: without them `eslint .`
+    // lints build output (dist/, coverage/) and fails on generated code.
+    ignorePatterns: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/coverage/**",
+        "**/public/**",
+        "**/assets/iconfont/**",
+        "**/*.min.js",
+        "**/*.min.css",
+    ],
     plugins: ["@typescript-eslint", "prettier", "import"],
     overrides: [
         {
@@ -42,7 +53,10 @@ module.exports = {
         // 格式化与风格
         indent: "off",
         semi: ["error", "never"],
-        quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }],
+        // avoidEscape must stay true: Prettier keeps the cheaper quote when a
+        // string contains double quotes ('say "hi"'), so requiring an escape
+        // here produces an error that --fix can never resolve.
+        quotes: ["error", "double", { avoidEscape: true, allowTemplateLiterals: true }],
         curly: ["error", "all"],
         "comma-dangle": ["error", "always-multiline"],
         "object-curly-spacing": ["error", "always"],

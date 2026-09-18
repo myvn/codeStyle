@@ -2,4 +2,8 @@
 // https://www.npmjs.com/package/my-code-style
 import baseConfig from "my-code-style/eslint/flat"
 
-export default [...baseConfig]
+// demo-test/.runtime* holds isolated installs for the integration suites
+export default [
+    ...baseConfig,
+    { ignores: ["demo-test/.runtime/**", "demo-test/.runtime-legacy/**"] },
+]

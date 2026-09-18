@@ -34,7 +34,8 @@
   "files": [
     "src",
     "bin",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "publishConfig": {
     "access": "public",

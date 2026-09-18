@@ -53,7 +53,7 @@ ESLint 配置采用三层继承链，逐层 spread 覆盖：
 
 ```
 base.cjs (TS 基础规则)
-  └── vue3.cjs (继承 base，添加 plugin:vue/vue3-essential)
+  └── vue3.cjs (继承 base，添加 plugin:vue/essential)
         └── uniapp.cjs (继承 vue3，添加 uni-app globals)
 ```
 
@@ -138,7 +138,7 @@ base.mjs (tseslint + import-x + prettier)
 | ---------------------------------------------------- | -------------------------------------------- |
 | `extends: ["eslint:recommended"]`                    | `js.configs.recommended`                     |
 | `extends: ["plugin:@typescript-eslint/recommended"]` | `...tseslint.configs.recommended`            |
-| `extends: ["plugin:vue/vue3-essential"]`             | `...pluginVue.configs["flat/essential"]`     |
+| `extends: ["plugin:vue/essential"]`                  | `...pluginVue.configs["flat/essential"]`     |
 | `extends: ["plugin:prettier/recommended"]`           | `eslintPluginPrettierRecommended`            |
 | `extends: ["prettier"]`                              | `eslintConfigPrettier`（放最后）             |
 | `extends: ["standard"]`                              | 不适用（flat 版尚未发布）                    |
@@ -251,7 +251,7 @@ export default [
 ### 场景 7：uni-app 小程序开发
 
 - **Globals 注入**：`uni`、`UniApp`、`wx`、`WechatMiniprogram`、`getCurrentPages`、`Page`、`App`、`UniHelper`、`$t`、`NodeJS`
-- **.nvue 特殊处理**：开启分号、`sourceType: "script"`
+- **.nvue 特殊处理**：开启分号（`prettier/prettier` 使用 `semi: true`，同时关闭基础层的 `semi` 规则）、`sourceType: "module"`
 - **Stylelint 放行**：`rpx` 单位、`page` 标签、`::v-deep` / `v-deep` / `deep` / `global` / `export` 伪类
 
 ---
@@ -310,14 +310,14 @@ export default [
 
 初始化后注入的便捷命令：
 
-| 脚本       | 命令                                          | 说明                                                                  |
-| ---------- | --------------------------------------------- | --------------------------------------------------------------------- |
-| `lint`     | `eslint .` 或 `eslint . --ext ...` (ESLint 8) | 执行 ESLint 扫描（ESLint 8 显式覆盖 JS/TS/JSX/TSX/Vue/nvue 避免漏检） |
-| `lint:fix` | `npm run lint -- --fix`                       | 执行 ESLint 自动修复                                                  |
-| `format`   | `prettier --write .`                          | 全项目 Prettier 格式化                                                |
-| `prepare`  | `husky`                                       | 初始化 Husky 9 Git hooks（`pnpm install` 后自动执行）                 |
-| `release`  | `standard-version`                            | 发布新版本 + 生成规范 CHANGELOG                                       |
-| `cz`       | `czg`                                         | 交互式 Commit 提交提示工具                                            |
+| 脚本       | 命令                                           | 说明                                                                  |
+| ---------- | ---------------------------------------------- | --------------------------------------------------------------------- |
+| `lint`     | `eslint .` 或 `eslint . --ext ...` (ESLint 8)  | 执行 ESLint 扫描（ESLint 8 显式覆盖 JS/TS/JSX/TSX/Vue/nvue 避免漏检） |
+| `lint:fix` | `eslint . --fix` 或 `eslint . --ext ... --fix` | 执行 ESLint 自动修复（等于 `lint` 命令追加 `--fix`）                  |
+| `format`   | `prettier --write .`                           | 全项目 Prettier 格式化                                                |
+| `prepare`  | `husky`                                        | 初始化 Husky 9 Git hooks（`pnpm install` 后自动执行）                 |
+| `release`  | `standard-version`                             | 发布新版本 + 生成规范 CHANGELOG                                       |
+| `cz`       | `czg`                                          | 交互式 Commit 提交提示工具                                            |
 
 ---
 

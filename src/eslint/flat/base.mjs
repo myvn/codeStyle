@@ -27,7 +27,7 @@ export default [
     ...tseslint.configs.recommended,
 
     // eslint-plugin-import-x configuration
-    // Replaces: plugin:import/recommended + eslint-config-standard (via FlatCompat)
+    // Replaces: plugin:import/recommended (ESLint 8 equivalent in src/eslint/base.cjs)
     {
         files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx,vue,nvue}"],
         plugins: {
@@ -66,7 +66,16 @@ export default [
         },
     },
 
-    // Shared rules for all JS, TS, JSX, TSX and Vue files
+    // Prettier integration (replaces: extends: ["plugin:prettier/recommended"])
+    eslintPluginPrettierRecommended,
+
+    // eslint-config-prettier disables rules that conflict with Prettier —
+    // including `curly`, which Prettier never rewrites.
+    eslintConfigPrettier,
+
+    // Shared rules for all JS, TS, JSX, TSX and Vue files.
+    // MUST come after eslint-config-prettier: in flat config a later entry wins,
+    // so explicit rules such as `curly` would otherwise be silently switched off.
     {
         files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx,vue,nvue}"],
         rules: {
@@ -83,19 +92,14 @@ export default [
         },
     },
 
-    // .nvue file handling (uni-app)
+    // .nvue file handling (uni-app) — mirrors the legacy config, which parses
+    // nvue script blocks as modules so `import` works.
     {
         files: ["**/*.nvue"],
         languageOptions: {
             parserOptions: {
-                sourceType: "script",
+                sourceType: "module",
             },
         },
     },
-
-    // Prettier integration (replaces: extends: ["plugin:prettier/recommended"])
-    eslintPluginPrettierRecommended,
-
-    // eslint-config-prettier MUST be last — disables conflicting ESLint rules
-    eslintConfigPrettier,
 ]

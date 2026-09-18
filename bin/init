@@ -12,7 +12,6 @@
 
 const fs = require("fs")
 const path = require("path")
-const { execSync } = require("child_process")
 
 const PROJECT_ROOT = process.cwd()
 const PACKAGE_DIR = path.resolve(__dirname, "..")
@@ -51,6 +50,24 @@ function readTemplate(relativePath) {
     return fs.readFileSync(path.resolve(PACKAGE_DIR, relativePath), "utf8")
 }
 
+/**
+ * Append an entry to the project .gitignore (idempotent, keeps existing lines).
+ */
+function ensureGitignoreEntry(entry) {
+    const gitignorePath = path.resolve(PROJECT_ROOT, ".gitignore")
+    if (!fs.existsSync(gitignorePath)) return
+    const content = fs.readFileSync(gitignorePath, "utf8")
+    const hasEntry = content.split("\n").some((line) => line.trim() === entry)
+    if (hasEntry) return
+    const separator = content.length === 0 || content.endsWith("\n") ? "" : "\n"
+    fs.writeFileSync(
+        gitignorePath,
+        `${content}${separator}\n# my-code-style 初始化备份目录\n${entry}\n`,
+        "utf8",
+    )
+    log(`已将 ${entry} 追加到 .gitignore`)
+}
+
 function getProjectPkg() {
     const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
     if (!fs.existsSync(pkgPath)) return null
@@ -77,6 +94,142 @@ function getDependencyVersion(pkg, depName) {
  */
 function isEsmProject(pkg = getProjectPkg()) {
     return pkg?.type === "module"
+}
+
+// --- Semver range helpers (dependency-free) ---
+// Detection only needs to know which major versions a declared range can
+// install. Regex guessing on the raw string misreads "<9.0.0" (8 only) and
+// ">=8.0.0" (8 or 9), so ranges are parsed into half-open [lower, upper)
+// intervals with the subset of npm range syntax that appears in practice.
+
+const MAX_VERSION = [Number.POSITIVE_INFINITY, 0, 0]
+
+function compareVersion(a, b) {
+    for (let i = 0; i < 3; i += 1) {
+        if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1
+    }
+    return 0
+}
+
+function isWildcardField(field) {
+    return field === undefined || field === "" || /^[xX*]$/.test(field)
+}
+
+function parseVersionFields(text) {
+    const [release] = String(text).trim().replace(/^v/, "").split("-")
+    const fields = release.split(".")
+    if (fields.length > 3) return null
+    const parts = [0, 1, 2].map((index) => {
+        const field = fields[index]
+        if (isWildcardField(field)) return null
+        return /^\d+$/.test(field) ? parseInt(field, 10) : NaN
+    })
+    return parts.some((part) => Number.isNaN(part)) ? null : parts
+}
+
+function lowerBound(parts) {
+    return [parts[0] || 0, parts[1] || 0, parts[2] || 0]
+}
+
+function partialInterval(parts) {
+    const lower = lowerBound(parts)
+    const missing = parts.findIndex((part) => part === null)
+    if (missing === -1) return [lower, [lower[0], lower[1], lower[2] + 1]]
+    if (missing === 0) return [[0, 0, 0], MAX_VERSION]
+    const upper = [0, 0, 0]
+    for (let i = 0; i < missing; i += 1) upper[i] = parts[i]
+    upper[missing - 1] += 1
+    return [lower, upper]
+}
+
+function caretInterval(parts) {
+    const lower = lowerBound(parts)
+    if (parts[0] === null) return [[0, 0, 0], MAX_VERSION]
+    if (parts[0] > 0 || parts[1] === null) return [lower, [parts[0] + 1, 0, 0]]
+    if (parts[1] > 0 || parts[2] === null) return [lower, [0, parts[1] + 1, 0]]
+    return [lower, [0, 0, parts[2] + 1]]
+}
+
+function tildeInterval(parts) {
+    const lower = lowerBound(parts)
+    if (parts[0] === null) return [[0, 0, 0], MAX_VERSION]
+    if (parts[1] === null) return [lower, [parts[0] + 1, 0, 0]]
+    return [lower, [parts[0], parts[1] + 1, 0]]
+}
+
+function tokenInterval(token) {
+    const match = /^(>=|<=|>|<|\^|~|=)?\s*(.*)$/.exec(token.trim())
+    if (!match || !match[2]) return null
+    const [, operator = "", text] = match
+    if (/^[xX*]$/.test(text.trim())) return [[0, 0, 0], MAX_VERSION]
+    const parts = parseVersionFields(text)
+    if (!parts) return null
+    const lower = lowerBound(parts)
+    switch (operator) {
+        case ">=":
+            return [lower, MAX_VERSION]
+        case ">":
+            return [[lower[0], lower[1], lower[2] + 1], MAX_VERSION]
+        case "<":
+            return [[0, 0, 0], lower]
+        case "<=":
+            return [
+                [0, 0, 0],
+                [lower[0], lower[1], lower[2] + 1],
+            ]
+        case "^":
+            return caretInterval(parts)
+        case "~":
+            return tildeInterval(parts)
+        default:
+            return partialInterval(parts)
+    }
+}
+
+function rangeIntervals(range) {
+    const intervals = []
+    for (const clause of range.split("||")) {
+        const text = clause.trim()
+        if (!text) continue
+        const hyphen = text.split(/\s+-\s+/)
+        const tokens =
+            hyphen.length === 2 ? [`>=${hyphen[0]}`, `<=${hyphen[1]}`] : text.split(/\s+/)
+        let lower = [0, 0, 0]
+        let upper = MAX_VERSION
+        let valid = true
+        for (const token of tokens) {
+            const interval = tokenInterval(token)
+            if (!interval) {
+                valid = false
+                break
+            }
+            if (compareVersion(interval[0], lower) > 0) lower = interval[0]
+            if (compareVersion(interval[1], upper) < 0) upper = interval[1]
+        }
+        if (valid && compareVersion(lower, upper) < 0) intervals.push([lower, upper])
+    }
+    return intervals
+}
+
+/**
+ * List every major version a declared range can install (0-12), or null when
+ * the range cannot be parsed.
+ */
+function majorsForRange(range) {
+    const intervals = rangeIntervals(range)
+    if (!intervals.length) return null
+    const majors = []
+    for (let major = 0; major <= 12; major += 1) {
+        const lower = [major, 0, 0]
+        const upper = [major + 1, 0, 0]
+        const intersects = intervals.some(
+            ([intervalLower, intervalUpper]) =>
+                compareVersion(intervalLower, upper) < 0 &&
+                compareVersion(intervalUpper, lower) > 0,
+        )
+        if (intersects) majors.push(major)
+    }
+    return majors.length ? majors : null
 }
 
 /**
@@ -138,31 +291,22 @@ function detectEslintVersion(pkg = getProjectPkg(), rootDir = PROJECT_ROOT) {
         return 9
     }
 
-    // Range spanning both 8 and 9 (e.g. "^8.57.0 || ^9.0.0")
-    if (version.includes("||")) {
-        const parts = version.split("||").map((s) => s.trim())
-        const has8 = parts.some((p) => /\b8(?:\.\d+)?/.test(p))
-        const has9 = parts.some((p) => /\b9(?:\.\d+)?/.test(p))
-        if (has8 && has9) {
-            log("ESLint 依赖同时支持 8 与 9 且未安装本地副本，默认采用 ESLint 9 Flat Config")
-            return 9
-        }
+    const majors = majorsForRange(version)
+    if (!majors) {
+        // Fallback: check leading digit if available
+        const match = version.match(/(\d+)/)
+        return match ? parseInt(match[1], 10) : null
     }
 
-    // Explicit major 8 vs 9
-    const isMajor8 = /\b8(?:\.|\.x|\b)/.test(version) && !/^\s*(?:>=|\^)\s*9/.test(version)
-    const isMajor9 = /\b9(?:\.|\.x|\b)/.test(version) && !/<\s*9/.test(version)
-
-    if (isMajor8 && !isMajor9) return 8
-    if (isMajor9 && !isMajor8) return 9
-
-    // Fallback: check leading digit if available
-    const match = version.match(/(\d+)/)
-    if (match) {
-        return parseInt(match[1], 10)
+    // Ranges such as ">=8.0.0" or "^8.57.0 || ^9.0.0" can install either
+    // major; without a local install npm resolves the newest one (9).
+    if (majors.includes(8) && majors.includes(9)) {
+        log("ESLint 依赖同时支持 8 与 9 且未安装本地副本，默认采用 ESLint 9 Flat Config")
+        return 9
     }
-
-    return null
+    if (majors.includes(9)) return 9
+    if (majors.includes(8)) return 8
+    return majors[0]
 }
 
 /**
@@ -224,17 +368,26 @@ function detectCssPreprocessor() {
 
     // Fallback: check for existing stylelint config
     if (fileExists(".stylelintrc.cjs") || fileExists(".stylelintrc.js")) {
+        const stylelintFile = fileExists(".stylelintrc.cjs")
+            ? ".stylelintrc.cjs"
+            : ".stylelintrc.js"
+        let content = ""
         try {
-            const stylelintFile = fileExists(".stylelintrc.cjs")
-                ? ".stylelintrc.cjs"
-                : ".stylelintrc.js"
-            const content = fs.readFileSync(path.resolve(PROJECT_ROOT, stylelintFile), "utf8")
-            const hasPostcssLess = content.includes("postcss-less")
-            const hasPostcssScss =
-                content.includes("postcss-scss") || content.includes("my-code-style/stylelint")
-            if (hasPostcssLess && hasPostcssScss) return "both"
-            if (hasPostcssLess) return "less"
+            content = fs.readFileSync(path.resolve(PROJECT_ROOT, stylelintFile), "utf8")
         } catch {}
+        // "my-code-style/stylelint" is a prefix of "my-code-style/stylelint/less",
+        // so the Less entry must be matched before the SCSS one.
+        const usesLess =
+            /my-code-style\/stylelint\/less(?:-override)?/.test(content) ||
+            content.includes("postcss-less") ||
+            content.includes("stylelint-config-recommended-less")
+        const usesScss =
+            /my-code-style\/stylelint(?![-\w/])/.test(content) ||
+            content.includes("postcss-scss") ||
+            content.includes("stylelint-config-recommended-scss")
+        if (usesLess && usesScss) return "both"
+        if (usesLess) return "less"
+        if (usesScss) return "scss"
         return "scss"
     }
 
@@ -306,6 +459,11 @@ module.exports = require("${importPath}")
 }
 
 function commitlintrcContent() {
+    const mockScope = ["mock", "mocks", "src/mock", "src/mocks"].some((dir) =>
+        fs.existsSync(path.resolve(PROJECT_ROOT, dir)),
+    )
+        ? `, "mock"`
+        : ""
     return `// Commitlint config — powered by my-code-style
 const base = require("my-code-style/commitlint")
 const { generateScopes, guessCurrentScope } = require("my-code-style/commitlint/scopes")
@@ -319,7 +477,7 @@ module.exports = {
         ...base.prompt,
         customScopesAlign: !scopeComplete ? "top" : "bottom",
         defaultScope: scopeComplete,
-        scopes: [...scopes, "mock"],
+        scopes: [...scopes${mockScope}],
         allowEmptyIssuePrefixs: false,
         allowCustomIssuePrefixs: false,
     },
@@ -333,12 +491,14 @@ module.exports = require("my-code-style/versionrc")
 `
 }
 
+// Hook bodies live in src/husky/* so the shipped templates cannot drift from
+// what the CLI writes. Normalise the trailing newline.
 function huskyCommitMsg() {
-    return `npx --no-install commitlint --edit "\${1}"\n`
+    return readTemplate("src/husky/commit-msg").replace(/\s*$/, "\n")
 }
 
 function huskyPreCommit() {
-    return `npx --no-install -- lint-staged\n`
+    return readTemplate("src/husky/pre-commit").replace(/\s*$/, "\n")
 }
 
 function editorconfigContent() {
@@ -470,9 +630,17 @@ function main() {
         fileExists("eslint.config.cjs")
 
     if (eslintVersion !== null && eslintVersion < 8) {
-        console.error(`不支持 ESLint ${eslintVersion} 版本；本配置包仅支持 ESLint 8 或 9，未修改任何文件`)
+        console.error(
+            `不支持 ESLint ${eslintVersion} 版本；本配置包仅支持 ESLint 8 或 9，未修改任何文件`,
+        )
         process.exitCode = 1
         return
+    }
+
+    if (eslintVersion !== null && eslintVersion >= 10) {
+        warn(
+            `ESLint ${eslintVersion} 尚未在 peerDependencies 声明支持（^8.57.0 || ^9.0.0），将按 Flat Config 生成`,
+        )
     }
 
     // Do not silently mix an installed major version with an incompatible format.
@@ -562,7 +730,9 @@ function main() {
     }
 
     if (isEsm && fileExists(".versionrc.js") && !fileExists(".versionrc.cjs")) {
-        warn("检测到 ESM 项目 (type: module) 存在旧的 .versionrc.js，standard-version 需使用 .versionrc.cjs")
+        warn(
+            "检测到 ESM 项目 (type: module) 存在旧的 .versionrc.js，standard-version 需使用 .versionrc.cjs",
+        )
     }
 
     files.push({
@@ -632,7 +802,9 @@ function main() {
     if (backup) {
         const backupDir = path.resolve(PROJECT_ROOT, ".my-code-style-backup")
         ensureDir(backupDir)
-        for (const item of [...files, ...hooks]) {
+        // package.json is rewritten (scripts + lint-staged), so it must be backed
+        // up as well — users lose custom lint-staged groups otherwise.
+        for (const item of [...files, ...hooks, { path: "package.json" }]) {
             if (fileExists(item.path)) {
                 const srcPath = path.resolve(PROJECT_ROOT, item.path)
                 const targetPath = path.resolve(backupDir, item.path)
@@ -722,6 +894,11 @@ function main() {
             "lint-staged": getLintStagedConfig(cssPreprocessor),
         })
         success("更新 package.json (scripts + lint-staged)")
+
+        // The backup directory is ours, not the user's source — keep it out of git
+        if (backup) {
+            ensureGitignoreEntry(".my-code-style-backup/")
+        }
     } catch (err) {
         console.error(`\n  ✖ 初始化写入失败: ${err.message}；正在回滚...`)
         for (const [relPath, info] of snapshot.entries()) {
@@ -787,6 +964,20 @@ function modifyPackageJson(updates) {
         pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"))
     }
 
+    // A generated manifest must be installable on its own: npm requires
+    // name/version (e.g. running init in an empty directory).
+    if (typeof pkg.name !== "string" || !pkg.name.trim()) {
+        pkg.name =
+            path
+                .basename(PROJECT_ROOT)
+                .toLowerCase()
+                .replace(/[^a-z0-9._-]+/g, "-")
+                .replace(/^[._-]+|[._-]+$/g, "") || "my-project"
+    }
+    if (typeof pkg.version !== "string" || !pkg.version.trim()) {
+        pkg.version = "1.0.0"
+    }
+
     // Merge scripts: updates won't overwrite existing scripts with the same key
     if (updates.scripts) {
         pkg.scripts = { ...updates.scripts, ...(pkg.scripts || {}) }
@@ -797,7 +988,14 @@ function modifyPackageJson(updates) {
         pkg["lint-staged"] = updates["lint-staged"]
     }
 
-    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 4) + "\n", "utf8")
+    // Keep the project's own indentation (a 2-space repo should not be reflowed)
+    const previous = fileExists("package.json") ? fs.readFileSync(pkgPath, "utf8") : ""
+    const indentMatch = previous.match(/^[ \t]+(?=")/m)
+    fs.writeFileSync(
+        pkgPath,
+        JSON.stringify(pkg, null, indentMatch ? indentMatch[0] : 4) + "\n",
+        "utf8",
+    )
 }
 
 function checkPeerDeps({
@@ -915,4 +1113,7 @@ function checkPeerDeps({
     }
 }
 
-main()
+// Only run when executed directly; requiring this file must be side-effect free.
+if (require.main === module) {
+    main()
+}

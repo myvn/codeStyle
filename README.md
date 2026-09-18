@@ -131,7 +131,7 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 
 ## 特性
 
-- **双引号**：`quotes: ["error", "double", { avoidEscape: false, allowTemplateLiterals: true }]`
+- **双引号**：`quotes: ["error", "double", { avoidEscape: true, allowTemplateLiterals: true }]`（`avoidEscape` 必须为 `true`，否则与 Prettier 的转义策略冲突，`--fix` 无法消除报错）
 - **4 空格缩进**：`tabWidth: 4`（由 Prettier 全权统一格式化）
 - **无分号**：`semi: false`（`.nvue` 文件除外）
 - **行宽 100**：`printWidth: 100`
@@ -148,10 +148,10 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ```bash
 npm test                       # 运行基础 CLI 与配置矩阵测试（52 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
-npm run test:integration       # 运行 Flat Config、真实 Husky 及提交链路测试（44 项）
+npm run test:integration       # 运行 Flat Config、真实 Husky 及提交链路测试（47 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
-npm run test:legacy            # 运行 ESLint 8.57.0 兼容性回归测试（25 项）
-npm run test:all               # 全量运行全部 121 项测试
+npm run test:legacy            # 运行 ESLint 8.57.0 兼容性回归测试（27 项）
+npm run test:all               # 全量运行全部 132 项测试
 ```
 
 ## License

@@ -19,14 +19,14 @@ node --test demo-test/scopes.test.cjs
 
 ## 文件和覆盖范围
 
-| 文件 | 内容 |
-| --- | --- |
-| fixtures/projects.json | 可扩展的消费工程参数：基础 TS、Vue+SCSS、Vue+Less、uni-app、ESLint 8、Vue 默认样式、Sass/Less 共存 |
-| init-matrix.test.cjs | 检查生成的入口、样式分支、hooks、scripts、lint-staged、重复初始化与 peerDependencies 检测 |
-| config-contract.test.cjs | 公共 exports 解析；Prettier、传统 ESLint、Stylelint、Commitlint、versionrc 配置结构和关键约定 |
-| scopes.test.cjs | 源目录扫描、单数转换、去重、跳过普通文件和缺失目录 |
-| helpers.cjs | 创建临时工程、运行当前 CLI、读取生成结果、测试结束清理 |
-| ../tests/init.test.cjs | 原有 23 项安全回归：无效 manifest、参数校验、已有配置保护、格式冲突、dry-run 等 |
+| 文件                     | 内容                                                                                               |
+| ------------------------ | -------------------------------------------------------------------------------------------------- |
+| fixtures/projects.json   | 可扩展的消费工程参数：基础 TS、Vue+SCSS、Vue+Less、uni-app、ESLint 8、Vue 默认样式、Sass/Less 共存 |
+| init-matrix.test.cjs     | 检查生成的入口、样式分支、hooks、scripts、lint-staged、重复初始化与 peerDependencies 检测          |
+| config-contract.test.cjs | 公共 exports 解析；Prettier、传统 ESLint、Stylelint、Commitlint、versionrc 配置结构和关键约定      |
+| scopes.test.cjs          | 源目录扫描、单数转换、去重、跳过普通文件和缺失目录                                                 |
+| helpers.cjs              | 创建临时工程、运行当前 CLI、读取生成结果、测试结束清理                                             |
+| ../tests/init.test.cjs   | 原有 23 项安全回归：无效 manifest、参数校验、已有配置保护、格式冲突、dry-run 等                    |
 
 ## 如何添加场景
 
@@ -34,10 +34,10 @@ node --test demo-test/scopes.test.cjs
 
 ```json
 {
-  "name": "my-vue-less-project",
-  "dependencies": { "eslint": "^9.0.0", "vue": "^3.0.0", "less": "^4.0.0" },
-  "entry": "my-code-style/eslint/flat/vue3",
-  "style": "my-code-style/stylelint/less"
+    "name": "my-vue-less-project",
+    "dependencies": { "eslint": "^9.0.0", "vue": "^3.0.0", "less": "^4.0.0" },
+    "entry": "my-code-style/eslint/flat/vue3",
+    "style": "my-code-style/stylelint/less"
 }
 ```
 
@@ -53,7 +53,7 @@ node --test demo-test/scopes.test.cjs
 
 ## 当前验证状态
 
-基础测试 40 项全部通过；现代工具链测试 34 项、ESLint 8 测试 17 项全部通过，合计 **91 项、0 TODO**。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
+基础测试 58 项全部通过；现代工具链测试 47 项、ESLint 8 测试 27 项全部通过，合计 **132 项、0 TODO**。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
 
 上述 `npm test` 只验证 CLI 与配置契约；真实工具集成测试单独运行，见下文。未统计行/分支覆盖率，不代表所有功能都已覆盖。
 
@@ -80,32 +80,32 @@ npm run test:all  # 基础回归 + ESLint 9 集成 + ESLint 8 集成
 
 ### 本次实测（正常依赖安装）
 
-| 场景 | 结果 |
-| --- | --- |
-| Prettier JS / TS / JSON 格式化与幂等性 | 3 项通过 |
-| ESLint 基础 TS / Vue / uni-app 正常代码 | 3 项通过 |
-| ESLint 错误格式识别、自动修复和二次检查 | 通过 |
-| ESLint TS 语法错误识别 | 通过 |
-| Stylelint SCSS / Less 修复、复检和非法属性报错 | 2 项通过 |
-| Commitlint 正常提交、非法 type、超长标题 | 通过 |
-| 真实 Husky commit-msg hook 拒绝非法提交、允许合法提交 | 通过 |
-| 含 init 的非法提交不再绕过验证 | 通过 |
-| 嵌套 .nvue 模板解析 | 通过 |
-| 根目录 / 嵌套 nvue：TS setup、import、uni globals、格式化复检 | 2 项通过 |
-| nvue 错误脚本被拒绝 | 通过 |
-| 规范初始化提交允许，非规范 init 文本拒绝 | 通过 |
+| 场景                                                                             | 结果     |
+| -------------------------------------------------------------------------------- | -------- |
+| Prettier JS / TS / JSON 格式化与幂等性                                           | 3 项通过 |
+| ESLint 基础 TS / Vue / uni-app 正常代码                                          | 3 项通过 |
+| ESLint 错误格式识别、自动修复和二次检查                                          | 通过     |
+| ESLint TS 语法错误识别                                                           | 通过     |
+| Stylelint SCSS / Less 修复、复检和非法属性报错                                   | 2 项通过 |
+| Commitlint 正常提交、非法 type、超长标题                                         | 通过     |
+| 真实 Husky commit-msg hook 拒绝非法提交、允许合法提交                            | 通过     |
+| 含 init 的非法提交不再绕过验证                                                   | 通过     |
+| 嵌套 .nvue 模板解析                                                              | 通过     |
+| 根目录 / 嵌套 nvue：TS setup、import、uni globals、格式化复检                    | 2 项通过 |
+| Flat Config：`curly` 生效并可自动补全大括号、引号与 Prettier 一致、nvue 分号例外 | 3 项通过 |
+| nvue 错误脚本被拒绝                                                              | 通过     |
+| 规范初始化提交允许，非规范 init 文本拒绝                                         | 通过     |
 
 Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置测试身份并禁用签名，不影响工作仓库，不推送远程。为单独验证 commit-msg，测试明确清空临时仓库的 pre-commit hook；该用例只验证 commit-msg；后续完整链路用例保留两个 hooks，实际验证 lint-staged。它也要求本机已安装 Git，并允许运行 hooks。
 
 ### 尚未覆盖
 
-- JSX/TSX 实际规则运行、更多 Vue/nvue 语法边界（nvue 任务匹配已覆盖）；
-- standard-version 实际版本递增与标签、ESM 配置加载；
+- 更多 Vue/nvue 语法边界（nvue 任务匹配与分号例外已覆盖）；
+- standard-version 的发布标签与远程推送；
 - Node 18/20、Windows 等环境矩阵；
 - 代码行/分支覆盖率统计。
 
-
-## 完整提交链路回归（新增 16 项）
+## 完整提交链路回归（该文件共 47 项，其中完整提交链 7 项）
 
 运行 `npm run test:integration`（包含规则测试及完整 Git 提交链路），或 `npm run test:all`。
 
@@ -113,12 +113,12 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 
 CLI 生成的 lint-staged 配置使用互斥文件分组，每个文件只归属一个任务数组。数组内任务串行，不同文件组可以并行：
 
-| 文件组 | 执行顺序 |
-| --- | --- |
-| Vue / nvue | Prettier → ESLint → Stylelint（启用样式时） |
-| JS / TS / JSX / TSX / CJS / MJS / MTS / CTS | Prettier → ESLint |
-| HTML / CSS / 所选 SCSS 或 Less | Prettier → Stylelint（启用样式时） |
-| JSON / JSON5 / Markdown / YAML | Prettier |
+| 文件组                                      | 执行顺序                                    |
+| ------------------------------------------- | ------------------------------------------- |
+| Vue / nvue                                  | Prettier → ESLint → Stylelint（启用样式时） |
+| JS / TS / JSX / TSX / CJS / MJS / MTS / CTS | Prettier → ESLint                           |
+| HTML / CSS / 所选 SCSS 或 Less              | Prettier → Stylelint（启用样式时）          |
+| JSON / JSON5 / Markdown / YAML              | Prettier                                    |
 
 提交任务不再使用 ESLint 的共享磁盘缓存，避免并发组同时写 `.eslintcache`。匹配 JSX/TSX 不代表已验证其 parser 和规则兼容性。样式分支仍沿用单一 SCSS/Less 检测策略，不代表混合预处理器的全部文件均覆盖。
 
@@ -141,7 +141,6 @@ CLI 生成的 lint-staged 配置使用互斥文件分组，每个文件只归属
 
 本次修改的是 CLI 生成模板，已接入项目不会自动更新自己的 package.json。请备份后手动更新 lint-staged 分组，或审查 `init --dry-run` 再初始化；初始化仍可能覆盖其他配置/hooks，不能直接无备份运行。
 
-
 ## ESLint 8 / 传统 Vue 兼容回归
 
 ```bash
@@ -151,14 +150,16 @@ npm run test:legacy
 
 `setup-legacy.cjs` 安装到被忽略的 `.runtime-legacy/`，固定 ESLint 8 支持下限 **8.57.0**；不与 `.runtime/` 的 ESLint 9 共用依赖。安装不使用 `--force` 或 `--legacy-peer-deps`。测试每次复制当前源码，在独立消费工程中执行 CLI 生成传统配置，并实际调用 ESLint 8 API 和命令行。
 
-17 项覆盖：
+27 项覆盖：
 
 - 确认运行的是 ESLint 8.57.0；
 - 基础 TS、Vue、uni-app 的正常代码、格式修复及幂等复检、错误脚本拒绝（9 项）；
 - 根目录与嵌套 nvue：TS setup、模块 import、uni globals、分号例外（2 项）；
 - CommonJS 配置文件 require 合法使用；
 - 生成的 lint 脚本确实遍历 TS、Vue、nvue 并拒绝错误代码（3 项）；
-- Vue essential 的重复属性规则实际生效。
+- Vue essential 的重复属性规则实际生效；
+- 引号规则与 Prettier 一致（含双引号的字符串不再产生不可修复错误）；
+- 生成的 lint 脚本忽略 `dist/`、`coverage/` 等构建产物。
 
 修复前真实复现 `plugin:vue/vue3-essential` 无法加载；现在使用 Vue 插件 10 的 `plugin:vue/essential`。同时修复传统 nvue 覆写、CommonJS require 规则，以及目录 lint 的扩展名漏检。
 
