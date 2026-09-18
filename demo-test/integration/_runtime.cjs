@@ -123,7 +123,11 @@ async function commitlint(message) {
 // Full hook chain. Unlike the earlier focused commit-msg test, these fixtures
 // retain BOTH generated hooks and run real lint-staged against the Git index.
 function commitProject(t, style = "scss") {
-    const dir = fs.mkdtempSync(path.join(runtime, "full-hooks-"))
+    // 诊断用：MY_CODE_STYLE_FIXTURE_DIR 可把 fixture 挪到别处（例如系统临时目录），
+    // 用来判断仓库目录上的备份/同步/杀毒代理是不是并发时的隐形串行点。
+    const fixtureRoot = process.env.MY_CODE_STYLE_FIXTURE_DIR || runtime
+    fs.mkdirSync(fixtureRoot, { recursive: true })
+    const dir = fs.mkdtempSync(path.join(fixtureRoot, "full-hooks-"))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
     // 身份与开关用环境变量传给所有 git（含 hook 内部起的 git），
     // 省掉每个 fixture 4 次 `git config` 进程 —— 整套集成测试原本要为此起 92 次。

@@ -222,7 +222,7 @@ async function runMany(command, args, count, options = {}) {
                 const child = spawn(command, args, {
                     cwd: options.cwd || ROOT,
                     stdio: "ignore",
-                    env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" },
+                    env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", ...(options.env || {}) },
                 })
                 child.on("close", () => resolve(ms(process.hrtime.bigint() - childStart)))
             })
@@ -250,16 +250,24 @@ async function stress() {
         )
     }
     if (fs.existsSync(sample)) {
-        const { wall, times } = await runMany(process.execPath, ["--test", sample], STRESS)
-        const avg = times.reduce((a, b) => a + b, 0) / times.length
-        line(
-            `${STRESS}× 同一个测试文件`,
-            `单 ${(avg / 1000).toFixed(1)}s`,
-            `总 ${(wall / 1000).toFixed(1)}s · 最慢 ${(Math.max(...times) / 1000).toFixed(1)}s`,
-        )
+        for (const [label, extraEnv] of [
+            ["同一个测试文件（fixture 在仓库内）", {}],
+            ["同一个测试文件（fixture 在 TMPDIR）", { MY_CODE_STYLE_FIXTURE_DIR: os.tmpdir() }],
+        ]) {
+            const { wall, times } = await runMany(process.execPath, ["--test", sample], STRESS, {
+                env: extraEnv,
+            })
+            const avg = times.reduce((a, b) => a + b, 0) / times.length
+            line(
+                `${STRESS}× ${label}`,
+                `单 ${(avg / 1000).toFixed(1)}s`,
+                `总 ${(wall / 1000).toFixed(1)}s · 最慢 ${(Math.max(...times) / 1000).toFixed(1)}s`,
+            )
+        }
         console.log("")
-        console.log("  读法：单个耗时相对「①/④ 的单独基线」涨了多少倍，就是排队有多严重。")
-        console.log("        若 npx 那行涨得远多于 .bin 那行 → npm CLI 是排队点，去掉 hook 里的 npx 最有效。")
+        console.log("  读法：单个耗时相对「④ 的单独基线」涨了多少倍，就是排队有多严重。")
+        console.log("        两行差很多 → 仓库目录（备份/同步/杀毒）是并发时的隐形串行点；")
+        console.log("        两行都涨 → 是系统级的进程启动吞吐上限，只能靠减少进程数。")
     }
 }
 
