@@ -9,10 +9,18 @@
  *   npm run test:all -- --parallel       # 强制套件级并行（核数 ≥ 8 时默认已开启）
  *   npm run test:all -- --serial         # 强制串行（CI 形态，输出最稳定）
  *   npm run test:all -- --jobs=2         # 并行时限制同时运行 2 个套件
- *   npm run test:all -- --concurrency=4  # 覆盖套件内文件级并发（默认按 CPU 核数）
+ *   npm run test:all -- --concurrency=8  # 套件内同时跑几个测试文件（默认按核数与内存自动算）
+ *   npm run test:all -- --profile        # 额外列出每个测试文件的耗时
  *   npm run test:all -- --verbose        # 透传原始 TAP 输出（排查单条用例时用）
  *   npm run test:all -- --no-count       # 跳过预统计（省几秒，进度条不显示总数）
  *   npm run test:all -- --progress       # 非 TTY 环境也强制刷新进度
+ *
+ * 并发由本运行器自己调度，不依赖 Node 的默认值：
+ * - 文件级（套件内）：每个测试文件一个进程，并发上限 = 核数 × 1.5 与内存上限取小值，
+ *   单用例文件（一条真实提交链）优先开跑；
+ * - 套件级：三个套件互不共享目录，核数 ≥ 8 时自动并行。
+ * 套件内的重活（真实 git commit + lint-staged 全链路）都在同一个文件里串行，所以让
+ * 文件尽量"一件事一个文件"，墙钟时间就等于最慢的那个文件。
  *
  * 退出码：任一用例失败、套件异常退出或套件未运行时为 1。
  */
@@ -26,6 +34,7 @@ const ROOT = path.resolve(__dirname, "..")
 const argv = new Set(process.argv.slice(2))
 const VERBOSE = argv.has("--verbose")
 const QUIET = argv.has("--quiet") || argv.has("-q")
+const PROFILE = argv.has("--profile")
 const SKIP_COUNT = argv.has("--no-count")
 const PROGRESS = process.stdout.isTTY || argv.has("--progress")
 
@@ -40,11 +49,26 @@ const PARALLEL_AUTO = PARALLEL && !FORCE_PARALLEL
 const jobsArg = process.argv.slice(2).find((arg) => arg.startsWith("--jobs="))
 const JOBS = jobsArg ? Math.max(1, Number.parseInt(jobsArg.split("=")[1], 10) || 1) : Infinity
 
-// 套件内部的文件级并发（node --test 默认 = CPU 核数 - 1）
+// 套件内的文件级并发。默认不让 Node 决定（Node 的 --test 文件级并发默认是 CPU-1，
+// 在文件数多于核数时会把"最慢文件"挤到第二波，墙钟直接翻倍），而是由本运行器算：
+// 核数 × 1.5（至少 核数 - 1），再乘内存上限——实测一条真实提交链（git + npx +
+// eslint/prettier）峰值 RSS 约 0.8GB，留 30% 给系统，避免小内存机器被并发的
+// git/npx 撑到 OOM（进程被 SIGKILL）。
+const MEM_PER_CHAIN_GB = 0.8
+const MEM_RESERVE = 0.3
+const TOTAL_MEM_GB = os.totalmem() / 1024 ** 3
+/** 默认文件级并发：核数 × 1.5（至少 核数 - 1）与内存上限取小值 */
+function computeFileJobs(cpus, totalMemGB) {
+    const coreSlots = Math.max(1, cpus - 1, Math.round(cpus * 1.5))
+    const memSlots = Math.max(1, Math.floor((totalMemGB * (1 - MEM_RESERVE)) / MEM_PER_CHAIN_GB))
+    return Math.min(coreSlots, memSlots)
+}
+
 const concurrencyArg = process.argv.slice(2).find((arg) => arg.startsWith("--concurrency="))
-const CONCURRENCY = concurrencyArg
+const FILE_JOBS = concurrencyArg
     ? Math.max(1, Number.parseInt(concurrencyArg.split("=")[1], 10) || 1)
-    : null
+    : computeFileJobs(CORES, TOTAL_MEM_GB)
+const FILE_JOBS_AUTO = !concurrencyArg
 
 const SUITES = [
     {
@@ -125,11 +149,13 @@ function progressLine(state, width = 78) {
     const bits = [
         bar,
         total ? `${done}/${total}` : `${done} 项`,
-        state.failed ? `失败 ${state.failed}` : "",
+        state.failed ? `失败 ${failed0(state)}` : "",
         elapsed,
     ].filter(Boolean)
     return pad(bits.join("   "), width)
 }
+
+const failed0 = (state) => state.failed
 
 /** 用例明细行：✓/✗/○ + 名称 + 耗时 */
 function caseLine(item) {
@@ -138,11 +164,9 @@ function caseLine(item) {
     return `      ${mark} ${item.name}${note}${formatDuration(item.duration)}`
 }
 
-function runSuite(files, extraArgs, onLine) {
+function runFile(file, onLine) {
     return new Promise((resolve) => {
-        const args = ["--test", "--test-reporter=tap"]
-        if (CONCURRENCY) args.push(`--test-concurrency=${CONCURRENCY}`)
-        const child = spawn(process.execPath, [...args, ...extraArgs, ...files], {
+        const child = spawn(process.execPath, ["--test", "--test-reporter=tap", file], {
             cwd: ROOT,
             stdio: ["ignore", "pipe", "pipe"],
         })
@@ -192,38 +216,17 @@ function countTests(files) {
     })
 }
 
-/** 单个套件的运行状态 + TAP 解析（串行/并行共用） */
-function makeRunner(suite, label) {
-    const state = {
-        suite,
-        label,
-        passed: 0,
-        failed: 0,
-        skipped: 0,
-        cases: [],
-        failures: [],
-        rawLines: [],
-        startedAt: Date.now(),
-        duration: 0,
-        started: false,
-        done: false,
-        code: 0,
-    }
+/**
+ * TAP 解析（单个测试文件）：把用例写进 target，必要时实时打印
+ * @param {{passed:number,failed:number,skipped:number,cases:Array,failures:Array}} target
+ * @param {{live:boolean,fileTag?:string}} options
+ */
+function makeParser(target, options = {}) {
     let capture = false
     let current = null
-    let writing = false
-    // 串行模式的用例行先落名字，等 TAP 的 duration_ms 到达再补耗时
     let openLine = false
-    const liveCases = !PARALLEL && !QUIET && !VERBOSE
-
-    const renderProgress = () => {
-        // 用例明细就是串行模式的进度；只有 --quiet 才退回单行进度条
-        if (!PROGRESS || VERBOSE || PARALLEL || !QUIET || writing) return
-        writing = true
-        process.stdout.write(`\r${pad(`      ${progressLine(state, 60)}`, 78)}`, () => {
-            writing = false
-        })
-    }
+    const verbose = options.verbose === undefined ? VERBOSE : Boolean(options.verbose)
+    const live = Boolean(options.live) && !verbose && !QUIET
 
     const closeOpenLine = () => {
         if (openLine) {
@@ -233,42 +236,41 @@ function makeRunner(suite, label) {
     }
 
     const onLine = (line) => {
-        state.rawLines.push(line)
-        if (VERBOSE) {
-            console.log(PARALLEL ? `    [${suite.id}] ${line}` : `    ${line}`)
-            return
+        // --verbose 只是额外回显原始 TAP，统计照常做（否则汇总会变成 0/0）
+        if (verbose) {
+            console.log(options.fileTag ? `    [${options.fileTag}] ${line}` : `    ${line}`)
         }
         if (line.startsWith("    ")) line = line.slice(4)
 
         const match = /^(ok|not ok) \d+ - (.*)$/.exec(line)
         if (match) {
             closeOpenLine()
-            const status = match[1] === "not ok" ? "fail" : /# (SKIP|TODO)/.test(match[2]) ? "skip" : "pass"
+            const status =
+                match[1] === "not ok" ? "fail" : /# (SKIP|TODO)/.test(match[2]) ? "skip" : "pass"
             const name = match[2].replace(/\s+#\s*(SKIP|TODO)\b.*$/, "").trim()
             const item = { name, status, duration: null, lines: [] }
-            state.cases.push(item)
+            target.cases.push(item)
             current = item
             if (status === "fail") {
-                state.failed += 1
-                state.failures.push(item)
+                target.failed += 1
+                target.failures.push(item)
                 capture = true
             } else if (status === "skip") {
-                state.skipped += 1
+                target.skipped += 1
             } else {
-                state.passed += 1
+                target.passed += 1
             }
-            if (liveCases) {
+            if (live) {
                 process.stdout.write(caseLine(item))
                 openLine = true
             }
-            renderProgress()
             return
         }
 
         const duration = /^\s*duration_ms:\s*([\d.]+)\s*$/.exec(line)
         if (duration && current && current.duration === null) {
             current.duration = Number.parseFloat(duration[1])
-            if (liveCases && openLine) {
+            if (live && openLine) {
                 process.stdout.write(formatDuration(current.duration))
                 process.stdout.write("\n")
                 openLine = false
@@ -285,38 +287,107 @@ function makeRunner(suite, label) {
         }
     }
 
-    return {
-        state,
-        liveCases,
-        onLine,
-        finish: (code) => {
-            closeOpenLine()
-            state.done = true
-            state.code = code
-            state.duration = Date.now() - state.startedAt
-            // 进程非零退出但没报告任何失败用例（崩溃/加载失败）时单独标记
-            state.crashed = code !== 0 && state.failed === 0
-        },
+    return { onLine, finish: closeOpenLine }
+}
+
+/** 跑一个测试文件，把结果并入套件状态 */
+async function runOneFile(suiteState, file, liveCases) {
+    const short = path.basename(file)
+    const fileState = { passed: 0, failed: 0, skipped: 0, cases: [], failures: [] }
+    const parser = makeParser(fileState, { live: liveCases, fileTag: short })
+    const startedAt = Date.now()
+    const { code } = await runFile(file, parser.onLine)
+    parser.finish()
+    const duration = Date.now() - startedAt
+    const crashed = code !== 0 && fileState.failed === 0
+    const record = { name: short, duration, crashed, code, ...fileState }
+    suiteState.files.push(record)
+
+    suiteState.passed += fileState.passed
+    suiteState.failed += fileState.failed
+    suiteState.skipped += fileState.skipped
+    suiteState.cases.push(...fileState.cases)
+    suiteState.failures.push(...fileState.failures)
+    if (crashed) {
+        suiteState.crashed = true
+        suiteState.exitCodes.push(`${short} (exit ${code})`)
     }
+
+    // 文件级并行时用例是缓存的，跑完一个文件就成块输出（串行模式已实时打印）
+    if (!liveCases && !QUIET && !VERBOSE) {
+        console.log(`      ▸ ${short} · ${fileState.passed + fileState.failed + fileState.skipped} 项 · ${seconds(duration)}`)
+        for (const item of fileState.cases) console.log(caseLine(item))
+    }
+    if (VERBOSE) {
+        console.log(`         · ${short} 完成（${seconds(duration)}，退出码 ${code}）`)
+    }
+    return record
+}
+
+/**
+ * 以 FILE_JOBS 为并发上限，跑完套件里的所有文件。
+ * 开跑顺序按「每文件用例数」升序：单用例文件几乎都是"一条完整提交链"（最耗时），
+ * 先开跑可避免它们被排进最后一波，否则墙钟又要多乘一倍。
+ */
+async function runSuiteFiles(suiteState, liveCases) {
+    const weight = (file) => {
+        try {
+            return (fs.readFileSync(file, "utf8").match(/^test\(/gm) || []).length || 1
+        } catch {
+            return 1
+        }
+    }
+    const queue = [...suiteState.suite.files].sort(
+        (a, b) => weight(a) - weight(b) || a.localeCompare(b),
+    )
+    const limit = Math.min(FILE_JOBS, queue.length)
+    const workers = Array.from({ length: limit }, async () => {
+        while (queue.length) {
+            const file = queue.shift()
+            await runOneFile(suiteState, file, liveCases)
+        }
+    })
+    await Promise.all(workers)
 }
 
 // --- 渲染 ---
 
 /** 套件结论行（串行/并行共用） */
 function verdictLine(state) {
+    const slowest =
+        state.files.length > 1
+            ? `   · 最慢文件 ${state.files.reduce((a, b) => (a.duration >= b.duration ? a : b)).name}` +
+              ` ${seconds(state.files.reduce((a, b) => (a.duration >= b.duration ? a : b)).duration)}`
+            : ""
     return `     ${state.failed || state.crashed ? "✖" : "✓"} 通过 ${state.passed}${
         state.failed ? ` / 失败 ${state.failed}` : ""
-    }${state.crashed ? ` / 异常退出 (exit ${state.code})` : ""}${
+    }${state.crashed ? ` / 异常退出` : ""}${
         state.skipped ? ` / 跳过 ${state.skipped}` : ""
-    }  ·  ${seconds(state.duration)}`
+    }  ·  ${seconds(state.duration)}${slowest}`
+}
+
+/** --profile：列出每个测试文件的耗时（降序） */
+function printProfile(state) {
+    if (!PROFILE || state.files.length < 2) return
+    const sorted = [...state.files].sort((a, b) => b.duration - a.duration)
+    console.log(`      ── ${state.suite.title} 各文件耗时 ──`)
+    for (const file of sorted) {
+        const count = file.passed + file.failed + file.skipped
+        console.log(
+            `      ${pad(seconds(file.duration), 8, "right")}  ${pad(String(count), 3, "right")} 项  ${
+                file.name
+            }${file.crashed ? `  ✖ exit ${file.code}` : ""}`,
+        )
+    }
 }
 
 /** 并行模式下每个套件跑完后成块输出：结论 + 用例明细 */
 function printSuiteBlock(state) {
     console.log(verdictLine(state))
-    if (!QUIET && !VERBOSE) {
-        for (const item of state.cases) console.log(caseLine(item))
+    if (!QUIET && !VERBOSE && FILE_JOBS === 1) {
+        // 串行模式：用例已在运行时实时打印，这里不再重复
     }
+    printProfile(state)
     console.log("")
 }
 
@@ -348,6 +419,31 @@ function clearBoard() {
     board.printed = 0
 }
 
+function newSuiteState(suite, label) {
+    return {
+        suite,
+        label,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        cases: [],
+        failures: [],
+        files: [],
+        exitCodes: [],
+        startedAt: Date.now(),
+        duration: 0,
+        started: false,
+        done: false,
+        crashed: false,
+    }
+}
+
+/** 串行模式下的单行进度（--quiet 时用） */
+function quietProgress(state) {
+    if (!PROGRESS || !QUIET) return
+    process.stdout.write(`\r${pad(`      ${progressLine(state, 60)}`, 78)}`)
+}
+
 // --- 主流程 ---
 
 async function main() {
@@ -372,7 +468,6 @@ async function main() {
     }
     if (skippedSuites.length) console.log("")
 
-    // 预统计：加载期打桩枚举用例数（跳过用例体）
     if (!SKIP_COUNT) {
         process.stdout.write("  正在统计用例总数 …\r")
         for (const suite of runnable) {
@@ -383,43 +478,43 @@ async function main() {
 
     const results = []
     const startedAt = Date.now()
+    const fileInfo = `${FILE_JOBS} 文件并发${
+        FILE_JOBS_AUTO
+            ? `（自动：${CORES} 核 / 内存 ${TOTAL_MEM_GB.toFixed(0)}G）`
+            : ""
+    }`
 
     if (PARALLEL) {
-        // 三套件互不共享目录（.runtime / .runtime-legacy / 临时目录各自独立），可安全并行
         const limit = Math.min(JOBS, runnable.length)
         console.log(
-            `  ▶ 并行运行 ${runnable.length} 个套件（同时 ${limit} 个${
-                CONCURRENCY ? `，套件内并发 ${CONCURRENCY}` : ""
-            }）${PARALLEL_AUTO ? `　·　${CORES} 核自动启用，--serial 可关闭` : ""}`,
+            `  ▶ 并行运行 ${runnable.length} 个套件（同时 ${limit} 个，每个套件内 ${fileInfo}${
+                PARALLEL_AUTO ? `；${CORES} 核自动启用，--serial 可关闭` : ""
+            }）`,
         )
-        if (VERBOSE) console.log("")
-        const runners = runnable.map((suite, index) =>
-            makeRunner(suite, `[${index + 1}/${runnable.length}] ${suite.title}`),
+        const states = runnable.map((suite, index) =>
+            newSuiteState(suite, `[${index + 1}/${runnable.length}] ${suite.title}`),
         )
-        const queue = runners.map((_, index) => index)
+        const queue = states.map((_, index) => index)
         const timer =
             PROGRESS && !VERBOSE
-                ? setInterval(() => renderBoard(runners.map((r) => r.state)), 1000)
+                ? setInterval(() => renderBoard(states), 1000)
                 : null
         if (timer?.unref) timer.unref()
-        renderBoard(runners.map((r) => r.state))
+        renderBoard(states)
 
         const worker = async () => {
             while (queue.length) {
                 const index = queue.shift()
-                const runner = runners[index]
-                runner.state.started = true
-                runner.state.startedAt = Date.now()
-                const { code } = await runSuite(runner.state.suite.files, [], runner.onLine)
-                runner.finish(code)
-                results[index] = runner.state
-                if (PROGRESS && !VERBOSE) {
-                    clearBoard()
-                    printSuiteBlock(runner.state)
-                    renderBoard(runners.map((r) => r.state))
-                } else {
-                    printSuiteBlock(runner.state)
-                }
+                const state = states[index]
+                state.started = true
+                state.startedAt = Date.now()
+                await runSuiteFiles(state, false)
+                state.done = true
+                state.duration = Date.now() - state.startedAt
+                results[index] = state
+                clearBoard()
+                printSuiteBlock(state)
+                renderBoard(states)
             }
         }
         await Promise.all(Array.from({ length: limit }, worker))
@@ -428,15 +523,18 @@ async function main() {
     } else {
         for (let index = 0; index < runnable.length; index += 1) {
             const suite = runnable[index]
-            const runner = makeRunner(suite, `[${index + 1}/${runnable.length}] ${suite.title}`)
-            const state = runner.state
-            console.log(`  ▶ ${runner.state.label}${suite.expected ? `  （共 ${suite.expected} 项）` : ""}`)
-
-            const { code } = await runSuite(suite.files, [], runner.onLine)
-            runner.finish(code)
+            const state = newSuiteState(suite, `[${index + 1}/${runnable.length}] ${suite.title}`)
+            state.started = true
+            console.log(
+                `  ▶ ${state.label}${suite.expected ? `  （共 ${suite.expected} 项，${suite.files.length} 文件 · ${fileInfo}）` : ""}`,
+            )
+            await runSuiteFiles(state, true)
+            state.done = true
+            state.duration = Date.now() - state.startedAt
             if (PROGRESS && QUIET) process.stdout.write("\r" + " ".repeat(78) + "\r")
             results[index] = state
             console.log(verdictLine(state))
+            printProfile(state)
             console.log("")
         }
     }
@@ -455,7 +553,7 @@ async function main() {
     }
 
     // --- 分类汇总 ---
-    const crashed = results.filter((r) => r.crashed)
+    const crashedSuites = results.filter((r) => r.crashed)
     const totals = results.reduce(
         (acc, r) => ({
             passed: acc.passed + r.passed,
@@ -466,7 +564,6 @@ async function main() {
         { passed: 0, failed: 0, skipped: 0, duration: 0 },
     )
     const wallClock = Date.now() - startedAt
-    // 并行模式下各套件叠加的用时没有意义，合计改用墙钟时间
     const shownDuration = PARALLEL ? wallClock : totals.duration
     const totalLabel = PARALLEL ? "合计（并行墙钟）" : "合计"
 
@@ -495,10 +592,8 @@ async function main() {
             )}`,
         )
     }
-    if (skippedSuites.length) {
-        for (const s of skippedSuites) {
-            console.log(`  ${col(s.title, widthTitle)}${col("未运行", 8, "right")}`)
-        }
+    for (const s of skippedSuites) {
+        console.log(`  ${col(s.title, widthTitle)}${col("未运行", 8, "right")}`)
     }
     console.log(rule)
     console.log(
@@ -516,11 +611,28 @@ async function main() {
 
     const total = totals.passed + totals.failed + totals.skipped
     console.log("")
-    if (totals.failed > 0 || crashed.length) {
+
+    // 最慢文件：多文件套件里，墙钟时间就等于最慢的那个文件，直接亮出来便于定位
+    const slowest = results
+        .flatMap((r) => r.files.map((f) => ({ suite: r.suite.title, ...f })))
+        .sort((a, b) => b.duration - a.duration)
+        .slice(0, 3)
+    if (slowest.length > 1) {
+        console.log(
+            `  ⏱ 最慢文件：${slowest
+                .map((f) => `${f.name} ${seconds(f.duration)}`)
+                .join(" · ")}`,
+        )
+        console.log("")
+    }
+
+    if (totals.failed > 0 || crashedSuites.length) {
         console.log(
             `  ❌ ${totals.failed} 项失败（共 ${total} 项），用时 ${seconds(shownDuration)}${
-                crashed.length
-                    ? `；套件异常退出：${crashed.map((r) => `${r.suite.title}(exit ${r.code})`).join("、")}`
+                crashedSuites.length
+                    ? `；套件异常退出：${crashedSuites
+                          .map((r) => `${r.suite.title}(${r.exitCodes.join("、")})`)
+                          .join("；")}`
                     : ""
             }`,
         )
@@ -540,10 +652,14 @@ async function main() {
     }
     console.log("")
 
-    process.exitCode = totals.failed > 0 || skippedSuites.length > 0 || crashed.length > 0 ? 1 : 0
+    process.exitCode = totals.failed > 0 || skippedSuites.length > 0 || crashedSuites.length > 0 ? 1 : 0
 }
 
-main().catch((error) => {
-    console.error(`运行器异常：${error.stack}`)
-    process.exitCode = 1
-})
+if (require.main === module) {
+    main().catch((error) => {
+        console.error(`运行器异常：${error.stack}`)
+        process.exitCode = 1
+    })
+}
+
+module.exports = { makeParser, computeFileJobs, displayWidth, pad, formatDuration }

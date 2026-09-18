@@ -53,7 +53,7 @@ node --test demo-test/scopes.test.cjs
 
 ## 当前验证状态
 
-基础测试 66 项全部通过；现代工具链测试 54 项、ESLint 8 测试 27 项全部通过，合计 **147 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
+基础测试 70 项全部通过；现代工具链测试 55 项、ESLint 8 测试 27 项全部通过，合计 **152 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
 
 上述 `npm test` 只验证 CLI 与配置契约；真实工具集成测试单独运行，见下文。未统计行/分支覆盖率，不代表所有功能都已覆盖。
 
@@ -105,11 +105,11 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 - Node 18/20、Windows 等环境矩阵；
 - 代码行/分支覆盖率统计。
 
-## 完整提交链路回归（本套件共 54 项，其中完整提交链 7 项）
+## 完整提交链路回归（本套件共 55 项，其中完整提交链 7 项 + 空提交守卫 1 项）
 
 运行 `npm run test:integration`（包含规则测试及完整 Git 提交链路），或 `npm run test:all`。
 
-集成套件按"重载用例各自成文件"拆成 11 个文件（`lint` / `commit-chain-{scss,less,both}` /
+集成套件按"一条提交链一个文件"拆成 23 个文件（`lint` / `commit-chain-{scss,less,both}` /
 `error-recovery` / `error-recovery-style` / `embedded-style` / `partial-staging` /
 `git-edge` / `git-mv-rm` / `release`），公共引导在 `integration/_runtime.cjs` 里：它负责把
 当前源码同步进隔离环境，保证 `node --test` 并行执行多个文件时只同步一次、不会读到写了

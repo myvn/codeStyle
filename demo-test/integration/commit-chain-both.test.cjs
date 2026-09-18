@@ -39,13 +39,4 @@ test(`完整提交链：JS/TS/Vue/nvue/CSS/${style} 自动修复及二次复检`
     }
     assert.equal(p.git("diff", "--", "src"), "")
     assert.equal(p.git("diff", "--cached"), "")
-    // Re-stage the same malformed originals; fix should reproduce HEAD,
-    // and lint-staged must prevent an empty commit rather than drift output.
-    const head = p.git("rev-parse", "HEAD")
-    for (const [name, content] of Object.entries(samples)) p.write(name, content)
-    p.git("add", "--", "src")
-    const again = p.commit()
-    assert.notEqual(again.status, 0)
-    assert.match(again.stdout + again.stderr, /empty (?:git )?commit/i)
-    assert.equal(p.git("rev-parse", "HEAD"), head)
 })

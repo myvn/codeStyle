@@ -117,7 +117,7 @@ npx my-code-style-init
 | `src/prettier/index.cjs` 等                | 生成文件里 `require("my-code-style/...")` 指向的真实配置 |
 | `src/husky/*`                              | hook 模板，CLI 直接读取，避免内容漂移                    |
 | `demo-test/init-matrix.test.cjs`           | 检测矩阵、包管理器提示、`--backup`、回滚                 |
-| `demo-test/integration/*.test.cjs`（11 个文件：lint / commit-chain-* / error-recovery* / embedded-style / partial-staging / git-edge / git-mv-rm / release） | Flat Config 真实运行、提交链与 Git 边界；`_runtime.cjs` 负责加锁同步隔离环境源码并惰性加载依赖 |
+| `demo-test/integration/*.test.cjs`（23 个文件：lint / commit-chain-* / empty-commit-guard / error-recovery* / embedded-style* / partial-staging* / git-edge-* / git-mv-rm / release） | Flat Config 真实运行、提交链与 Git 边界；`_runtime.cjs` 负责加锁同步隔离环境源码并惰性加载依赖 |
 | `demo-test/legacy/eslint8.test.cjs`        | ESLint 8 传统格式真实运行                                |
 
 实测命令记录见本文件；如需复现，可在空目录执行 `npx my-code-style-init --dry-run` 观察检测结果。
