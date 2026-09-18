@@ -109,9 +109,13 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 
 运行 `npm run test:integration`（包含规则测试及完整 Git 提交链路），或 `npm run test:all`。
 
-集成套件按主题拆成 4 个文件（`lint` / `commit-chain` / `error-recovery` / `git-edge`），
-公共引导在 `integration/_runtime.cjs` 里：它负责把当前源码同步进隔离环境，并保证
-`node --test` 并行执行多个文件时只同步一次、不会读到写了一半的文件（指纹 + 目录锁）。
+集成套件按"重载用例各自成文件"拆成 11 个文件（`lint` / `commit-chain-{scss,less,both}` /
+`error-recovery` / `error-recovery-style` / `embedded-style` / `partial-staging` /
+`git-edge` / `git-mv-rm` / `release`），公共引导在 `integration/_runtime.cjs` 里：它负责把
+当前源码同步进隔离环境，保证 `node --test` 并行执行多个文件时只同步一次、不会读到写了
+一半的文件（指纹 + 目录锁），并惰性加载 `prettier` / `eslint`。
+每个文件跑的都是独立临时 Git 仓库，所以文件级并行是安全的；拆细是为了让多核机器上
+墙钟时间等于"最慢的那一个文件"而不是所有提交链的总和。
 `npm run test:all` 会逐个列出这些文件里的每条用例（✓/✗ + 耗时），加 `--quiet` 只看汇总。
 
 ```bash

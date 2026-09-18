@@ -3,16 +3,9 @@ const assert = require("node:assert/strict")
 const { prettier, eslint, commitProject } = require("./_runtime.cjs")
 
 for (const [name, source] of [
-    ["src/bad.js", "const = ;\n"],
-    ["src/bad.ts", "const value: = ;\n"],
-    [
-        "src/Bad.vue",
-        '<template><view /></template><script setup lang="ts">const value: = ;</script>',
-    ],
-    [
-        "src/Bad.nvue",
-        '<template><view /></template><script setup lang="ts">const value: = ;</script>',
-    ],
+    ["src/bad.css", ".demo { unknown-property: red; }\n"],
+    ["src/bad.scss", ".demo { unknown-property: red; }\n"],
+    ["src/bad.less", ".demo { unknown-property: red; }\n"],
 ]) {
     test(`完整提交链拒绝不可修复错误且恢复修改：${name}`, (t) => {
         const p = commitProject(t, name.endsWith("less") ? "less" : "scss")

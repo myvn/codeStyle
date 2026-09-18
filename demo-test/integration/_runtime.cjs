@@ -91,15 +91,17 @@ function syncRuntime() {
 
 syncRuntime()
 
-const prettier = localRequire("prettier")
-const prettierConfig = localRequire("my-code-style/prettier")
-const { ESLint } = localRequire("eslint")
+// prettier / eslint 体积不小（约 130ms），只有真正用到的文件才加载：
+// 这些以 getter 形式导出，测试文件解构到哪个才加载哪个。
+const getPrettier = () => localRequire("prettier")
+const getPrettierConfig = () => localRequire("my-code-style/prettier")
+const getESLint = () => localRequire("eslint").ESLint
 
 async function eslint(level = "base") {
     const config = (
         await import(pathToFileURL(path.join(copy, `src/eslint/flat/${level}.mjs`)).href)
     ).default
-    return new ESLint({ cwd: runtime, overrideConfigFile: true, overrideConfig: config })
+    return new (getESLint())({ cwd: runtime, overrideConfigFile: true, overrideConfig: config })
 }
 
 async function commitlint(message) {
@@ -180,9 +182,15 @@ module.exports = {
     runtime,
     copy,
     localRequire,
-    prettier,
-    prettierConfig,
-    ESLint,
+    get prettier() {
+        return getPrettier()
+    },
+    get prettierConfig() {
+        return getPrettierConfig()
+    },
+    get ESLint() {
+        return getESLint()
+    },
     eslint,
     commitlint,
     commitProject,
