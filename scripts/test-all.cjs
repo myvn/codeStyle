@@ -4,12 +4,15 @@
 /**
  * 统一测试入口：分套件运行、实时进度、分类统计。
  *
- *   npm run test:all              # 默认：预统计总条数 + 进度 + 分类汇总
- *   npm run test:all -- --verbose # 透传原始 TAP 输出（排查单条用例时用）
- *   npm run test:all -- --no-count# 跳过预统计（省几秒，进度条不显示总数）
- *   npm run test:all -- --progress# 非 TTY 环境也强制刷新进度行
+ *   npm run test:all                # 默认：预统计总条数 + 进度 + 分类汇总
+ *   npm run test:all -- --parallel  # 三套件同时跑（互相不共享目录，可安全并行）
+ *   npm run test:all -- --jobs=2    # 并行时限制同时运行 2 个套件
+ *   npm run test:all -- --concurrency=4  # 覆盖套件内文件级并发（默认按 CPU 核数）
+ *   npm run test:all -- --verbose   # 透传原始 TAP 输出（排查单条用例时用）
+ *   npm run test:all -- --no-count  # 跳过预统计（省几秒，进度条不显示总数）
+ *   npm run test:all -- --progress  # 非 TTY 环境也强制刷新进度
  *
- * 退出码：任一用例失败或套件异常退出即为 1。
+ * 退出码：任一用例失败、套件异常退出或套件未运行时为 1。
  */
 
 const fs = require("node:fs")
@@ -20,7 +23,17 @@ const ROOT = path.resolve(__dirname, "..")
 const argv = new Set(process.argv.slice(2))
 const VERBOSE = argv.has("--verbose")
 const SKIP_COUNT = argv.has("--no-count")
+const PARALLEL = argv.has("--parallel") || argv.has("-p")
 const PROGRESS = process.stdout.isTTY || argv.has("--progress")
+
+const jobsArg = process.argv.slice(2).find((arg) => arg.startsWith("--jobs="))
+const JOBS = jobsArg ? Math.max(1, Number.parseInt(jobsArg.split("=")[1], 10) || 1) : Infinity
+
+// 套件内部的文件级并发（node --test 默认 = CPU 核数 - 1）
+const concurrencyArg = process.argv.slice(2).find((arg) => arg.startsWith("--concurrency="))
+const CONCURRENCY = concurrencyArg
+    ? Math.max(1, Number.parseInt(concurrencyArg.split("=")[1], 10) || 1)
+    : null
 
 const SUITES = [
     {
@@ -84,13 +97,32 @@ function pad(text, width, align = "left") {
 
 const seconds = (ms) => `${(ms / 1000).toFixed(1)}s`
 
+/** 进度条：已完成/总数、失败数、用时 */
+function progressLine(state, width = 78) {
+    const done = state.passed + state.failed + state.skipped
+    const total = state.suite.expected || 0
+    const ratio = total ? Math.min(1, done / total) : 0
+    const barWidth = 20
+    const filled = Math.round(ratio * barWidth)
+    const bar = `${"█".repeat(filled)}${"░".repeat(barWidth - filled)}`
+    const elapsed = seconds((state.done ? state.duration : Date.now() - state.startedAt) || 0)
+    const bits = [
+        bar,
+        total ? `${done}/${total}` : `${done} 项`,
+        state.failed ? `失败 ${state.failed}` : "",
+        elapsed,
+    ].filter(Boolean)
+    return pad(bits.join("   "), width)
+}
+
 function runSuite(files, extraArgs, onLine) {
     return new Promise((resolve) => {
-        const child = spawn(
-            process.execPath,
-            ["--test", "--test-reporter=tap", ...extraArgs, ...files],
-            { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
-        )
+        const args = ["--test", "--test-reporter=tap"]
+        if (CONCURRENCY) args.push(`--test-concurrency=${CONCURRENCY}`)
+        const child = spawn(process.execPath, [...args, ...extraArgs, ...files], {
+            cwd: ROOT,
+            stdio: ["ignore", "pipe", "pipe"],
+        })
         let pending = ""
         child.stdout.setEncoding("utf8")
         child.stdout.on("data", (chunk) => {
@@ -137,6 +169,101 @@ function countTests(files) {
     })
 }
 
+/** 单个套件的运行状态 + TAP 解析（串行/并行共用） */
+function makeRunner(suite, label) {
+    const state = {
+        suite,
+        label,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        failures: [],
+        rawLines: [],
+        startedAt: Date.now(),
+        duration: 0,
+        done: false,
+        code: 0,
+    }
+    let capture = false
+    let current = null
+    let writing = false
+
+    const renderProgress = () => {
+        // 并行模式由多行面板统一渲染进度，避免两种输出互相覆盖
+        if (!PROGRESS || VERBOSE || PARALLEL || writing) return
+        writing = true
+        process.stdout.write(`\r${pad(`      ${progressLine(state, 60)}`, 78)}`, () => {
+            writing = false
+        })
+    }
+
+    const onLine = (line) => {
+        state.rawLines.push(line)
+        if (VERBOSE) {
+            console.log(PARALLEL ? `    [${suite.id}] ${line}` : `    ${line}`)
+        }
+        if (/^(ok|not ok) \d+ - /.test(line)) {
+            if (line.startsWith("not ok")) {
+                state.failed += 1
+                current = { name: line.replace(/^not ok \d+ - /, ""), lines: [] }
+                state.failures.push(current)
+                capture = true
+            } else if (/# (SKIP|TODO)/.test(line)) {
+                state.skipped += 1
+            } else {
+                state.passed += 1
+            }
+            renderProgress()
+            return
+        }
+        if (capture && current) {
+            if (line.trim() === "...") {
+                capture = false
+            } else {
+                current.lines.push(line)
+            }
+        }
+    }
+
+    return {
+        state,
+        onLine,
+        finish: (code) => {
+            state.done = true
+            state.code = code
+            state.duration = Date.now() - state.startedAt
+            // 进程非零退出但没报告任何失败用例（崩溃/加载失败）时单独标记
+            state.crashed = code !== 0 && state.failed === 0
+        },
+    }
+}
+
+// --- 并行渲染 ---
+
+const board = { printed: 0 }
+
+function boardLine(state) {
+    const mark = state.done ? (state.failed ? "✖" : "✓") : "▶"
+    return `  ${mark} ${pad(state.suite.title, 20)} ${progressLine(state, 46)}`
+}
+
+function renderBoard(states) {
+    if (!PROGRESS || VERBOSE) return
+    const lines = states.map(boardLine)
+    let out = board.printed ? `\x1b[${board.printed}F` : ""
+    for (const line of lines) out += `\x1b[2K${line}\n`
+    board.printed = lines.length
+    process.stdout.write(out)
+}
+
+function clearBoard() {
+    if (!PROGRESS || VERBOSE || !board.printed) return
+    process.stdout.write(`\x1b[${board.printed}F`)
+    for (let i = 0; i < board.printed; i += 1) process.stdout.write("\x1b[2K\n")
+    process.stdout.write(`\x1b[${board.printed}F`)
+    board.printed = 0
+}
+
 // --- 主流程 ---
 
 async function main() {
@@ -167,88 +294,84 @@ async function main() {
         process.stdout.write("  正在统计用例总数 …\r")
         for (const suite of runnable) {
             suite.expected = await countTests(suite.files)
-            planned += suite.expected
+            planned += suite.expected || 0
         }
         process.stdout.write(" ".repeat(40) + "\r")
     }
 
     const results = []
-    for (let index = 0; index < runnable.length; index += 1) {
-        const suite = runnable[index]
-        const label = `[${index + 1}/${runnable.length}] ${suite.title}`
-        const startedAt = Date.now()
-        let passed = 0
-        let failed = 0
-        let skipped = 0
-        let capture = false
-        let current = null
-        let writing = false
-        const failures = []
-        const rawLines = []
+    const startedAt = Date.now()
 
+    if (PARALLEL) {
+        // 三套件互不共享目录（.runtime / .runtime-legacy / 临时目录各自独立），可安全并行
+        const limit = Math.min(JOBS, runnable.length)
         console.log(
-            `  ▶ ${label}${suite.expected ? `  （共 ${suite.expected} 项）` : ""}`,
+            `  ▶ 并行运行 ${runnable.length} 个套件（同时 ${limit} 个${
+                CONCURRENCY ? `，套件内并发 ${CONCURRENCY}` : ""
+            }${PROGRESS && !VERBOSE ? "，Ctrl-C 可中断" : ""}）`,
         )
+        if (VERBOSE && PROGRESS) console.log("")
+        const runners = runnable.map((suite, index) =>
+            makeRunner(suite, `[${index + 1}/${runnable.length}] ${suite.title}`),
+        )
+        const queue = runners.map((_, index) => index)
+        const timer =
+            PROGRESS && !VERBOSE
+                ? setInterval(() => renderBoard(runners.map((r) => r.state)), 1000)
+                : null
+        if (timer?.unref) timer.unref()
+        renderBoard(runners.map((r) => r.state))
 
-        const renderProgress = () => {
-            if (!PROGRESS || VERBOSE || writing) return
-            const done = passed + failed + skipped
-            const total = suite.expected || 0
-            const ratio = total ? Math.min(1, done / total) : 0
-            const barWidth = 20
-            const filled = Math.round(ratio * barWidth)
-            const bar = `${"█".repeat(filled)}${"░".repeat(barWidth - filled)}`
-            const bits = [
-                `      ${bar}`,
-                total ? `${done}/${total}` : `${done} 项`,
-                failed ? `失败 ${failed}` : "",
-                seconds(Date.now() - startedAt),
-            ].filter(Boolean)
-            writing = true
-            process.stdout.write(`\r${pad(bits.join("   "), 78)}`, () => {
-                writing = false
-            })
+        const worker = async () => {
+            while (queue.length) {
+                const index = queue.shift()
+                const runner = runners[index]
+                runner.state.startedAt = Date.now()
+                const { code } = await runSuite(runner.state.suite.files, [], runner.onLine)
+                runner.finish(code)
+                results[index] = runner.state
+                if (PROGRESS && !VERBOSE) {
+                    renderBoard(runners.map((r) => r.state))
+                } else {
+                    const state = runner.state
+                    console.log(
+                        `     ${state.failed || state.crashed ? "✖" : "✓"} ${state.suite.title}  通过 ${
+                            state.passed
+                        }${state.failed ? ` / 失败 ${state.failed}` : ""}${
+                            state.crashed ? ` / 异常退出 (exit ${state.code})` : ""
+                        }${state.skipped ? ` / 跳过 ${state.skipped}` : ""}  ·  ${seconds(state.duration)}`,
+                    )
+                }
+            }
         }
-
-        await runSuite(suite.files, [], (line) => {
-            rawLines.push(line)
-            if (VERBOSE) console.log(`    ${line}`)
-            if (/^(ok|not ok) \d+ - /.test(line)) {
-                if (line.startsWith("not ok")) {
-                    failed += 1
-                    current = { name: line.replace(/^not ok \d+ - /, ""), lines: [] }
-                    failures.push(current)
-                    capture = true
-                } else if (/# (SKIP|TODO)/.test(line)) {
-                    skipped += 1
-                } else {
-                    passed += 1
-                }
-                renderProgress()
-                return
-            }
-            if (capture && current) {
-                if (line.trim() === "...") {
-                    capture = false
-                } else {
-                    current.lines.push(line)
-                }
-            }
-        })
-
-        if (PROGRESS && !VERBOSE) process.stdout.write("\r" + " ".repeat(78) + "\r")
-        const duration = Date.now() - startedAt
-        results.push({ ...suite, passed, failed, skipped, duration, failures, rawLines })
-        console.log(
-            `     ${failed ? "✖" : "✓"} 通过 ${passed}${failed ? ` / 失败 ${failed}` : ""}${
-                skipped ? ` / 跳过 ${skipped}` : ""
-            }  ·  ${seconds(duration)}`,
-        )
+        await Promise.all(Array.from({ length: limit }, worker))
+        if (timer) clearInterval(timer)
+        if (PROGRESS && !VERBOSE) renderBoard(runners.map((r) => r.state))
         console.log("")
+    } else {
+        for (let index = 0; index < runnable.length; index += 1) {
+            const suite = runnable[index]
+            const runner = makeRunner(suite, `[${index + 1}/${runnable.length}] ${suite.title}`)
+            const state = runner.state
+            console.log(`  ▶ ${runner.state.label}${suite.expected ? `  （共 ${suite.expected} 项）` : ""}`)
+
+            const { code } = await runSuite(suite.files, [], runner.onLine)
+            runner.finish(code)
+            if (PROGRESS && !VERBOSE) process.stdout.write("\r" + " ".repeat(78) + "\r")
+            results[index] = state
+            console.log(
+                `     ${state.failed || state.crashed ? "✖" : "✓"} 通过 ${state.passed}${
+                    state.failed ? ` / 失败 ${state.failed}` : ""
+                }${state.crashed ? ` / 异常退出 (exit ${state.code})` : ""}${
+                    state.skipped ? ` / 跳过 ${state.skipped}` : ""
+                }  ·  ${seconds(state.duration)}`,
+            )
+            console.log("")
+        }
     }
 
     // --- 失败详情 ---
-    const allFailures = results.flatMap((r) => r.failures.map((f) => ({ suite: r.title, ...f })))
+    const allFailures = results.flatMap((r) => r.failures.map((f) => ({ suite: r.suite.title, ...f })))
     if (allFailures.length) {
         console.log("  失败用例：")
         for (const failure of allFailures) {
@@ -261,6 +384,7 @@ async function main() {
     }
 
     // --- 分类汇总 ---
+    const crashed = results.filter((r) => r.crashed)
     const totals = results.reduce(
         (acc, r) => ({
             passed: acc.passed + r.passed,
@@ -270,6 +394,10 @@ async function main() {
         }),
         { passed: 0, failed: 0, skipped: 0, duration: 0 },
     )
+    const wallClock = Date.now() - startedAt
+    // 并行模式下各套件叠加的用时没有意义，合计改用墙钟时间
+    const shownDuration = PARALLEL ? wallClock : totals.duration
+    const totalLabel = PARALLEL ? "合计（并行墙钟）" : "合计"
 
     const col = (text, width, align) => pad(text, width, align)
     const widthTitle = 22
@@ -285,7 +413,7 @@ async function main() {
     console.log(rule)
     for (const r of results) {
         console.log(
-            `  ${col(r.title, widthTitle)}${col(String(r.passed), 8, "right")}${col(
+            `  ${col(r.suite.title, widthTitle)}${col(String(r.passed), 8, "right")}${col(
                 String(r.failed),
                 8,
                 "right",
@@ -303,12 +431,12 @@ async function main() {
     }
     console.log(rule)
     console.log(
-        `  ${col("合计", widthTitle)}${col(String(totals.passed), 8, "right")}${col(
+        `  ${col(totalLabel, widthTitle)}${col(String(totals.passed), 8, "right")}${col(
             String(totals.failed),
             8,
             "right",
         )}${col(totals.skipped ? String(totals.skipped) : "-", 8, "right")}${col(
-            seconds(totals.duration),
+            seconds(shownDuration),
             8,
             "right",
         )}`,
@@ -317,12 +445,18 @@ async function main() {
 
     const total = totals.passed + totals.failed + totals.skipped
     console.log("")
-    if (totals.failed > 0) {
-        console.log(`  ❌ ${totals.failed} 项失败（共 ${total} 项），用时 ${seconds(totals.duration)}`)
+    if (totals.failed > 0 || crashed.length) {
+        console.log(
+            `  ❌ ${totals.failed} 项失败（共 ${total} 项），用时 ${seconds(shownDuration)}${
+                crashed.length
+                    ? `；套件异常退出：${crashed.map((r) => `${r.suite.title}(exit ${r.code})`).join("、")}`
+                    : ""
+            }`,
+        )
     } else if (skippedSuites.length) {
         console.log(
             `  ⚠ 已运行部分全部通过：${totals.passed}/${total} 项，用时 ${seconds(
-                totals.duration,
+                shownDuration,
             )}；还有 ${skippedSuites.length} 个套件未运行`,
         )
         console.log(`     未运行：${skippedSuites.map((s) => s.title).join("、")}`)
@@ -330,12 +464,12 @@ async function main() {
         console.log(
             `  ✅ 全部通过：${totals.passed}/${total} 项${
                 totals.skipped ? `（跳过 ${totals.skipped} 项）` : ""
-            }，用时 ${seconds(totals.duration)}`,
+            }，用时 ${seconds(shownDuration)}`,
         )
     }
     console.log("")
 
-    process.exitCode = totals.failed > 0 || skippedSuites.length > 0 ? 1 : 0
+    process.exitCode = totals.failed > 0 || skippedSuites.length > 0 || crashed.length > 0 ? 1 : 0
 }
 
 main().catch((error) => {

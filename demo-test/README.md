@@ -105,9 +105,19 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 - Node 18/20、Windows 等环境矩阵；
 - 代码行/分支覆盖率统计。
 
-## 完整提交链路回归（该文件共 47 项，其中完整提交链 7 项）
+## 完整提交链路回归（本套件共 54 项，其中完整提交链 7 项）
 
 运行 `npm run test:integration`（包含规则测试及完整 Git 提交链路），或 `npm run test:all`。
+
+集成套件按主题拆成 4 个文件（`lint` / `commit-chain` / `error-recovery` / `git-edge`），
+公共引导在 `integration/_runtime.cjs` 里：它负责把当前源码同步进隔离环境，并保证
+`node --test` 并行执行多个文件时只同步一次、不会读到写了一半的文件（指纹 + 目录锁）。
+
+```bash
+npm run test:integration                       # 文件级并行（Node 按 CPU 核数调度）
+npm run test:integration -- --test-concurrency=4
+npm run test:all -- --parallel                 # 三套件再叠一层并行
+```
 
 ### 执行策略
 
