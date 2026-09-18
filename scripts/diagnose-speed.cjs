@@ -22,6 +22,11 @@ const ROOT = path.resolve(__dirname, "..")
 const RUNTIME = path.join(ROOT, "demo-test/.runtime")
 const BIN = path.join(RUNTIME, "node_modules/.bin")
 const QUICK = process.argv.includes("--quick")
+// 错峰启动间隔（⑤ 用来判断"同时启动"造成的启动风暴）
+const STAGGER = Number.parseInt(
+    (process.argv.find((arg) => arg.startsWith("--stagger=")) || "--stagger=400").split("=")[1],
+    10,
+)
 const ms = (ns) => Number(ns) / 1e6
 
 function run(command, args, options = {}) {
@@ -66,6 +71,26 @@ function tempRepo(baseDir, options = {}) {
         run("git", ["config", ...config, "--local"], { cwd: dir, ...options })
     }
     return dir
+}
+
+// --- 子进程模式：`--child=git-chain` 只跑"建仓 + 写文件 + add + commit(无 hooks)"，不打印 ---
+const CHILD = (process.argv.find((arg) => arg.startsWith("--child=")) || "").split("=")[1]
+if (CHILD) {
+    const dir = tempRepo(os.tmpdir(), { isolateGlobalGitConfig: true })
+    try {
+        fs.mkdirSync(path.join(dir, "src"), { recursive: true })
+        for (let i = 0; i < 8; i += 1) {
+            fs.writeFileSync(path.join(dir, "src", `file${i}.ts`), `export const v${i} = ${i}\n`)
+        }
+        run("git", ["add", "-A"], { cwd: dir, isolateGlobalGitConfig: true })
+        run("git", ["commit", "--no-verify", "-m", "chore: bench"], {
+            cwd: dir,
+            isolateGlobalGitConfig: true,
+        })
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+    }
+    process.exit(0)
 }
 
 console.log("")
@@ -215,16 +240,22 @@ console.log("")
 // --- ⑤ 并发压力 ---
 async function runMany(command, args, count, options = {}) {
     const started = process.hrtime.bigint()
+    const gap = options.staggerMs || 0
     const times = await Promise.all(
-        Array.from({ length: count }, () => {
+        Array.from({ length: count }, (_, index) => {
             const childStart = process.hrtime.bigint()
             return new Promise((resolve) => {
-                const child = spawn(command, args, {
-                    cwd: options.cwd || ROOT,
-                    stdio: "ignore",
-                    env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", ...(options.env || {}) },
-                })
-                child.on("close", () => resolve(ms(process.hrtime.bigint() - childStart)))
+                const spawnNow = () => {
+                    const child = spawn(command, args, {
+                        cwd: options.cwd || ROOT,
+                        stdio: "ignore",
+                        env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", ...(options.env || {}) },
+                    })
+                    child.on("close", () => resolve(ms(process.hrtime.bigint() - childStart)))
+                }
+                // 错峰：第 i 个延迟 i × gap 再启动（每个子进程的耗时仍从"自己开始"算）
+                if (index === 0) spawnNow()
+                else setTimeout(spawnNow, index * gap)
             })
         }),
     )
@@ -235,6 +266,18 @@ async function stress() {
     if (!fs.existsSync(BIN)) return
     console.log(`  ⑤ 并发压力：同时跑 ${STRESS} 个同样的东西（看单个耗时膨胀多少）`)
     const sample = path.join(ROOT, "demo-test/integration/commit-chain-scss.test.cjs")
+    const childScript = path.join(ROOT, "scripts/diagnose-speed.cjs")
+
+    // 单独基线：纯 git 链（无 hooks）与完整链各跑一次，用于算膨胀倍数
+    const soloGit = (await runMany(process.execPath, [childScript, "--child=git-chain"], 1))
+        .times[0]
+    const soloFile = fs.existsSync(sample)
+        ? (await runMany(process.execPath, ["--test", sample], 1)).times[0]
+        : null
+    line("1× 纯 git 链（建仓 + add + commit）", `单 ${soloGit.toFixed(0)}ms`)
+    if (soloFile) line("1× 完整链（含 hooks，同一测试文件）", `单 ${(soloFile / 1000).toFixed(1)}s`)
+    console.log("")
+
     const cases = [
         ["node -e ''", process.execPath, ["-e", ""]],
         [".bin/lint-staged --version", path.join(BIN, "lint-staged"), ["--version"]],
@@ -249,25 +292,44 @@ async function stress() {
             `总 ${(wall / 1000).toFixed(1)}s · 最慢 ${Math.max(...times).toFixed(0)}ms`,
         )
     }
+    {
+        const { wall, times } = await runMany(
+            process.execPath,
+            [childScript, "--child=git-chain"],
+            STRESS,
+        )
+        const avg = times.reduce((a, b) => a + b, 0) / times.length
+        line(
+            `${STRESS}× 纯 git 链（无 hooks）`,
+            `单 ${avg.toFixed(0)}ms`,
+            `总 ${(wall / 1000).toFixed(1)}s · 膨胀 ${(avg / soloGit).toFixed(2)}×`,
+        )
+    }
+
     if (fs.existsSync(sample)) {
-        for (const [label, extraEnv] of [
+        for (const [label, options] of [
             ["同一个测试文件（fixture 在仓库内）", {}],
-            ["同一个测试文件（fixture 在 TMPDIR）", { MY_CODE_STYLE_FIXTURE_DIR: os.tmpdir() }],
+            ["同一个测试文件（fixture 在 TMPDIR）", { env: { MY_CODE_STYLE_FIXTURE_DIR: os.tmpdir() } }],
+            [`同一个测试文件（错峰 ${STAGGER}ms 启动）`, { staggerMs: STAGGER }],
         ]) {
-            const { wall, times } = await runMany(process.execPath, ["--test", sample], STRESS, {
-                env: extraEnv,
-            })
+            const { wall, times } = await runMany(
+                process.execPath,
+                ["--test", sample],
+                STRESS,
+                options,
+            )
             const avg = times.reduce((a, b) => a + b, 0) / times.length
             line(
                 `${STRESS}× ${label}`,
                 `单 ${(avg / 1000).toFixed(1)}s`,
-                `总 ${(wall / 1000).toFixed(1)}s · 最慢 ${(Math.max(...times) / 1000).toFixed(1)}s`,
+                `总 ${(wall / 1000).toFixed(1)}s · 最慢 ${(Math.max(...times) / 1000).toFixed(1)}s · 膨胀 ${(avg / soloFile).toFixed(2)}×`,
             )
         }
         console.log("")
-        console.log("  读法：单个耗时相对「④ 的单独基线」涨了多少倍，就是排队有多严重。")
-        console.log("        两行差很多 → 仓库目录（备份/同步/杀毒）是并发时的隐形串行点；")
-        console.log("        两行都涨 → 是系统级的进程启动吞吐上限，只能靠减少进程数。")
+        console.log("  读法：膨胀倍数 = 并发时单个耗时 ÷ 单独跑一次的耗时。")
+        console.log("        纯 git 链膨胀小、完整链膨胀大 → 排队在 hooks（eslint/prettier/stylelint）里；")
+        console.log("        两行 fixture 位置差不多 → 排除仓库目录上的备份/同步/杀毒代理；")
+        console.log("        「错峰」明显快于「同时」→ 瓶颈是启动风暴，运行器可以靠错峰提速。")
     }
 }
 
