@@ -293,12 +293,18 @@ test("uni-app 应解析嵌套 .nvue 文件", async () => {
 test("生成的 commit-msg hook 真正阻止非法提交（仅临时 Git 仓库）", (t) => {
     const dir = fs.mkdtempSync(path.join(runtime, "git-fixture-"))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+    const identity = {
+        GIT_AUTHOR_NAME: "Demo Test",
+        GIT_AUTHOR_EMAIL: "demo@example.invalid",
+        GIT_COMMITTER_NAME: "Demo Test",
+        GIT_COMMITTER_EMAIL: "demo@example.invalid",
+    }
     function run(command, args, env = {}) {
         return spawnSync(command, args, {
             cwd: dir,
             encoding: "utf8",
             timeout: 15000,
-            env: { ...process.env, ...env },
+            env: { ...process.env, ...identity, ...env },
         })
     }
     function git(...args) {
@@ -306,8 +312,6 @@ test("生成的 commit-msg hook 真正阻止非法提交（仅临时 Git 仓库�
         assert.equal(result.status, 0, result.stderr)
     }
     git("init", "-q")
-    git("config", "user.name", "Demo Test")
-    git("config", "user.email", "demo@example.invalid")
     fs.writeFileSync(
         path.join(dir, "package.json"),
         '{"name":"hook-fixture","devDependencies":{"eslint":"^9"}}',

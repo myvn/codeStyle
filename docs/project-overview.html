@@ -1079,10 +1079,17 @@ npx my-code-style-init --version  # 或 -v，输出包版本</code></pre>
                     </span>
                 </div>
                 <pre><code># .husky/pre-commit
+# husky 已把 node_modules/.bin 放进 PATH，优先直连本地 lint-staged
+if command -v lint-staged &gt;/dev/null 2&gt;&amp;1; then
+    exec lint-staged
+fi
 npx --no-install -- lint-staged
 
 # .husky/commit-msg
-npx --no-install commitlint --edit &quot;${1}&quot;
+if command -v commitlint &gt;/dev/null 2&gt;&amp;1; then
+    exec commitlint --edit &quot;$1&quot;
+fi
+npx --no-install commitlint --edit &quot;$1&quot;
 
 # 提交信息示例
 feat(component): 添加按钮加载状态</code></pre>

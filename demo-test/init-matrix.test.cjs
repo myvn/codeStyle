@@ -47,8 +47,11 @@ for (const scenario of cases) {
                       : "**/*.{html,css,scss}"
             assert.deepEqual(tasks[expectedPattern], ["prettier --write", "stylelint --fix"])
         }
-        assert.equal(p.read(".husky/pre-commit"), "npx --no-install -- lint-staged\n")
-        assert.equal(p.read(".husky/commit-msg"), 'npx --no-install commitlint --edit "${1}"\n')
+        // hook 优先直连本地 bin（省一次 npm CLI 启动），找不到时退回 npx
+        assert.match(p.read(".husky/pre-commit"), /command -v lint-staged/)
+        assert.match(p.read(".husky/pre-commit"), /npx --no-install -- lint-staged/)
+        assert.match(p.read(".husky/commit-msg"), /command -v commitlint/)
+        assert.match(p.read(".husky/commit-msg"), /npx --no-install commitlint --edit "\$1"/)
         const expectedVersionrc = scenario.esm ? ".versionrc.cjs" : ".versionrc.js"
         for (const file of [
             ".prettierrc.cjs",

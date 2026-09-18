@@ -125,7 +125,22 @@ async function commitlint(message) {
 function commitProject(t, style = "scss") {
     const dir = fs.mkdtempSync(path.join(runtime, "full-hooks-"))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
-    const env = { ...process.env, HUSKY: "1", GIT_CONFIG_NOSYSTEM: "1" }
+    // 身份与开关用环境变量传给所有 git（含 hook 内部起的 git），
+    // 省掉每个 fixture 4 次 `git config` 进程 —— 整套集成测试原本要为此起 92 次。
+    const env = {
+        ...process.env,
+        HUSKY: "1",
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_AUTHOR_NAME: "Demo Test",
+        GIT_AUTHOR_EMAIL: "demo@example.invalid",
+        GIT_COMMITTER_NAME: "Demo Test",
+        GIT_COMMITTER_EMAIL: "demo@example.invalid",
+        GIT_CONFIG_COUNT: "2",
+        GIT_CONFIG_KEY_0: "commit.gpgsign",
+        GIT_CONFIG_VALUE_0: "false",
+        GIT_CONFIG_KEY_1: "core.autocrlf",
+        GIT_CONFIG_VALUE_1: "false",
+    }
     const run = (command, args) =>
         spawnSync(command, args, {
             cwd: dir,
@@ -142,11 +157,11 @@ function commitProject(t, style = "scss") {
         fs.mkdirSync(path.dirname(path.join(dir, name)), { recursive: true })
         fs.writeFileSync(path.join(dir, name), content)
     }
+    // 让 fixture 看起来像真实项目：husky 会把 node_modules/.bin 前置到 PATH，
+    // 生成的 hook 因此能直连本地 lint-staged/commitlint（测试顺带覆盖这条快路径），
+    // 而不是每次提交都起一个 npm CLI。符号链接不复制文件、也不需要额外进程。
+    fs.symlinkSync(path.join(runtime, "node_modules"), path.join(dir, "node_modules"), "junction")
     git("init", "-q")
-    git("config", "user.name", "Demo Test")
-    git("config", "user.email", "demo@example.invalid")
-    git("config", "commit.gpgsign", "false")
-    git("config", "core.autocrlf", "false")
     // Establish HEAD before installing hooks so lint-staged can stash/restore.
     git("commit", "--allow-empty", "-m", "chore: baseline")
     const styleDeps =

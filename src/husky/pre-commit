@@ -1,1 +1,6 @@
+# husky 已经把 node_modules/.bin 放进 PATH，所以优先直接执行本地 lint-staged：
+# 这样每次提交少起一个 npm CLI（npx）进程；找不到时再退回 npx（例如被提升到上层目录）。
+if command -v lint-staged >/dev/null 2>&1; then
+    exec lint-staged
+fi
 npx --no-install -- lint-staged
