@@ -799,7 +799,12 @@ test("standard-version 在 ESM (type: module) 项目中读取 .versionrc.cjs 成
     assert.match(changelog, /1\.1\.0/)
     assert.match(changelog, /initial feature/)
 
-    // Also verify that .versionrc.js in ESM throws ReferenceError with require
+    // Also verify that a .versionrc.js in an ESM project fails: standard-version
+    // loads the config with require(), but the file is treated as an ES module.
+    // The error text depends on the Node version, so assert on the cause:
+    //   Node 18        → ERR_REQUIRE_ESM (require() of ESM is not supported)
+    //   Node ≥20.19/22 → require(esm) is allowed, evaluation fails with
+    //                    "module is not defined in ES module scope"
     fs.unlinkSync(path.join(dir, ".versionrc.cjs"))
     fs.writeFileSync(
         path.join(dir, ".versionrc.js"),
@@ -807,5 +812,10 @@ test("standard-version 在 ESM (type: module) 项目中读取 .versionrc.cjs 成
     )
     const svFailRes = run(svBin, ["--dry-run"])
     assert.notEqual(svFailRes.status, 0)
-    assert.match(svFailRes.stderr, /ReferenceError: module is not defined in ES module scope/)
+    assert.match(svFailRes.stderr, /\.versionrc\.js/, svFailRes.stderr)
+    assert.match(
+        svFailRes.stderr,
+        /ERR_REQUIRE_ESM|module is not defined in ES module scope/,
+        `ESM 项目中的 .versionrc.js 应加载失败，实际输出：${svFailRes.stderr}`,
+    )
 })
