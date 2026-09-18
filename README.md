@@ -8,6 +8,7 @@ Lint/Format/Git 配置工程化 npm 包。适用于 Vue 3 + TypeScript + uni-app
 
 - [HTML 项目技术全景](docs/project-overview.html)：下载或克隆仓库后，用浏览器直接打开，查看项目结构、配置架构、接入流程与维护注意事项；支持离线阅读和打印。
 - [Markdown 技术文档](TECHNICAL_DOC.md)
+- [初始化链路说明](docs/init-flow.md)：`pnpm add -D my-code-style` + `npx my-code-style-init` 逐步做了什么、生成哪些文件、常见坑
 
 ## 快速开始
 
@@ -16,7 +17,7 @@ pnpm add -D my-code-style
 npx my-code-style-init
 ```
 
-init 脚本会自动检测项目技术栈类型（uni-app / Vue 3 / Node 基础库）、ESLint 版本和 CSS 预处理器，自动按需生成对应的配置文件。
+init 脚本会自动检测项目技术栈类型（uni-app / Vue 3 / Node 基础库）、ESLint 版本、CSS 预处理器和包管理器，自动按需生成对应的配置文件，并在结尾列出尚未安装的 peerDependencies 与安装命令。完整链路见 [docs/init-flow.md](docs/init-flow.md)。
 
 ## 生成的文件
 
@@ -146,12 +147,12 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm test                       # 运行基础 CLI 与配置矩阵测试（58 项）
+npm test                       # 运行基础 CLI 与配置矩阵测试（59 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # 运行 Flat Config、真实 Husky 及提交链路测试（47 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
 npm run test:legacy            # 运行 ESLint 8.57.0 兼容性回归测试（27 项）
-npm run test:all               # 全量运行全部 132 项测试
+npm run test:all               # 全量运行全部 133 项测试
 ```
 
 ## License

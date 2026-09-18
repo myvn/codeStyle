@@ -115,6 +115,53 @@ test("混合 SCSS 和 Less 工程缺失依赖提示应同时包含 postcss-scss 
     assert.match(result.stdout, /postcss-less@/)
 })
 
+test("缺失依赖提示包含 typescript，并按包管理器给出可执行命令", (t) => {
+    const cases = [
+        ["pnpm-lock.yaml", "pnpm add -D my-code-style", "pnpm prepare", true],
+        ["package-lock.json", "npm i -D my-code-style", "npm run prepare", false],
+        ["yarn.lock", "yarn add -D my-code-style", "yarn prepare", false],
+        ["bun.lockb", "bun add -d my-code-style", "bun run prepare", false],
+    ]
+    for (const [lock, installCommand, prepareCommand, pnpmBuildHint] of cases) {
+        const p = project(t, {
+            "package.json": JSON.stringify({
+                name: "package-manager-detection",
+                devDependencies: { eslint: "^9.0.0" },
+            }),
+            [lock]: "",
+        })
+        const result = p.init()
+        assert.equal(result.status, 0, result.stderr)
+        // typescript is a non-optional peer of @typescript-eslint/parser
+        assert.match(result.stdout, /typescript@\^5\.0\.0/, `${lock}: 应提示安装 typescript`)
+        assert.ok(result.stdout.includes(installCommand), `${lock}: 期望安装命令 ${installCommand}`)
+        assert.ok(
+            result.stdout.includes(prepareCommand),
+            `${lock}: 期望 husky 初始化命令 ${prepareCommand}`,
+        )
+        // pnpm 10+ 拦截依赖构建脚本（如 unrs-resolver），仅 pnpm 需要提示
+        assert.equal(
+            result.stdout.includes("pnpm approve-builds"),
+            pnpmBuildHint,
+            `${lock}: approve-builds 提示`,
+        )
+    }
+
+    // 已声明 typescript 时不再出现在缺失列表
+    const installed = project(t, {
+        "package.json": JSON.stringify({
+            name: "typescript-installed",
+            devDependencies: { eslint: "^9.0.0", typescript: "^5.4.0" },
+        }),
+        "pnpm-lock.yaml": "",
+    })
+    const result = installed.init()
+    assert.equal(result.status, 0, result.stderr)
+    const missing = result.stdout.split("\n").find((line) => line.includes("以下依赖未安装"))
+    assert.ok(missing, "应输出缺失依赖列表")
+    assert.ok(!/：typescript,|：typescript$/.test(missing), `typescript 不应重复提示: ${missing}`)
+})
+
 test("ESLint 版本识别：支持 npm alias、workspace、latest、联合范围及本地已安装版本", (t) => {
     // 1. npm alias: 8
     const pAlias8 = project(t, {

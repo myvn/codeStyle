@@ -338,6 +338,52 @@ function isVueProject() {
 }
 
 /**
+ * Detect the package manager in use ("pnpm" | "npm" | "yarn" | "bun" | null).
+ * The lockfile is the project's own truth, so it wins over the user agent of
+ * whatever launched this CLI (e.g. `npx` inside a pnpm project).
+ */
+function detectPackageManager() {
+    if (fileExists("pnpm-lock.yaml")) return "pnpm"
+    if (fileExists("yarn.lock")) return "yarn"
+    if (fileExists("bun.lockb") || fileExists("bun.lock")) return "bun"
+    if (fileExists("package-lock.json")) return "npm"
+
+    const agent = process.env.npm_config_user_agent || ""
+    if (agent.startsWith("pnpm/")) return "pnpm"
+    if (agent.startsWith("yarn/")) return "yarn"
+    if (agent.startsWith("bun/")) return "bun"
+    if (agent.startsWith("npm/")) return "npm"
+    return null
+}
+
+function addDevCommand(packageManager) {
+    switch (packageManager) {
+        case "npm":
+            return "npm i -D"
+        case "yarn":
+            return "yarn add -D"
+        case "bun":
+            return "bun add -d"
+        default:
+            return "pnpm add -D"
+    }
+}
+
+/**
+ * `pnpm prepare` / `yarn prepare` run the script directly, but npm needs an
+ * explicit `npm run prepare` (plain `npm prepare` is not a command).
+ */
+function runScriptCommand(packageManager, script) {
+    switch (packageManager) {
+        case "npm":
+        case "bun":
+            return `${packageManager} run ${script}`
+        default:
+            return `${packageManager} ${script}`
+    }
+}
+
+/**
  * Detect project type: "uniapp", "vue", or "base"
  */
 function detectProjectType() {
@@ -610,6 +656,7 @@ function main() {
     }
 
     // --- Detection phase ---
+    const pm = detectPackageManager() || "pnpm"
     const eslintVersion = detectEslintVersion()
     const cssPreprocessor = detectCssPreprocessor()
     const projectType = detectProjectType()
@@ -941,19 +988,28 @@ function main() {
     console.log("")
     console.log("  下一步：")
     console.log("  1. 确保已安装 peerDependencies：")
-    console.log("     pnpm add -D my-code-style")
+    console.log(`     ${addDevCommand(pm)} my-code-style`)
     if (useFlatConfig) {
         console.log("  2. Flat Config 需要的额外依赖：")
-        console.log("     pnpm add -D typescript-eslint globals eslint-plugin-import-x @eslint/js")
+        console.log(
+            `     ${addDevCommand(pm)} typescript-eslint globals eslint-plugin-import-x @eslint/js`,
+        )
         console.log("  3. 初始化 husky：")
-        console.log("     pnpm prepare")
+        console.log(`     ${runScriptCommand(pm, "prepare")}`)
         console.log("  4. 使用 czg 提交 commit：")
     } else {
         console.log("  2. 初始化 husky：")
-        console.log("     pnpm prepare")
+        console.log(`     ${runScriptCommand(pm, "prepare")}`)
         console.log("  3. 使用 czg 提交 commit：")
     }
-    console.log("     pnpm cz")
+    console.log(`     ${runScriptCommand(pm, "cz")}`)
+    if (pm === "pnpm") {
+        console.log("")
+        console.log("  提示：pnpm 10+ 默认拦截依赖的构建脚本，若安装时提示")
+        console.log(
+            "  ERR_PNPM_IGNORED_BUILDS（如 unrs-resolver），执行 pnpm approve-builds 后重试。",
+        )
+    }
     console.log("")
 }
 
@@ -1013,6 +1069,8 @@ function checkPeerDeps({
 
     const baseDeps = [
         "eslint",
+        // Required by @typescript-eslint/parser and typescript-eslint at runtime
+        "typescript",
         "prettier",
         ...(projectType !== "base" ? ["eslint-plugin-vue"] : []),
         "@commitlint/cli",
@@ -1102,7 +1160,7 @@ function checkPeerDeps({
         warn(`以下依赖未安装：${missing.join(", ")}`)
         console.log("")
         warn("一键安装命令：")
-        console.log(`  pnpm add -D my-code-style \\`)
+        console.log(`  ${addDevCommand(detectPackageManager())} my-code-style \\`)
         missing.forEach((dep, i) => {
             const version =
                 dep === "eslint" ? (useFlatConfig ? "^9.0.0" : "^8.57.0") : peerDeps[dep] || ""

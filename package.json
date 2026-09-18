@@ -94,6 +94,7 @@
     "stylelint-config-recommended-scss": "^16.0.0",
     "stylelint-config-recommended-vue": "^2.0.0",
     "stylelint-prettier": "^5.0.0",
+    "typescript": "^5.0.0",
     "typescript-eslint": "^8.0.0",
     "vue-eslint-parser": "^10.3.0"
   },
@@ -183,6 +184,9 @@
       "optional": true
     },
     "stylelint-prettier": {
+      "optional": true
+    },
+    "typescript": {
       "optional": true
     },
     "typescript-eslint": {
