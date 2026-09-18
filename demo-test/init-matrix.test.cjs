@@ -1,6 +1,10 @@
 const { test } = require("node:test")
 const assert = require("node:assert/strict")
-const { project } = require("./helpers.cjs")
+const fs = require("node:fs")
+const os = require("node:os")
+const path = require("node:path")
+const { spawnSync } = require("node:child_process")
+const { project, root } = require("./helpers.cjs")
 const cases = require("./fixtures/projects.json")
 
 for (const scenario of cases) {
@@ -326,6 +330,85 @@ test("ESLint 7 及以下版本被拒绝并提示升级", (t) => {
     assert.match(result.stderr, /不支持 ESLint 7 版本/)
     assert.ok(!p.exists("eslint.config.mjs"))
     assert.ok(!p.exists(".eslintrc.cjs"))
+})
+
+test("ESLint 版本识别：monorepo 子目录向上读取工作区根已安装的版本", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "monorepo",
+            private: true,
+            workspaces: ["packages/*"],
+        }),
+        // 依赖被提升安装到工作区根，子包自己的声明只是范围
+        "node_modules/eslint/package.json": JSON.stringify({
+            name: "eslint",
+            version: "8.57.0",
+        }),
+        "packages/app/package.json": JSON.stringify({
+            name: "app",
+            devDependencies: { eslint: "^8.57.0 || ^9.0.0" },
+        }),
+    })
+    const result = p.initIn("packages/app")
+    assert.equal(result.status, 0, result.stderr)
+    assert.ok(
+        p.exists("packages/app/.eslintrc.cjs"),
+        "应按工作区根已安装的 ESLint 8 生成 legacy 配置",
+    )
+    assert.ok(!p.exists("packages/app/eslint.config.mjs"))
+})
+
+test("ESLint 版本识别：不越过非工作区祖先目录", (t) => {
+    // 祖先目录里有 node_modules/eslint，但没有 package.json／workspace 标记；
+    // 说明它不是当前项目的工作区根，不能拿它的版本来决定配置格式。
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "code-style-ancestor-"))
+    t.after(() => fs.rmSync(parent, { recursive: true, force: true }))
+    fs.mkdirSync(path.join(parent, "node_modules/eslint"), { recursive: true })
+    fs.writeFileSync(
+        path.join(parent, "node_modules/eslint/package.json"),
+        JSON.stringify({ name: "eslint", version: "9.39.5" }),
+    )
+    const app = path.join(parent, "app")
+    fs.mkdirSync(app, { recursive: true })
+    fs.writeFileSync(
+        path.join(app, "package.json"),
+        JSON.stringify({ name: "standalone", devDependencies: { eslint: "^8.57.0" } }),
+    )
+
+    const result = spawnSync(process.execPath, [path.join(root, "bin/init")], {
+        cwd: app,
+        encoding: "utf8",
+        timeout: 10000,
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.ok(fs.existsSync(path.join(app, ".eslintrc.cjs")), "应按声明的 ^8.57.0 生成 legacy 配置")
+    assert.ok(!fs.existsSync(path.join(app, "eslint.config.mjs")))
+})
+
+test("ESLint 10 视为受支持版本，ESLint 11 才提示尚未声明支持", (t) => {
+    const supported = project(t, {
+        "package.json": JSON.stringify({
+            name: "eslint-10",
+            devDependencies: { eslint: "^10.0.0" },
+        }),
+    })
+    const supportedResult = supported.init()
+    assert.equal(supportedResult.status, 0, supportedResult.stderr)
+    assert.ok(supported.exists("eslint.config.mjs"))
+    assert.doesNotMatch(
+        supportedResult.stdout + supportedResult.stderr,
+        /尚未在 peerDependencies 声明支持/,
+    )
+
+    const future = project(t, {
+        "package.json": JSON.stringify({
+            name: "eslint-11",
+            devDependencies: { eslint: "^11.0.0" },
+        }),
+    })
+    const futureResult = future.init()
+    assert.equal(futureResult.status, 0, futureResult.stderr)
+    assert.match(futureResult.stdout, /ESLint 11 尚未在 peerDependencies 声明支持/)
 })
 
 test("--backup 参数在覆盖前备份已有文件到 .my-code-style-backup", (t) => {

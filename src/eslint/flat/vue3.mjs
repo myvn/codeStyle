@@ -4,6 +4,7 @@ import pluginVue from "eslint-plugin-vue"
 import tseslint from "typescript-eslint"
 import parserVue from "vue-eslint-parser"
 import baseConfig from "./base.mjs"
+import { nvuePrettierRules } from "./_shared.mjs"
 
 export default [
     // Spread all base configs first
@@ -54,7 +55,7 @@ export default [
             // the legacy config in src/eslint/vue3.cjs.
             semi: "off",
             // Prettier cannot infer a parser from the custom .nvue extension.
-            "prettier/prettier": ["error", { parser: "vue", semi: true }],
+            ...nvuePrettierRules,
         },
     },
 ]

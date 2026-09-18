@@ -92,3 +92,14 @@ test("initialization without a manifest remains supported", (t) => {
     assert.equal(f.exists("package.json"), true)
     assert.equal(f.exists("eslint.config.mjs"), true)
 })
+
+test("no manifest: does not guess a CSS preprocessor", (t) => {
+    const f = fixture(t)
+    assert.equal(f.run().status, 0)
+    // Without a package.json there is no way to tell whether the project uses
+    // SCSS/Less; the tool must not install a stylelint stack by default.
+    assert.equal(f.exists(".stylelintrc.cjs"), false)
+    const pkg = JSON.parse(f.read("package.json"))
+    const lintStaged = JSON.stringify(pkg["lint-staged"] || {})
+    assert.ok(!lintStaged.includes("stylelint"), lintStaged)
+})

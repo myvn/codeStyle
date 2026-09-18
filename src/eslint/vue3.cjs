@@ -1,6 +1,10 @@
 // Vue 3 ESLint config — extends base, adds Vue-specific rules
 const base = require("./base.cjs")
 
+// .nvue 覆写必须携带完整 Prettier 选项：规则内联 options 会整体替换而非合并
+const prettierConfig = require("../prettier/index.cjs")
+const { overrides: _prettierOverrides, ...prettierOptions } = prettierConfig
+
 module.exports = {
     ...base,
     parser: "vue-eslint-parser",
@@ -25,7 +29,7 @@ module.exports = {
             rules: {
                 "vue/comment-directive": "off",
                 semi: "off",
-                "prettier/prettier": ["error", { parser: "vue", semi: true }],
+                "prettier/prettier": ["error", { ...prettierOptions, parser: "vue", semi: true }],
             },
         },
     ],

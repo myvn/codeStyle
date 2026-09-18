@@ -1,6 +1,8 @@
 const { test } = require("node:test")
 const assert = require("node:assert/strict")
+const fs = require("node:fs")
 const path = require("node:path")
+const { spawnSync } = require("node:child_process")
 const { project, root } = require("./helpers.cjs")
 const modulePath = JSON.stringify(path.join(root, "src/commitlint/scopes.cjs"))
 
@@ -267,4 +269,34 @@ test("guessCurrentScope: 支持自定义多源码目录与直接位于根目录�
     )
     assert.equal(pkgRes.status, 0, pkgRes.stderr)
     assert.equal(JSON.parse(pkgRes.stdout), "component")
+})
+
+test("guessCurrentScope: 暂存文件输出超过默认 1MB 缓冲时不再失败（大仓库 ENOBUFS）", (t) => {
+    const p = project(t, { "src/components/Button.vue": "" })
+    // 用假 git 模拟超大暂存区：约 1.5MB，超过 execSync 默认的 1MB maxBuffer
+    const shimDir = path.join(p.dir, "fake-bin")
+    fs.mkdirSync(shimDir, { recursive: true })
+    fs.writeFileSync(
+        path.join(shimDir, "git"),
+        `#!/usr/bin/env node
+const args = process.argv.slice(2)
+if (args.includes("--cached")) {
+    process.stdout.write("src/components/Button.vue\\0".repeat(60000))
+} else if (args[0] === "rev-parse") {
+    process.stdout.write("\\n")
+}
+`,
+        { mode: 0o755 },
+    )
+    const result = spawnSync(
+        process.execPath,
+        ["-e", `console.log(JSON.stringify(require(${modulePath}).guessCurrentScope()))`],
+        {
+            cwd: p.dir,
+            encoding: "utf8",
+            env: { ...process.env, PATH: `${shimDir}${path.delimiter}${process.env.PATH}` },
+        },
+    )
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(JSON.parse(result.stdout), "component", result.stderr)
 })

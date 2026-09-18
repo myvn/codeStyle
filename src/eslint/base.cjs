@@ -1,4 +1,9 @@
 // Base ESLint config for TypeScript projects
+//
+// Prettier 选项以 src/prettier/index.cjs 为唯一来源，避免 rules 与 prettier 配置文件漂移
+const prettierConfig = require("../prettier/index.cjs")
+const { overrides: _prettierOverrides, ...prettierOptions } = prettierConfig
+
 module.exports = {
     env: {
         browser: true,
@@ -40,16 +45,7 @@ module.exports = {
     ],
     rules: {
         // Prettier 集成
-        "prettier/prettier": [
-            "error",
-            {
-                singleQuote: false,
-                tabWidth: 4,
-                semi: false,
-                trailingComma: "all",
-                endOfLine: "lf",
-            },
-        ],
+        "prettier/prettier": ["error", prettierOptions],
         // 格式化与风格
         indent: "off",
         semi: ["error", "never"],

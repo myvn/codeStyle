@@ -126,6 +126,52 @@ test("ESLint 拒绝 TypeScript 语法错误", async () => {
     assert.ok(result.fatalErrorCount > 0)
 })
 
+// tseslint.configs.recommended 只覆盖 TypeScript 相关规则，flat 配置必须自行补齐
+// eslint:recommended，否则这些核心规则对消费方完全失效（legacy 配置一直生效）。
+for (const [ruleId, source] of [
+    ["no-debugger", "debugger\n"],
+    ["no-cond-assign", "let value = 0\nif (value = 1) { console.log(value) }\n"],
+    ["no-constant-condition", "if (true) { console.log(1) }\n"],
+    ["no-empty", "if (Math.random() > 0.5) {}\n"],
+    ["no-fallthrough", "switch (1) { case 1: console.log(1)\ncase 2: console.log(2) }\n"],
+    ["no-unsafe-finally", "function demo() { try { return 1 } finally { return 2 } }\ndemo()\n"],
+]) {
+    test(`Flat Config 启用 eslint:recommended 核心规则：${ruleId}`, async () => {
+        const engine = await eslint("base")
+        const [result] = await engine.lintText(source, { filePath: "probe.js" })
+        assert.ok(
+            result.messages.some((message) => message.ruleId === ruleId && message.severity === 2),
+            `${ruleId} 未生效：${JSON.stringify(result.messages)}`,
+        )
+    })
+}
+
+test("Flat Config 与传统配置的 .nvue Prettier 例外完全一致", async () => {
+    const legacy = localRequire("my-code-style/eslint/vue3")
+    const legacyNvue = legacy.overrides.find((item) => item.files.includes("**/*.nvue"))
+    assert.ok(legacyNvue, "legacy vue3 配置缺少 .nvue 覆写")
+    const flat = (
+        await import(pathToFileURL(path.join(copy, "src/eslint/flat/vue3.mjs")).href)
+    ).default
+    const flatNvue = flat.find(
+        (block) =>
+            Array.isArray(block.files) &&
+            block.files.includes("**/*.nvue") &&
+            block.rules?.["prettier/prettier"],
+    )
+    assert.ok(flatNvue, "Flat Config 缺少 .nvue 覆写")
+    // 规则内联 options 是整体替换而非合并，因此两边都必须是完整选项集
+    assert.deepEqual(
+        flatNvue.rules["prettier/prettier"],
+        legacyNvue.rules["prettier/prettier"],
+    )
+    const [, options] = flatNvue.rules["prettier/prettier"]
+    assert.equal(options.printWidth, 100, "nvue 覆写漏了 printWidth 之类的项目级选项")
+    assert.equal(options.useTabs, false)
+    assert.equal(options.semi, true)
+    assert.equal(options.parser, "vue")
+})
+
 test("Flat Config：curly 规则生效并可修复（不被 eslint-config-prettier 关掉）", async () => {
     const config = (await import(pathToFileURL(path.join(copy, "src/eslint/flat/base.mjs")).href))
         .default

@@ -233,24 +233,58 @@ function majorsForRange(range) {
 }
 
 /**
- * Detect ESLint major version from package.json or installed node_modules
- * Returns 8, 9, or null (not installed or ambiguous)
+ * Read the actually installed ESLint major version. In a monorepo the binary is
+ * usually hoisted to the workspace root, so walk up to 8 levels; a version is
+ * only accepted from the project root itself or from an ancestor that looks
+ * like a workspace root (package.json / pnpm-workspace.yaml / lerna.json).
+ */
+function findInstalledEslintMajor(rootDir) {
+    let dir = rootDir
+    for (let depth = 0; depth < 8; depth += 1) {
+        // 只采纳项目根或“像工作区根”的祖先里的安装（package.json / pnpm-workspace.yaml /
+        // lerna.json）。中间层（如 monorepo 的 packages/）通常没有任何 manifest，
+        // 必须继续向上找；而完全无关的上级目录（例如 /tmp 或 $HOME 的 node_modules）
+        // 即使存在 eslint 也不能当作项目依赖。
+        const isProjectRoot = dir === rootDir
+        const isWorkspaceRoot =
+            fs.existsSync(path.resolve(dir, "package.json")) ||
+            fs.existsSync(path.resolve(dir, "pnpm-workspace.yaml")) ||
+            fs.existsSync(path.resolve(dir, "lerna.json"))
+
+        if (isProjectRoot || isWorkspaceRoot) {
+            try {
+                const installedPkgPath = path.resolve(dir, "node_modules", "eslint", "package.json")
+                if (fs.existsSync(installedPkgPath)) {
+                    const installedPkg = JSON.parse(fs.readFileSync(installedPkgPath, "utf8"))
+                    const installedMajor = parseInt(String(installedPkg.version).split(".")[0], 10)
+                    if (!Number.isNaN(installedMajor)) {
+                        return installedMajor
+                    }
+                }
+            } catch {
+                // ignore unreadable/partial installs and keep walking up
+            }
+        }
+
+        const parent = path.dirname(dir)
+        if (parent === dir) break
+        dir = parent
+    }
+    return null
+}
+
+/**
+ * Detect ESLint major version from the installed package or the declared range.
+ * Returns 8, 9, 10, … or null (not installed and no usable range).
  */
 function detectEslintVersion(pkg = getProjectPkg(), rootDir = PROJECT_ROOT) {
     if (!pkg) return null
 
-    // 1. If eslint is installed in node_modules, read its actual major version directly
-    try {
-        const installedPkgPath = path.resolve(rootDir, "node_modules", "eslint", "package.json")
-        if (fs.existsSync(installedPkgPath)) {
-            const installedPkg = JSON.parse(fs.readFileSync(installedPkgPath, "utf8"))
-            const installedMajor = parseInt(installedPkg.version?.split(".")[0], 10)
-            if (!Number.isNaN(installedMajor)) {
-                return installedMajor
-            }
-        }
-    } catch {
-        // Fall through to package.json dependency declaration
+    // 1. If eslint is installed in node_modules (or hoisted to the workspace root),
+    //    read its actual major version directly
+    const installedMajor = findInstalledEslintMajor(rootDir)
+    if (installedMajor !== null) {
+        return installedMajor
     }
 
     // 2. Parse package.json dependency declaration
@@ -398,12 +432,13 @@ function detectProjectType() {
  */
 function detectCssPreprocessor() {
     const pkg = getProjectPkg()
-    if (!pkg) return "scss"
-    const allDeps = {
-        ...(pkg.dependencies || {}),
-        ...(pkg.devDependencies || {}),
-        ...(pkg.peerDependencies || {}),
-    }
+    const allDeps = pkg
+        ? {
+              ...(pkg.dependencies || {}),
+              ...(pkg.devDependencies || {}),
+              ...(pkg.peerDependencies || {}),
+          }
+        : {}
 
     const hasSass = allDeps["sass"] || allDeps["node-sass"] || allDeps["sass-loader"]
     const hasLess = allDeps["less"] || allDeps["less-loader"]
@@ -435,6 +470,11 @@ function detectCssPreprocessor() {
         if (usesLess) return "less"
         if (usesScss) return "scss"
         return "scss"
+    }
+
+    // 无 package.json 时无法判断项目类型，不猜测样式方案（避免凭空安装一堆 stylelint 依赖）
+    if (!pkg) {
+        return "none"
     }
 
     // If not a Vue/uni-app project and no css preprocessor found, skip stylelint
@@ -678,15 +718,15 @@ function main() {
 
     if (eslintVersion !== null && eslintVersion < 8) {
         console.error(
-            `不支持 ESLint ${eslintVersion} 版本；本配置包仅支持 ESLint 8 或 9，未修改任何文件`,
+            `不支持 ESLint ${eslintVersion} 版本；本配置包仅支持 ESLint 8 / 9 / 10，未修改任何文件`,
         )
         process.exitCode = 1
         return
     }
 
-    if (eslintVersion !== null && eslintVersion >= 10) {
+    if (eslintVersion !== null && eslintVersion > 10) {
         warn(
-            `ESLint ${eslintVersion} 尚未在 peerDependencies 声明支持（^8.57.0 || ^9.0.0），将按 Flat Config 生成`,
+            `ESLint ${eslintVersion} 尚未在 peerDependencies 声明支持（^8.57.0 || ^9.0.0 || ^10.0.0），将按 Flat Config 生成`,
         )
     }
 

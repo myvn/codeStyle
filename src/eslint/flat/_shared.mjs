@@ -1,19 +1,21 @@
 // Shared constants and rule objects for Flat Config files
+import prettierConfig from "../../prettier/index.cjs"
+
+// Prettier 选项以 src/prettier/index.cjs 为唯一来源，避免 rules 与配置文件漂移
+const { overrides: _prettierOverrides, ...prettierOptions } = prettierConfig
 
 /**
  * Prettier plugin rules — mirrors base.cjs prettier/prettier config
  */
 export const prettierRules = {
-    "prettier/prettier": [
-        "error",
-        {
-            singleQuote: false,
-            tabWidth: 4,
-            semi: false,
-            trailingComma: "all",
-            endOfLine: "lf",
-        },
-    ],
+    "prettier/prettier": ["error", prettierOptions],
+}
+
+/**
+ * .nvue 覆写：规则内联 options 会整体替换而非合并，必须携带完整选项
+ */
+export const nvuePrettierRules = {
+    "prettier/prettier": ["error", { ...prettierOptions, parser: "vue", semi: true }],
 }
 
 /**

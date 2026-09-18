@@ -52,6 +52,38 @@ test("Stylelint 的 SCSS / Less 解析器和小程序规则", () => {
     assert.ok(less.overrides.some((item) => item.customSyntax === "postcss-less"))
 })
 
+test("传统 ESLint 分层以 prettier 配置为唯一来源（含 .nvue 例外）", () => {
+    const prettierConfig = require("my-code-style/prettier")
+    const { overrides: _overrides, ...prettierOptions } = prettierConfig
+    const base = require("my-code-style/eslint")
+    const vue = require("my-code-style/eslint/vue3")
+
+    // 规则里必须是完整的 Prettier 选项，漏项会在 nvue/覆写场景静默回落到默认值
+    assert.deepEqual(base.rules["prettier/prettier"], ["error", prettierOptions])
+    for (const key of ["printWidth", "tabWidth", "useTabs", "semi", "htmlWhitespaceSensitivity"]) {
+        assert.equal(base.rules["prettier/prettier"][1][key], prettierConfig[key], key)
+    }
+
+    const nvue = vue.overrides.find((item) => item.files.includes("**/*.nvue"))
+    assert.ok(nvue, "vue3 配置缺少 .nvue 覆写")
+    assert.deepEqual(nvue.rules["prettier/prettier"], [
+        "error",
+        { ...prettierOptions, parser: "vue", semi: true },
+    ])
+})
+
+test("peerDependencies 覆盖 ESLint 8/9/10，无残留的 @eslint/eslintrc", () => {
+    assert.match(pkg.peerDependencies.eslint, /\^8\.57\.0/)
+    assert.match(pkg.peerDependencies.eslint, /\^10\.0\.0/)
+    assert.equal(pkg.peerDependencies["@eslint/eslintrc"], undefined)
+    assert.equal(pkg.peerDependenciesMeta["@eslint/eslintrc"], undefined)
+    // Flat Config 现在真的 import 了 @eslint/js
+    assert.ok(pkg.peerDependencies["@eslint/js"], "@eslint/js 应保留在 peerDependencies")
+    assert.equal(pkg.peerDependenciesMeta["@eslint/js"].optional, true)
+    // 刻意不含 ^10：@eslint/js 10 要求 Node >= 20.19
+    assert.equal(pkg.peerDependencies["@eslint/js"], "^9.0.0")
+})
+
 test("Commitlint 标题约束和版本管理开关", () => {
     const commit = require("my-code-style/commitlint")
     assert.deepEqual(commit.rules["header-max-length"], [2, "always", 108])

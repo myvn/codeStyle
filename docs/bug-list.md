@@ -8,6 +8,8 @@
 
 本清单中的 P0 / P1 / P2 与文档漂移（BUG-001 ~ 009、DOC-001 ~ 002）已全部修复并补充回归测试；测试基线由 121 项增加到 **133 项（基础 59 / 集成 47 / legacy 27），全绿**。
 
+第二轮修复（下表 BUG-010 ~ 016）追加 14 项回归测试，测试基线增至 **147 项（基础 66 / 集成 54 / legacy 27），全绿**；已在 Node 18.20.8 / 22.22.3 / 26.9.0 三个运行时实测通过，Flat Config 另在 ESLint 10.10.0 上实测通过。
+
 | 编号          | 修复方式                                                                                  | 回归测试                                                                                         |
 | ------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | BUG-001 / 002 | `bin/init` 改为按 semver 区间求交集判断可安装的主版本（无新依赖）                         | `init-matrix.test.cjs`「ESLint 版本识别：范围语义」                                              |
@@ -28,9 +30,27 @@
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | NIT-013 | CLI 缺失依赖提示漏掉 `typescript`（`@typescript-eslint/parser` / `typescript-eslint` 的非可选 peer），安装命令与后续步骤硬编码 pnpm，npm 用户看到的是 `pnpm add` 与不可用的 `npm prepare` | 补 `typescript` peer 声明与体检项；按 lockfile/用户代理识别包管理器，输出 `pnpm | npm | yarn | bun`对应命令（npm 用`npm run prepare`）；pnpm 项目追加 `pnpm approve-builds`提示。回归见`init-matrix.test.cjs`「缺失依赖提示包含 typescript，并按包管理器给出可执行命令」 |
 
+### 第二轮修复：与 ESLint 10 / Flat Config 行为对齐（2026-09-18）
+
+| 编号    | 严重度 | 问题                                                                                                                                                                                                   | 修复                                                                                                            | 回归测试                                                                                                       |
+| ------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| BUG-010 | P1     | Flat Config 完全没有 `eslint:recommended`：`tseslint.configs.recommended` 只带 46 条 TS 规则，`no-debugger` / `no-empty` / `no-cond-assign` / `no-constant-condition` / `no-fallthrough` / `no-unsafe-finally` 六个核心规则对 flat 用户静默失效（legacy 正常报错） | `src/eslint/flat/base.mjs` 引入 `@eslint/js` 的 `js.configs.recommended`，插在 `tseslint.configs.recommended` 之前                                               | `integration/toolchain.test.cjs`「Flat Config 启用 eslint:recommended 核心规则：×6」                            |
+| BUG-011 | P1     | Prettier 选项三处硬编码副本（legacy `base.cjs`、legacy `.nvue` 覆写、flat `_shared.mjs`），规则内联 options 是整体替换而非合并，任何一处漏项都会让 `printWidth` / `useTabs` / `htmlWhitespaceSensitivity` 静默回落默认值 | 统一以 `src/prettier/index.cjs` 为唯一来源：legacy 与 flat 均 `require`/`import` 后解构；flat 新增 `nvuePrettierRules` 导出                                    | `config-contract.test.cjs`「传统 ESLint 分层以 prettier 配置为唯一来源」、`integration`「Flat Config 与传统配置的 .nvue Prettier 例外完全一致」 |
+| BUG-012 | P2     | `bin/init` 只检查项目根 `node_modules/eslint`，monorepo 里依赖被提升安装到工作区根时读不到实际版本，只能退回声明范围                                                                                     | 新增 `findInstalledEslintMajor`：向上最多 8 层查找，仅采纳项目根或带 `package.json` / `pnpm-workspace.yaml` / `lerna.json` 的祖先（`packages/` 这类无 manifest 的中间层不会中断查找，无关上级目录也不会被误用） | `init-matrix.test.cjs`「monorepo 子目录向上读取工作区根已安装的版本」「不越过非工作区祖先目录」                 |
+| BUG-013 | P2     | 支持的版本口径仍停在 ESLint 8 / 9：ESLint 10 被当成"超出声明范围"打印警告，`peerDependencies` 也不含 `^10`                                                                                              | 警告阈值改为 `> 10`，错误文案改为"仅支持 ESLint 8 / 9 / 10"，peer 改为 `^8.57.0 \|\| ^9.0.0 \|\| ^10.0.0`         | `init-matrix.test.cjs`「ESLint 10 视为受支持版本，ESLint 11 才提示尚未声明支持」                                |
+| BUG-014 | P2     | 无 `package.json` 时无法判断样式方案，却默认按 SCSS 处理，生成 `.stylelintrc.cjs` 并往 lint-staged 注入 stylelint 任务                                                                                   | `detectCssPreprocessor` 无 manifest 时返回 `none`，跳过 stylelint 与相关任务                                    | `tests/init.test.cjs`「no manifest: does not guess a CSS preprocessor」                                        |
+| BUG-015 | P2     | `src/commitlint/scopes.cjs` 的 `execSync` 未设 `maxBuffer`（默认 1MB），大仓库暂存区一旦超限即 ENOBUFS，scope 猜测整体退化为 `undefined`                                                                 | 两处 `execSync` 统一加 `maxBuffer: 64MB`                                                                        | `scopes.test.cjs`「暂存文件输出超过默认 1MB 缓冲时不再失败」                                                   |
+| BUG-016 | NIT    | `@eslint/eslintrc` 是无人引用的死 peer（此前已记为 NIT-005 的一部分，未落地）                                                                                                                           | 从 `peerDependencies` / `peerDependenciesMeta` 移除，peer 数 32 → 31                                            | `config-contract.test.cjs`「peerDependencies 覆盖 ESLint 8/9/10，无残留的 @eslint/eslintrc」                   |
+
+本轮有意不动（需维护者权衡，非 bug）：
+
+- `lint-staged@17`（engines node ≥ 22.22.1）与 `@commitlint/cli@21`（node ≥ 22.12.0）等主版本升级会把 Node 门槛抬到 ≥ 22，与当前 CI 矩阵（18 / 20 / 22）冲突，本轮不升。
+- `@eslint/js` 的 peer 刻意保持 `^9.0.0`：`@eslint/js@10` 自身要求 Node ≥ 20.19，放宽会让 Node 18 用户装到不兼容版本（已实测 `@eslint/js@9.39.5` 与 ESLint 10 搭配正常）。
+- `stylelint@17` 组合当前装不上（`stylelint-config-recommended@17` 的 peer 仍锁 `stylelint ^16.23.0`)。
+
 初始化链路全过程见 [init-flow.md](init-flow.md)。
 
-仍待维护者决策：NIT-002（补全 devDependencies 以便本仓库自测）、NIT-005 的 `@eslint/eslintrc` peerDep 移除、NIT-007/008/009/010/012、`.idea/` 是否继续入库。
+仍待维护者决策：NIT-002（补全 devDependencies 以便本仓库自测）、NIT-012 的规则分叉项、`.idea/` 是否继续入库；NIT-005 的 `@eslint/eslintrc` peerDep 已在第二轮移除（BUG-016），NIT-007 / 008 / 009 / 010 分别落地为 BUG-014 / BUG-015 / BUG-012 / BUG-013。
 
 ---
 
@@ -44,6 +64,9 @@
 | 文档漂移                      | 2 处  | DOC-001 ~ DOC-002 |
 | 小毛病 / 优化                 | 12 项 | NIT-001 ~ NIT-012 |
 | 已验证排除                    | 5 项  | —                 |
+| 第二轮 · P1（规则静默失效）   | 2     | BUG-010 ~ BUG-011 |
+| 第二轮 · P2（健壮性 / 版本口径） | 4  | BUG-012 ~ BUG-015 |
+| 第二轮 · NIT（清理死 peer）   | 1     | BUG-016           |
 
 ---
 
@@ -167,10 +190,10 @@
 | NIT-004 | `src/husky/*` 是死模板（init 内硬编码了同样内容），早晚漂移                                                                                                                                                                                              | `src/husky/` vs `bin/init`                    |
 | NIT-005 | `@eslint/eslintrc` 是死 peerDep；`flat/base.mjs:30` 的 "via FlatCompat" 注释也是 stale 的（根本没用 FlatCompat）                                                                                                                                         | `package.json`、`src/eslint/flat/base.mjs:30` |
 | NIT-006 | 生成的 commitlintrc 硬编码 `"mock"` scope，无 mock 目录的项目会出现幽灵选项                                                                                                                                                                              | `bin/init:322`                                |
-| NIT-007 | 无 manifest 空目录默认走 scss（`detectCssPreprocessor` 无 pkg 返回 `"scss"`），会凭空装一堆 stylelint 依赖                                                                                                                                               | `bin/init`                                    |
-| NIT-008 | `generateScopes` 在 `src` 是文件时抛 ENOTDIR，直接 crash commitlint；`getStagedFiles` 默认 1MB maxBuffer，大仓库可能取不到暂存区                                                                                                                         | `src/commitlint/scopes.cjs:78` 附近           |
-| NIT-009 | monorepo 子包 `workspace:*` + 根 ESLint 8 会误判 flat（installed-version 查找不向上遍历）                                                                                                                                                                | `bin/init:detectEslintVersion`                |
-| NIT-010 | peer 范围未覆盖 ESLint 10，但检测逻辑把 10 判为 flat（需验证后放行或明确拒绝）                                                                                                                                                                           | `package.json` peerDeps                       |
+| NIT-007 | 无 manifest 空目录默认走 scss（`detectCssPreprocessor` 无 pkg 返回 `"scss"`），会凭空装一堆 stylelint 依赖                                                                                                                                               | `bin/init`                                    | **已修复 → BUG-014**
+| NIT-008 | `generateScopes` 在 `src` 是文件时抛 ENOTDIR，直接 crash commitlint；`getStagedFiles` 默认 1MB maxBuffer，大仓库可能取不到暂存区                                                                                                                         | `src/commitlint/scopes.cjs:78` 附近           | **已修复 → BUG-015**
+| NIT-009 | monorepo 子包 `workspace:*` + 根 ESLint 8 会误判 flat（installed-version 查找不向上遍历）                                                                                                                                                                | `bin/init:detectEslintVersion`                | **已修复 → BUG-012**
+| NIT-010 | peer 范围未覆盖 ESLint 10，但检测逻辑把 10 判为 flat（需验证后放行或明确拒绝）                                                                                                                                                                           | `package.json` peerDeps                       | **已修复 → BUG-013**
 | NIT-011 | `.gitignore` 模板缺 `unpackage/`（uni-app 构建产物）；`modifyPackageJson` 全文件重排为 4 空格（2 空格项目被重排）；根 `eslint.config.mjs` 未忽略 `demo-test/.runtime*`；`.idea/` 被提交                                                                  | 多处                                          |
 | NIT-012 | nvue 的 prettier 覆写只有 `{parser, semi}`，其余选项依赖磁盘 `.prettierrc`（v8/v9 一致，属潜在隐患）；flat uniapp globals 的 `files` 漏了 jsx/tsx/mjs/cjs 等（`no-undef: off` 下无害）；`import-x/extensions: off` 与 v8 `import/extensions: error` 分叉 | `src/eslint/*`                                |
 

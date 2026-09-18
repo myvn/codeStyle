@@ -147,6 +147,8 @@ function getStagedFiles(cwd) {
         const output = execSync("git diff --cached --name-only -z", {
             cwd,
             stdio: ["pipe", "pipe", "ignore"],
+            // 大仓库/大量暂存文件可能超过默认 1MB，避免 ENOBUFS 导致 scope 猜测整体失败
+            maxBuffer: 64 * 1024 * 1024,
         }).toString()
         return output.split("\0").filter(Boolean)
     } catch {
@@ -154,6 +156,7 @@ function getStagedFiles(cwd) {
             const output = execSync("git status --porcelain -z", {
                 cwd,
                 stdio: ["pipe", "pipe", "ignore"],
+                maxBuffer: 64 * 1024 * 1024,
             }).toString()
             const parts = output.split("\0")
             const staged = []

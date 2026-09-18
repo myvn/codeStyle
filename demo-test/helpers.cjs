@@ -19,6 +19,10 @@ function project(t, files = {}) {
         init: (...args) => spawnSync(process.execPath, [path.join(root, "bin/init"), ...args], {
             cwd: dir, encoding: "utf8", timeout: 10000,
         }),
+        // 在子目录里运行 init（monorepo 场景：工作区根安装了 ESLint，子包声明范围）
+        initIn: (subdir, ...args) => spawnSync(process.execPath, [path.join(root, "bin/init"), ...args], {
+            cwd: path.join(dir, subdir), encoding: "utf8", timeout: 10000,
+        }),
         node: (script) => spawnSync(process.execPath, ["-e", script], {
             cwd: dir, encoding: "utf8", timeout: 10000,
         }),
