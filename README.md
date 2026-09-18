@@ -146,7 +146,7 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm test                       # 运行基础 CLI 与配置矩阵测试（52 项）
+npm test                       # 运行基础 CLI 与配置矩阵测试（58 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # 运行 Flat Config、真实 Husky 及提交链路测试（47 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境

@@ -1096,8 +1096,8 @@ export default [
                                 <td>已修复并验证</td>
                                 <td>工程化测试体系与回归套件建设。</td>
                                 <td>
-                                    已建立分层测试套件（基础 CLI 52 项 + 现代集成提交链 44 项 +
-                                    ESLint 8 兼容性 25 项，共 121 项测试全部通过）。
+                                    已建立分层测试套件（基础 CLI 58 项 + 现代集成提交链 47 项 +
+                                    ESLint 8 兼容性 27 项，共 132 项测试全部通过）。
                                 </td>
                             </tr>
                             <tr>
@@ -1134,7 +1134,7 @@ export default [
                     <small>10</small>
                     本次核验与版本脉络
                 </h2>
-                <h3>全量分层自动化测试（121 项通过，0 失败）</h3>
+                <h3>全量分层自动化测试（132 项通过，0 失败）</h3>
                 <p>在 macOS / Node.js 24 环境中，执行全量自动化测试套件（npm run test:all）：</p>
                 <div class="table-wrap">
                     <table>
@@ -1153,7 +1153,7 @@ export default [
                                     暂存区推断、参数校验、配置冲突拦截、ESLint 版本识别、--backup
                                     与事务回滚
                                 </td>
-                                <td>52 项全部通过</td>
+                                <td>58 项全部通过</td>
                             </tr>
                             <tr>
                                 <td>现代工具链与真实提交链路 (npm run test:integration)</td>
@@ -1162,7 +1162,7 @@ export default [
                                     串行任务、Git 边界（无 HEAD 仓库首次提交、已有 stash 保护、git
                                     mv/rm）、standard-version ESM 兼容
                                 </td>
-                                <td>44 项全部通过</td>
+                                <td>47 项全部通过</td>
                             </tr>
                             <tr>
                                 <td>ESLint 8 独立兼容性 (npm run test:legacy)</td>
@@ -1170,12 +1170,12 @@ export default [
                                     ESLint 8.57.0 CLI 真实运行、TS/Vue/uni-app/JSX/TSX
                                     规则校验与自动修复、CommonJS require() 支持、目录遍历与拦截
                                 </td>
-                                <td>25 项全部通过</td>
+                                <td>27 项全部通过</td>
                             </tr>
                             <tr>
                                 <td><b>合计</b></td>
                                 <td><b>全部核心功能与边界场景</b></td>
-                                <td><b>121 项通过，0 失败，0 TODO</b></td>
+                                <td><b>132 项通过，0 失败，0 TODO</b></td>
                             </tr>
                         </tbody>
                     </table>
@@ -1186,7 +1186,7 @@ export default [
                         <b>1.3.1 (当前分支 arena/01a0a973-codestyle)：</b>
                         支持 SCSS/Less 混合工程、JSX/TSX 全链路解析、ESM .versionrc.cjs 适配、ESLint
                         版本识别强化、初始化安全备份与事务回滚、guessCurrentScope 严格暂存区推断与
-                        121 项全量测试验证。
+                        132 项全量测试验证。
                     </li>
                     <li>
                         <b>1.3.1 · 2026-09-16：</b>
