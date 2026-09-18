@@ -16,7 +16,7 @@
 const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
-const { spawnSync } = require("node:child_process")
+const { spawn, spawnSync } = require("node:child_process")
 
 const ROOT = path.resolve(__dirname, "..")
 const RUNTIME = path.join(ROOT, "demo-test/.runtime")
@@ -154,11 +154,16 @@ if (fs.existsSync(RUNTIME)) writeFiles(RUNTIME, "仓库内（demo-test/.runtime�
 console.log("")
 
 // --- ④ 一次真实提交链 ---
-if (QUICK || !fs.existsSync(RUNTIME)) {
+const STRESS = Number.parseInt(
+    (process.argv.find((arg) => arg.startsWith("--stress=")) || "--stress=8").split("=")[1],
+    10,
+)
+const SKIP_CHAIN = QUICK || !fs.existsSync(RUNTIME)
+
+if (SKIP_CHAIN) {
     console.log("  ④ 真实提交链：已跳过（--quick 或缺少 demo-test/.runtime）")
     console.log("")
-    process.exit(0)
-}
+} else {
 
 console.log("  ④ 一次真实提交链（与集成测试内的做法一致，含真实 hooks）")
 const { commitProject } = require(path.join(ROOT, "demo-test/integration/_runtime.cjs"))
@@ -205,3 +210,59 @@ try {
     if (fixture?.dir) fs.rmSync(fixture.dir, { recursive: true, force: true })
 }
 console.log("")
+}
+
+// --- ⑤ 并发压力 ---
+async function runMany(command, args, count, options = {}) {
+    const started = process.hrtime.bigint()
+    const times = await Promise.all(
+        Array.from({ length: count }, () => {
+            const childStart = process.hrtime.bigint()
+            return new Promise((resolve) => {
+                const child = spawn(command, args, {
+                    cwd: options.cwd || ROOT,
+                    stdio: "ignore",
+                    env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" },
+                })
+                child.on("close", () => resolve(ms(process.hrtime.bigint() - childStart)))
+            })
+        }),
+    )
+    return { wall: ms(process.hrtime.bigint() - started), times }
+}
+
+async function stress() {
+    if (!fs.existsSync(BIN)) return
+    console.log(`  ⑤ 并发压力：同时跑 ${STRESS} 个同样的东西（看单个耗时膨胀多少）`)
+    const sample = path.join(ROOT, "demo-test/integration/commit-chain-scss.test.cjs")
+    const cases = [
+        ["node -e ''", process.execPath, ["-e", ""]],
+        [".bin/lint-staged --version", path.join(BIN, "lint-staged"), ["--version"]],
+        ["npx --no-install lint-staged --version", "npx", ["--no-install", "lint-staged", "--version"]],
+    ]
+    for (const [label, command, args] of cases) {
+        const { wall, times } = await runMany(command, args, STRESS)
+        const avg = times.reduce((a, b) => a + b, 0) / times.length
+        line(
+            `${STRESS}× ${label}`,
+            `单 ${avg.toFixed(0)}ms`,
+            `总 ${(wall / 1000).toFixed(1)}s · 最慢 ${Math.max(...times).toFixed(0)}ms`,
+        )
+    }
+    if (fs.existsSync(sample)) {
+        const { wall, times } = await runMany(process.execPath, ["--test", sample], STRESS)
+        const avg = times.reduce((a, b) => a + b, 0) / times.length
+        line(
+            `${STRESS}× 同一个测试文件`,
+            `单 ${(avg / 1000).toFixed(1)}s`,
+            `总 ${(wall / 1000).toFixed(1)}s · 最慢 ${(Math.max(...times) / 1000).toFixed(1)}s`,
+        )
+        console.log("")
+        console.log("  读法：单个耗时相对「①/④ 的单独基线」涨了多少倍，就是排队有多严重。")
+        console.log("        若 npx 那行涨得远多于 .bin 那行 → npm CLI 是排队点，去掉 hook 里的 npx 最有效。")
+    }
+}
+
+stress().then(() => {
+    console.log("")
+})
