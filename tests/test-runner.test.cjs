@@ -63,7 +63,7 @@ test("运行器 TAP 解析：--verbose 回显原始输出时统计不能归零",
 
 test("运行器默认文件级并发：受核数与内存双重约束", () => {
     assert.equal(computeFileJobs(2, 3.8), 3, "2 核 4G：内存与核数都只能开 3")
-    assert.equal(computeFileJobs(16, 48), 24, "16 核 48G：放开到核数 × 1.5")
+    assert.equal(computeFileJobs(16, 48), 8, "16 核 48G：封顶 8（实测 6–8 之后不再变快）")
     assert.equal(computeFileJobs(4, 16), 6, "4 核 CI：放开到核数 × 1.5")
     assert.equal(computeFileJobs(8, 4), 3, "8 核但只有 4G：被内存上限压回 3，避免 OOM")
 })

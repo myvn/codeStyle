@@ -68,9 +68,15 @@ const JOBS = jobsArg ? Math.max(1, Number.parseInt(jobsArg.split("=")[1], 10) ||
 const MEM_PER_CHAIN_GB = 0.8
 const MEM_RESERVE = 0.3
 const TOTAL_MEM_GB = os.totalmem() / 1024 ** 3
-/** 默认文件级并发：核数 × 1.5（至少 核数 - 1）与内存上限取小值 */
+/**
+ * 默认文件级并发：核数 × 1.5（至少 核数 - 1），与内存上限取小值，
+ * 再压到 MAX_SLOTS —— 实测（16 核 M4：4/6/8/12/16/24 并发对应 20.3/18.7/19.0/
+ * 19.2/18.9/19.1s）这个负载在 6–8 之后就不再变快，只是让每个文件更慢、内存峰值更高。
+ * 需要更多并发时用 --concurrency 显式覆盖。
+ */
+const MAX_SLOTS = 8
 function computeFileJobs(cpus, totalMemGB) {
-    const coreSlots = Math.max(1, cpus - 1, Math.round(cpus * 1.5))
+    const coreSlots = Math.min(MAX_SLOTS, Math.max(1, cpus - 1, Math.round(cpus * 1.5)))
     const memSlots = Math.max(1, Math.floor((totalMemGB * (1 - MEM_RESERVE)) / MEM_PER_CHAIN_GB))
     return Math.min(coreSlots, memSlots)
 }
