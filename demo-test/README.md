@@ -119,8 +119,9 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 `npm run test:all` 会逐个列出这些文件里的每条用例（✓/✗ + 耗时），加 `--quiet` 只看汇总。
 
 ```bash
-npm run test:integration                       # 文件级并行（Node 按 CPU 核数调度）
-npm run test:integration -- --test-concurrency=4
+npm run test:integration                       # 走运行器：文件级并行 + 进度 + 最慢文件定位
+npm run test:integration -- --concurrency=4    # 手动指定文件级并发（默认按核数/内存自动算，封顶 8）
+npm run test:integration -- --profile          # 列出每个测试文件的耗时
 npm run test:all -- --parallel                 # 三套件再叠一层并行
 ```
 

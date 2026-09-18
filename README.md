@@ -215,30 +215,30 @@ npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
      ✓ 通过 70  ·  2.1s   · 最慢文件 init-matrix.test.cjs 1.9s
 
   ▶ [2/3] 现代工具链与提交链  （共 55 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/scss 自动修复及二次复检 · 9.1s
-      ✓ ESLint 正常文件：base (demo.ts) · 208ms
-      ✓ Flat Config 启用 eslint:recommended 核心规则：no-debugger · 154ms
+      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/scss 自动修复及二次复检 · 8.0s
+      ✓ 完整提交链拦截 nvue 内嵌样式错误（不是仅检查脚本） · 3.6s
+      ✓ Flat Config 启用 eslint:recommended 核心规则：no-debugger · 45ms
       …
-     ✓ 通过 55  ·  34.2s   · 最慢文件 commit-chain-both.test.cjs 8.9s
+     ✓ 通过 55  ·  30.8s   · 最慢文件 commit-chain-both.test.cjs 8.4s
 
   ▶ [3/3] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ ESLint 8 base：生成的 lint 脚本遍历并拦截 broken.ts · 1.1s
       …
-     ✓ 通过 27  ·  15.5s
+     ✓ 通过 27  ·  14.3s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
   基础 CLI 与配置矩阵         70       0       -    2.1s
-  现代工具链与提交链          55       0       -   34.2s
-  ESLint 8 兼容性             27       0       -   15.5s
+  现代工具链与提交链          55       0       -   30.8s
+  ESLint 8 兼容性             27       0       -   14.3s
   ──────────────────────────────────────────────────────
-  合计                       152       0       -   51.8s
+  合计                       152       0       -   47.2s
   ──────────────────────────────────────────────────────
 
-  ⏱ 最慢文件：eslint8.test.cjs 15.5s · commit-chain-both.test.cjs 8.9s · commit-chain-scss.test.cjs 8.6s
+  ⏱ 最慢文件：eslint8.test.cjs 14.3s · commit-chain-both.test.cjs 8.4s · commit-chain-scss.test.cjs 8.3s
 
-  ✅ 全部通过：152/152 项，用时 51.8s
+  ✅ 全部通过：152/152 项，用时 47.2s
 ```
 
 
@@ -251,7 +251,8 @@ npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
 | `-- --parallel`      | 强制三个套件同时跑（核数 ≥ 8 时默认已自动开启）                 |
 | `-- --serial`        | 强制串行（CI 形态，输出顺序最稳定）                             |
 | `-- --jobs=2`        | 配合并行限制同时运行的套件数，其余排队（面板显示"等待中"）      |
-| `-- --concurrency=4` | 覆盖套件内文件级并发（默认跟随 Node：CPU 核数 - 1）             |
+| `-- --suite=base,legacy` | 只跑指定套件（base / integration / legacy，逗号分隔）       |
+| `-- --concurrency=4` | 覆盖套件内文件级并发（默认按核数与内存自动算，封顶 8）             |
 | `-- --verbose`       | 展开每个套件的原始 TAP 输出（排查单条用例）                     |
 | `-- --profile`       | 额外列出每个测试文件的耗时（定位集成套件瓶颈时用）              |
 | `-- --no-count`      | 跳过预统计，进度条退化为"已完成 N 项"                           |
@@ -281,21 +282,21 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
   同一个文件内的用例仍然串行（真实 git 仓库不能并行改），文件之间才是并发的。
 - **套件级**：三个套件再并行，互不共享目录。
 
-因为每个文件里跑的都是真实 `git commit`（单次 1.7–4.2s），墙钟由**最慢的那个文件**
+因为每个文件里跑的都是真实 `git commit`（单次 0.5–3.9s），墙钟由**最慢的那个文件**
 决定，所以文件尽量拆到"一个文件一次提交"。每个套件跑完会直接告诉你最慢文件是谁，
 汇总区再给一次全局 `⏱ 最慢文件`：
 
 | integration 子文件（23 个） | 单文件耗时（2 核、串行） | 内容 |
 | -------------------------- | ---------------------- | ---- |
-| `commit-chain-{scss,less,both}` | 3.6–4.0s | 三种预处理器的完整提交链（各 1 次提交） |
-| `empty-commit-guard` | 3.7s | 空提交守卫（重复暂存不得产生漂移提交） |
-| `git-mv-rm` | 4.2s | `git mv` / `git rm` 走 lint-staged |
-| `embedded-style-{vue,nvue,mixed-less}` | 2.3–2.5s | Vue/nvue 内嵌样式错误拦截 |
-| `git-edge-{first-commit,stash}` | 2.3s / 2.4s | 首次提交、用户 stash 保留 |
-| `partial-staging{,-unstaged,-invalid-message,-conflict}` | 0.7–2.1s | 部分暂存与冲突恢复 |
-| `error-recovery-{css,scss,less,js,ts,vue,nvue}` | 0.7–1.7s | 不可修复错误的回滚 |
-| `lint` | 4.2s | 32 条规则与格式化行为（无提交链） |
-| `release` | 0.9s | standard-version |
+| `commit-chain-{scss,less,both}` | 2.7–3.3s | 三种预处理器的完整提交链（各 1 次提交） |
+| `empty-commit-guard` | 2.7s | 空提交守卫（重复暂存不得产生漂移提交） |
+| `git-mv-rm` | 3.2s | `git mv` / `git rm` 走 lint-staged |
+| `embedded-style-{vue,nvue,mixed-less}` | 1.9–2.0s | Vue/nvue 内嵌样式错误拦截 |
+| `git-edge-{first-commit,stash}` | 2.1s / 1.7s | 首次提交、用户 stash 保留 |
+| `partial-staging{,-unstaged,-invalid-message,-conflict}` | 0.5–1.7s | 部分暂存与冲突恢复 |
+| `error-recovery-{css,scss,less,js,ts,vue,nvue}` | 0.5–1.4s | 不可修复错误的回滚 |
+| `lint` | 3.9s | 32 条规则与格式化行为（无提交链） |
+| `release` | 0.8s | standard-version |
 
 两层并发都要控制规模，所以默认并发不交给 Node 猜，而是运行器自己算——**核数 × 1.5
 （至少 核数 - 1），再乘内存上限，最后封顶 8**（16 核机器实测：4/6/8/12/16/24 并发对应
@@ -307,17 +308,20 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 
 实测（2 核沙箱，152 项；沙箱内存 4G，所以自动并发是 3）：
 
-| 运行方式                                       | 墙钟时间 |
-| ---------------------------------------------- | -------- |
-| 串行套件 + 文件级并发 1（CI 旧形态）            | 70.3s    |
-| 串行套件 + 文件级并发 11                        | 56.2s    |
-| 串行套件 + 自动并发 3（默认）                   | 51.8s    |
-| `--parallel` 三套件 + 自动并发 3                | 46.6s    |
-| 串行套件 + 文件级并发 23（全部一波）            | ✗ 4G 内存沙箱被 OOM 压垮（19 项 SIGKILL） |
-| 串行套件 + 文件级并发 23（全部一波）            | ✗ 4G 内存沙箱被 OOM 压垮（19 项 SIGKILL） |
+| 运行方式                            | 墙钟时间                                        |
+| ----------------------------------- | ----------------------------------------------- |
+| 串行套件 + 文件级并发 1（CI 旧形态） | 62.4s（hook 改造前同配置 70.3s）                |
+| 串行套件 + 自动并发 3（默认）        | 47.2s（hook 改造前同配置 51.8s）                |
+| `--parallel` 三套件 + 自动并发 3     | 43.0s（hook 改造前同配置 46.6s）                |
+| 串行套件 + 文件级并发 23（全部一波） | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL）      |
 
 （2 核沙箱里并行收益被 CPU 争抢吃掉大半，`--concurrency=1` 时单个文件只要 0.7–4.2s；
 16 核机器上集成套件那段 ≈ 最慢子文件，即"一次真实提交"的量级。）
+生成的 hook 优先直连本地 bin（husky 已把 `node_modules/.bin` 放进 PATH），
+找不到时才退回 `npx --no-install`——每次提交因此少起两个 npm CLI（实测每个 hook
+省 130–185ms），提交链从 3.3s 降到 2.8s。集成 fixture 同样用环境变量传 git 身份
+（`GIT_AUTHOR_*` / `GIT_CONFIG_COUNT`）代替 4 次 `git config`。
+
 `demo-test/integration/_runtime.cjs` 用「指纹 + 目录锁」保证并发启动时只同步一次
 隔离环境源码，不会读到写了一半的文件；`prettier` / `eslint` 以 getter 惰性加载，
 只做提交链的 8 个文件不再为它们付启动开销。
