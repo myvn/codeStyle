@@ -1,224 +1,225 @@
 {
-  "name": "my-code-style",
-  "version": "1.4.0",
-  "description": "Lint/Format/Git 配置工程化 npm 包（ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version）",
-  "type": "commonjs",
-  "main": "src/eslint/uniapp.cjs",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/myvn/codeStyle.git"
-  },
-  "homepage": "https://github.com/myvn/codeStyle#readme",
-  "bugs": {
-    "url": "https://github.com/myvn/codeStyle/issues"
-  },
-  "bin": {
-    "my-code-style-init": "./bin/init"
-  },
-  "exports": {
-    ".": "./src/eslint/uniapp.cjs",
-    "./eslint": "./src/eslint/base.cjs",
-    "./eslint/vue3": "./src/eslint/vue3.cjs",
-    "./eslint/uniapp": "./src/eslint/uniapp.cjs",
-    "./eslint/flat": "./src/eslint/flat/base.mjs",
-    "./eslint/flat/vue3": "./src/eslint/flat/vue3.mjs",
-    "./eslint/flat/uniapp": "./src/eslint/flat/uniapp.mjs",
-    "./prettier": "./src/prettier/index.cjs",
-    "./stylelint": "./src/stylelint/index.cjs",
-    "./stylelint/less": "./src/stylelint/less.cjs",
-    "./stylelint/less-override": "./src/stylelint/less-override.cjs",
-    "./commitlint": "./src/commitlint/base.cjs",
-    "./commitlint/scopes": "./src/commitlint/scopes.cjs",
-    "./versionrc": "./src/versionrc/index.cjs"
-  },
-  "files": [
-    "src",
-    "bin",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  },
-  "scripts": {
-    "test": "node --test tests/*.test.cjs demo-test/*.test.cjs",
-    "test:demo": "node --test demo-test/*.test.cjs",
-    "test:integration:setup": "node demo-test/setup-integration.cjs",
-    "test:integration": "node --test demo-test/integration/*.test.cjs",
-    "test:legacy:setup": "node demo-test/setup-legacy.cjs",
-    "test:legacy": "node --test demo-test/legacy/*.test.cjs",
-    "test:all": "node scripts/test-all.cjs",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "prepare": "node -e \"if (!process.env.CI) { try { require('child_process').execSync('husky', { stdio: 'ignore' }) } catch {} }\"",
-    "release": "standard-version",
-    "release:push": "standard-version && git push --follow-tags origin HEAD",
-    "pub": "npm run release:push",
-    "cz": "czg",
-    "link": "pnpm link --global",
-    "unlink": "pnpm unlink --global",
-    "pack": "npm pack"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "peerDependencies": {
-    "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
-    "@eslint/js": "^9.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "czg": "^1.0.0",
-    "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-import-resolver-typescript": "^3.0.0",
-    "eslint-plugin-import": "^2.0.0",
-    "eslint-plugin-import-x": "^4.0.0",
-    "eslint-plugin-prettier": "^5.2.0",
-    "eslint-plugin-vue": "^10.0.0",
-    "globals": "^16.0.0",
-    "husky": "^9.0.0",
-    "lint-staged": "^16.0.0",
-    "postcss-html": "^2.0.0",
-    "postcss-less": "^6.0.0",
-    "postcss-scss": "^4.0.0",
-    "prettier": "^3.0.0",
-    "standard-version": "^9.0.0",
-    "stylelint": "^16.0.0",
-    "stylelint-config-html": "^2.0.0",
-    "stylelint-config-recess-order": "^5.0.0",
-    "stylelint-config-recommended": "^17.0.0",
-    "stylelint-config-recommended-scss": "^16.0.0",
-    "stylelint-config-recommended-vue": "^2.0.0",
-    "stylelint-prettier": "^5.0.0",
-    "typescript": "^5.0.0",
-    "typescript-eslint": "^8.0.0",
-    "vue-eslint-parser": "^10.3.0"
-  },
-  "peerDependenciesMeta": {
-    "@commitlint/cli": {
-      "optional": true
+    "name": "my-code-style",
+    "version": "1.4.0",
+    "description": "Lint/Format/Git 配置工程化 npm 包（ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version）",
+    "type": "commonjs",
+    "main": "src/eslint/uniapp.cjs",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/myvn/codeStyle.git"
     },
-    "@commitlint/config-conventional": {
-      "optional": true
+    "homepage": "https://github.com/myvn/codeStyle#readme",
+    "bugs": {
+        "url": "https://github.com/myvn/codeStyle/issues"
     },
-    "@eslint/js": {
-      "optional": true
+    "bin": {
+        "my-code-style-init": "./bin/init"
     },
-    "@typescript-eslint/eslint-plugin": {
-      "optional": true
+    "exports": {
+        ".": "./src/eslint/uniapp.cjs",
+        "./eslint": "./src/eslint/base.cjs",
+        "./eslint/vue3": "./src/eslint/vue3.cjs",
+        "./eslint/uniapp": "./src/eslint/uniapp.cjs",
+        "./eslint/flat": "./src/eslint/flat/base.mjs",
+        "./eslint/flat/vue3": "./src/eslint/flat/vue3.mjs",
+        "./eslint/flat/uniapp": "./src/eslint/flat/uniapp.mjs",
+        "./prettier": "./src/prettier/index.cjs",
+        "./stylelint": "./src/stylelint/index.cjs",
+        "./stylelint/less": "./src/stylelint/less.cjs",
+        "./stylelint/less-override": "./src/stylelint/less-override.cjs",
+        "./commitlint": "./src/commitlint/base.cjs",
+        "./commitlint/scopes": "./src/commitlint/scopes.cjs",
+        "./versionrc": "./src/versionrc/index.cjs"
     },
-    "@typescript-eslint/parser": {
-      "optional": true
+    "files": [
+        "src",
+        "bin",
+        "README.md",
+        "CHANGELOG.md"
+    ],
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
     },
-    "czg": {
-      "optional": true
+    "scripts": {
+        "test": "node --test tests/*.test.cjs demo-test/*.test.cjs",
+        "test:demo": "node --test demo-test/*.test.cjs",
+        "test:integration:setup": "node demo-test/setup-integration.cjs",
+        "test:integration": "node --test demo-test/integration/*.test.cjs",
+        "test:legacy:setup": "node demo-test/setup-legacy.cjs",
+        "test:legacy": "node --test demo-test/legacy/*.test.cjs",
+        "test:all": "node scripts/test-all.cjs",
+        "diagnose": "node scripts/diagnose-speed.cjs",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "prepare": "node -e \"if (!process.env.CI) { try { require('child_process').execSync('husky', { stdio: 'ignore' }) } catch {} }\"",
+        "release": "standard-version",
+        "release:push": "standard-version && git push --follow-tags origin HEAD",
+        "pub": "npm run release:push",
+        "cz": "czg",
+        "link": "pnpm link --global",
+        "unlink": "pnpm unlink --global",
+        "pack": "npm pack"
     },
-    "eslint": {
-      "optional": true
+    "engines": {
+        "node": ">=18"
     },
-    "eslint-config-prettier": {
-      "optional": true
+    "peerDependencies": {
+        "@commitlint/cli": "^19.0.0",
+        "@commitlint/config-conventional": "^19.0.0",
+        "@eslint/js": "^9.0.0",
+        "@typescript-eslint/eslint-plugin": "^8.0.0",
+        "@typescript-eslint/parser": "^8.0.0",
+        "czg": "^1.0.0",
+        "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-import-resolver-typescript": "^3.0.0",
+        "eslint-plugin-import": "^2.0.0",
+        "eslint-plugin-import-x": "^4.0.0",
+        "eslint-plugin-prettier": "^5.2.0",
+        "eslint-plugin-vue": "^10.0.0",
+        "globals": "^16.0.0",
+        "husky": "^9.0.0",
+        "lint-staged": "^16.0.0",
+        "postcss-html": "^2.0.0",
+        "postcss-less": "^6.0.0",
+        "postcss-scss": "^4.0.0",
+        "prettier": "^3.0.0",
+        "standard-version": "^9.0.0",
+        "stylelint": "^16.0.0",
+        "stylelint-config-html": "^2.0.0",
+        "stylelint-config-recess-order": "^5.0.0",
+        "stylelint-config-recommended": "^17.0.0",
+        "stylelint-config-recommended-scss": "^16.0.0",
+        "stylelint-config-recommended-vue": "^2.0.0",
+        "stylelint-prettier": "^5.0.0",
+        "typescript": "^5.0.0",
+        "typescript-eslint": "^8.0.0",
+        "vue-eslint-parser": "^10.3.0"
     },
-    "eslint-import-resolver-typescript": {
-      "optional": true
+    "peerDependenciesMeta": {
+        "@commitlint/cli": {
+            "optional": true
+        },
+        "@commitlint/config-conventional": {
+            "optional": true
+        },
+        "@eslint/js": {
+            "optional": true
+        },
+        "@typescript-eslint/eslint-plugin": {
+            "optional": true
+        },
+        "@typescript-eslint/parser": {
+            "optional": true
+        },
+        "czg": {
+            "optional": true
+        },
+        "eslint": {
+            "optional": true
+        },
+        "eslint-config-prettier": {
+            "optional": true
+        },
+        "eslint-import-resolver-typescript": {
+            "optional": true
+        },
+        "eslint-plugin-import": {
+            "optional": true
+        },
+        "eslint-plugin-import-x": {
+            "optional": true
+        },
+        "eslint-plugin-prettier": {
+            "optional": true
+        },
+        "eslint-plugin-vue": {
+            "optional": true
+        },
+        "globals": {
+            "optional": true
+        },
+        "husky": {
+            "optional": true
+        },
+        "lint-staged": {
+            "optional": true
+        },
+        "postcss-html": {
+            "optional": true
+        },
+        "postcss-less": {
+            "optional": true
+        },
+        "postcss-scss": {
+            "optional": true
+        },
+        "prettier": {
+            "optional": true
+        },
+        "standard-version": {
+            "optional": true
+        },
+        "stylelint": {
+            "optional": true
+        },
+        "stylelint-config-html": {
+            "optional": true
+        },
+        "stylelint-config-recess-order": {
+            "optional": true
+        },
+        "stylelint-config-recommended": {
+            "optional": true
+        },
+        "stylelint-config-recommended-scss": {
+            "optional": true
+        },
+        "stylelint-config-recommended-vue": {
+            "optional": true
+        },
+        "stylelint-prettier": {
+            "optional": true
+        },
+        "typescript": {
+            "optional": true
+        },
+        "typescript-eslint": {
+            "optional": true
+        },
+        "vue-eslint-parser": {
+            "optional": true
+        }
     },
-    "eslint-plugin-import": {
-      "optional": true
+    "devDependencies": {
+        "standard-version": "^9.5.0"
     },
-    "eslint-plugin-import-x": {
-      "optional": true
-    },
-    "eslint-plugin-prettier": {
-      "optional": true
-    },
-    "eslint-plugin-vue": {
-      "optional": true
-    },
-    "globals": {
-      "optional": true
-    },
-    "husky": {
-      "optional": true
-    },
+    "keywords": [
+        "eslint-config",
+        "prettier-config",
+        "stylelint-config",
+        "commitlint-config",
+        "vue",
+        "uni-app",
+        "typescript"
+    ],
+    "license": "MIT",
     "lint-staged": {
-      "optional": true
-    },
-    "postcss-html": {
-      "optional": true
-    },
-    "postcss-less": {
-      "optional": true
-    },
-    "postcss-scss": {
-      "optional": true
-    },
-    "prettier": {
-      "optional": true
-    },
-    "standard-version": {
-      "optional": true
-    },
-    "stylelint": {
-      "optional": true
-    },
-    "stylelint-config-html": {
-      "optional": true
-    },
-    "stylelint-config-recess-order": {
-      "optional": true
-    },
-    "stylelint-config-recommended": {
-      "optional": true
-    },
-    "stylelint-config-recommended-scss": {
-      "optional": true
-    },
-    "stylelint-config-recommended-vue": {
-      "optional": true
-    },
-    "stylelint-prettier": {
-      "optional": true
-    },
-    "typescript": {
-      "optional": true
-    },
-    "typescript-eslint": {
-      "optional": true
-    },
-    "vue-eslint-parser": {
-      "optional": true
+        "**/*.{vue,nvue}": [
+            "prettier --write",
+            "eslint --fix"
+        ],
+        "**/*.{js,ts,jsx,tsx,cjs,mjs,mts,cts}": [
+            "prettier --write",
+            "eslint --fix"
+        ],
+        "**/*.{html,css}": [
+            "prettier --write"
+        ],
+        "**/*.{json,json5,md,yml,yaml}": [
+            "prettier --write"
+        ]
     }
-  },
-  "devDependencies": {
-    "standard-version": "^9.5.0"
-  },
-  "keywords": [
-    "eslint-config",
-    "prettier-config",
-    "stylelint-config",
-    "commitlint-config",
-    "vue",
-    "uni-app",
-    "typescript"
-  ],
-  "license": "MIT",
-  "lint-staged": {
-    "**/*.{vue,nvue}": [
-      "prettier --write",
-      "eslint --fix"
-    ],
-    "**/*.{js,ts,jsx,tsx,cjs,mjs,mts,cts}": [
-      "prettier --write",
-      "eslint --fix"
-    ],
-    "**/*.{html,css}": [
-      "prettier --write"
-    ],
-    "**/*.{json,json5,md,yml,yaml}": [
-      "prettier --write"
-    ]
-  }
 }

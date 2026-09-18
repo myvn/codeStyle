@@ -192,6 +192,7 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 
 ```bash
 npm run test:all               # 全量运行 152 项：用例明细 + 分类统计 + 最慢文件定位
+npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm test                       # 只跑基础 CLI 与配置矩阵（70 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（55 项）
@@ -260,6 +261,8 @@ npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
 测试用例之间不用同一份目录：基础套件只用临时目录，集成套件用 `demo-test/.runtime`，
 ESLint 8 套件用 `demo-test/.runtime-legacy`，所以两层并行都是安全的。**核数 ≥ 8 的机器
 会自动开启套件级并行**（想固定成 CI 那种串行输出用 `--serial`）：
+
+换了机器发现某个套件特别慢？先跑 `npm run diagnose`：它会把「进程启动 / npx 开销 / git / 文件系统 / 一次真实提交的 hooks」逐项列出来，直接指出时间花在哪一层。
 
 ```bash
 npm run test:all                  # 16 核机器：自动并行，墙钟 ≈ 最慢的那套
