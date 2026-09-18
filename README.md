@@ -191,7 +191,7 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 147 项测试：分类统计 + 实时进度 + 总条数
+npm run test:all               # 全量运行 147 项：用例明细 + 分类统计 + 总条数
 npm test                       # 只跑基础 CLI 与配置矩阵（66 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（54 项）
@@ -199,19 +199,30 @@ npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
 npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
 ```
 
-`npm run test:all` 由 `scripts/test-all.cjs` 驱动，先把三套件依次跑完再给出分类统计与总条数：
+`npm run test:all` 由 `scripts/test-all.cjs` 驱动，输出**套件 → 用例 → 汇总**三层：
+每个大类下面列出它的每条用例（✓/✗/○ + 耗时），最后给出分类统计与总条数。
 
 ```text
   my-code-style 测试套件
 
   ▶ [1/3] 基础 CLI 与配置矩阵  （共 66 项）
-     ✓ 通过 66  ·  4.6s
+      ✓ 所有公共导出目标存在且可通过包名解析 · 6ms
+      ✓ Prettier 默认值和 JSON/YAML/nvue 文件例外 · 1ms
+      ✓ 传统 ESLint 分层保留基础规则并补充 uni-app globals · 1ms
+      …
+     ✓ 通过 66  ·  3.4s
 
   ▶ [2/3] 现代工具链与提交链  （共 54 项）
-     ✓ 通过 54  ·  64.4s
+      ✓ Prettier 实际格式化及幂等性：babel · 12ms
+      ✓ ESLint 正常文件：base (demo.ts) · 208ms
+      ✓ Flat Config 启用 eslint:recommended 核心规则：no-debugger · 154ms
+      …
+     ✓ 通过 54  ·  52.4s
 
   ▶ [3/3] ESLint 8 兼容性  （共 27 项）
-     ✓ 通过 27  ·  17.7s
+      ✓ ESLint 8 base：生成的 lint 脚本遍历并拦截 broken.ts · 1.1s
+      …
+     ✓ 通过 27  ·  14.0s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
@@ -228,27 +239,32 @@ npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
 
 终端里每个套件下方还有一条实时进度条（`██████░░░░ 38/66  失败 0  4.0s`）。附加参数：
 
-| 参数                | 作用                                                         |
-| ------------------- | ------------------------------------------------------------ |
-| `-- --parallel`     | 三个套件同时跑（互相不共享目录），终端显示多行实时面板        |
-| `-- --jobs=2`       | 配合 `--parallel` 限制同时运行的套件数                        |
-| `-- --concurrency=4`| 覆盖套件内文件级并发（默认跟随 Node：CPU 核数 - 1）           |
-| `-- --verbose`      | 展开每个套件的原始 TAP 输出（排查单条用例）                    |
-| `-- --no-count`     | 跳过预统计，进度条退化为"已完成 N 项"                          |
-| `-- --progress`     | 在非 TTY（CI 日志）中也强制刷新进度行                          |
+| 参数                 | 作用                                                          |
+| -------------------- | ------------------------------------------------------------- |
+| `-- --quiet`         | 只看套件结论与汇总表，不列用例明细（长输出时用）                |
+| `-- --parallel`      | 强制三个套件同时跑（核数 ≥ 8 时默认已自动开启）                 |
+| `-- --serial`        | 强制串行（CI 形态，输出顺序最稳定）                             |
+| `-- --jobs=2`        | 配合并行限制同时运行的套件数，其余排队（面板显示"等待中"）      |
+| `-- --concurrency=4` | 覆盖套件内文件级并发（默认跟随 Node：CPU 核数 - 1）             |
+| `-- --verbose`       | 展开每个套件的原始 TAP 输出（排查单条用例）                     |
+| `-- --no-count`      | 跳过预统计，进度条退化为"已完成 N 项"                           |
+| `-- --progress`      | 在非 TTY（CI 日志）中也强制刷新进度行                           |
 
 ### 并行跑更快
 
 测试用例之间不用同一份目录：基础套件只用临时目录，集成套件用 `demo-test/.runtime`，
-ESLint 8 套件用 `demo-test/.runtime-legacy`，所以两层并行都是安全的：
+ESLint 8 套件用 `demo-test/.runtime-legacy`，所以两层并行都是安全的。**核数 ≥ 8 的机器
+会自动开启套件级并行**（想固定成 CI 那种串行输出用 `--serial`）：
 
 ```bash
-npm run test:all -- --parallel    # 套件级并行：一套等待时间 ≈ 最慢的那套
+npm run test:all                  # 16 核机器：自动并行，墙钟 ≈ 最慢的那套
+npm run test:all -- --serial      # 强制串行
+npm run test:all -- --parallel    # 低核机器上强制并行
 ```
 
-集成套件本身也拆成了 4 个文件（`lint` / `commit-chain` / `error-recovery` / `git-edge`），
-`node --test` 会按 CPU 核数并行跑这些文件——即使不加 `--parallel`，多核机器上
-`npm run test:all` 也会自动变快。两层并行的实测（2 核沙箱，147 项）：
+两层并行的实现：集成套件拆成了 4 个文件（`lint` / `commit-chain` / `error-recovery` /
+`git-edge`），`node --test` 默认按 CPU 核数并行跑这些文件（文件级）；套件之间再由
+运行器并行（套件级）。两层叠加后的实测（2 核沙箱，147 项）：
 
 | 运行方式                              | 墙钟时间 |
 | ------------------------------------- | -------- |

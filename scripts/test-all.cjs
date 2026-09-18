@@ -2,19 +2,22 @@
 "use strict"
 
 /**
- * 统一测试入口：分套件运行、实时进度、分类统计。
+ * 统一测试入口：分套件运行、用例明细、实时进度、分类统计。
  *
- *   npm run test:all                # 默认：预统计总条数 + 进度 + 分类汇总
- *   npm run test:all -- --parallel  # 三套件同时跑（互相不共享目录，可安全并行）
- *   npm run test:all -- --jobs=2    # 并行时限制同时运行 2 个套件
+ *   npm run test:all                     # 默认输出：套件 + 每个用例 + 汇总表
+ *   npm run test:all -- --quiet          # 只显示套件与汇总（隐藏用例明细）
+ *   npm run test:all -- --parallel       # 强制套件级并行（核数 ≥ 8 时默认已开启）
+ *   npm run test:all -- --serial         # 强制串行（CI 形态，输出最稳定）
+ *   npm run test:all -- --jobs=2         # 并行时限制同时运行 2 个套件
  *   npm run test:all -- --concurrency=4  # 覆盖套件内文件级并发（默认按 CPU 核数）
- *   npm run test:all -- --verbose   # 透传原始 TAP 输出（排查单条用例时用）
- *   npm run test:all -- --no-count  # 跳过预统计（省几秒，进度条不显示总数）
- *   npm run test:all -- --progress  # 非 TTY 环境也强制刷新进度
+ *   npm run test:all -- --verbose        # 透传原始 TAP 输出（排查单条用例时用）
+ *   npm run test:all -- --no-count       # 跳过预统计（省几秒，进度条不显示总数）
+ *   npm run test:all -- --progress       # 非 TTY 环境也强制刷新进度
  *
  * 退出码：任一用例失败、套件异常退出或套件未运行时为 1。
  */
 
+const os = require("node:os")
 const fs = require("node:fs")
 const path = require("node:path")
 const { spawn } = require("node:child_process")
@@ -22,9 +25,17 @@ const { spawn } = require("node:child_process")
 const ROOT = path.resolve(__dirname, "..")
 const argv = new Set(process.argv.slice(2))
 const VERBOSE = argv.has("--verbose")
+const QUIET = argv.has("--quiet") || argv.has("-q")
 const SKIP_COUNT = argv.has("--no-count")
-const PARALLEL = argv.has("--parallel") || argv.has("-p")
 const PROGRESS = process.stdout.isTTY || argv.has("--progress")
+
+const CORES = os.cpus().length
+const FORCE_PARALLEL = argv.has("--parallel") || argv.has("-p")
+const FORCE_SERIAL = argv.has("--serial")
+// 核多的机器上并行几乎总是更快（套件之间不共享目录），因此默认自动开启；
+// CI/低核机器保持串行，输出与历史行为一致。
+const PARALLEL = FORCE_SERIAL ? false : FORCE_PARALLEL || CORES >= 8
+const PARALLEL_AUTO = PARALLEL && !FORCE_PARALLEL
 
 const jobsArg = process.argv.slice(2).find((arg) => arg.startsWith("--jobs="))
 const JOBS = jobsArg ? Math.max(1, Number.parseInt(jobsArg.split("=")[1], 10) || 1) : Infinity
@@ -97,6 +108,11 @@ function pad(text, width, align = "left") {
 
 const seconds = (ms) => `${(ms / 1000).toFixed(1)}s`
 
+function formatDuration(ms) {
+    if (ms === null || ms === undefined) return ""
+    return ms < 1000 ? ` · ${Math.round(ms)}ms` : ` · ${(ms / 1000).toFixed(1)}s`
+}
+
 /** 进度条：已完成/总数、失败数、用时 */
 function progressLine(state, width = 78) {
     const done = state.passed + state.failed + state.skipped
@@ -113,6 +129,13 @@ function progressLine(state, width = 78) {
         elapsed,
     ].filter(Boolean)
     return pad(bits.join("   "), width)
+}
+
+/** 用例明细行：✓/✗/○ + 名称 + 耗时 */
+function caseLine(item) {
+    const mark = item.status === "pass" ? "✓" : item.status === "fail" ? "✗" : "○"
+    const note = item.status === "skip" ? "（跳过）" : ""
+    return `      ${mark} ${item.name}${note}${formatDuration(item.duration)}`
 }
 
 function runSuite(files, extraArgs, onLine) {
@@ -177,45 +200,82 @@ function makeRunner(suite, label) {
         passed: 0,
         failed: 0,
         skipped: 0,
+        cases: [],
         failures: [],
         rawLines: [],
         startedAt: Date.now(),
         duration: 0,
+        started: false,
         done: false,
         code: 0,
     }
     let capture = false
     let current = null
     let writing = false
+    // 串行模式的用例行先落名字，等 TAP 的 duration_ms 到达再补耗时
+    let openLine = false
+    const liveCases = !PARALLEL && !QUIET && !VERBOSE
 
     const renderProgress = () => {
-        // 并行模式由多行面板统一渲染进度，避免两种输出互相覆盖
-        if (!PROGRESS || VERBOSE || PARALLEL || writing) return
+        // 用例明细就是串行模式的进度；只有 --quiet 才退回单行进度条
+        if (!PROGRESS || VERBOSE || PARALLEL || !QUIET || writing) return
         writing = true
         process.stdout.write(`\r${pad(`      ${progressLine(state, 60)}`, 78)}`, () => {
             writing = false
         })
     }
 
+    const closeOpenLine = () => {
+        if (openLine) {
+            process.stdout.write("\n")
+            openLine = false
+        }
+    }
+
     const onLine = (line) => {
         state.rawLines.push(line)
         if (VERBOSE) {
             console.log(PARALLEL ? `    [${suite.id}] ${line}` : `    ${line}`)
+            return
         }
-        if (/^(ok|not ok) \d+ - /.test(line)) {
-            if (line.startsWith("not ok")) {
+        if (line.startsWith("    ")) line = line.slice(4)
+
+        const match = /^(ok|not ok) \d+ - (.*)$/.exec(line)
+        if (match) {
+            closeOpenLine()
+            const status = match[1] === "not ok" ? "fail" : /# (SKIP|TODO)/.test(match[2]) ? "skip" : "pass"
+            const name = match[2].replace(/\s+#\s*(SKIP|TODO)\b.*$/, "").trim()
+            const item = { name, status, duration: null, lines: [] }
+            state.cases.push(item)
+            current = item
+            if (status === "fail") {
                 state.failed += 1
-                current = { name: line.replace(/^not ok \d+ - /, ""), lines: [] }
-                state.failures.push(current)
+                state.failures.push(item)
                 capture = true
-            } else if (/# (SKIP|TODO)/.test(line)) {
+            } else if (status === "skip") {
                 state.skipped += 1
             } else {
                 state.passed += 1
             }
+            if (liveCases) {
+                process.stdout.write(caseLine(item))
+                openLine = true
+            }
             renderProgress()
             return
         }
+
+        const duration = /^\s*duration_ms:\s*([\d.]+)\s*$/.exec(line)
+        if (duration && current && current.duration === null) {
+            current.duration = Number.parseFloat(duration[1])
+            if (liveCases && openLine) {
+                process.stdout.write(formatDuration(current.duration))
+                process.stdout.write("\n")
+                openLine = false
+            }
+            return
+        }
+
         if (capture && current) {
             if (line.trim() === "...") {
                 capture = false
@@ -227,8 +287,10 @@ function makeRunner(suite, label) {
 
     return {
         state,
+        liveCases,
         onLine,
         finish: (code) => {
+            closeOpenLine()
             state.done = true
             state.code = code
             state.duration = Date.now() - state.startedAt
@@ -238,21 +300,43 @@ function makeRunner(suite, label) {
     }
 }
 
-// --- 并行渲染 ---
+// --- 渲染 ---
+
+/** 套件结论行（串行/并行共用） */
+function verdictLine(state) {
+    return `     ${state.failed || state.crashed ? "✖" : "✓"} 通过 ${state.passed}${
+        state.failed ? ` / 失败 ${state.failed}` : ""
+    }${state.crashed ? ` / 异常退出 (exit ${state.code})` : ""}${
+        state.skipped ? ` / 跳过 ${state.skipped}` : ""
+    }  ·  ${seconds(state.duration)}`
+}
+
+/** 并行模式下每个套件跑完后成块输出：结论 + 用例明细 */
+function printSuiteBlock(state) {
+    console.log(verdictLine(state))
+    if (!QUIET && !VERBOSE) {
+        for (const item of state.cases) console.log(caseLine(item))
+    }
+    console.log("")
+}
 
 const board = { printed: 0 }
 
 function boardLine(state) {
+    if (!state.started) {
+        return `  ⋯ ${pad(state.suite.title, 20)} 等待中`
+    }
     const mark = state.done ? (state.failed ? "✖" : "✓") : "▶"
     return `  ${mark} ${pad(state.suite.title, 20)} ${progressLine(state, 46)}`
 }
 
+/** 多行实时面板：只画还在跑的套件，跑完的立刻让位给用例明细 */
 function renderBoard(states) {
     if (!PROGRESS || VERBOSE) return
-    const lines = states.map(boardLine)
+    const pending = states.filter((s) => !s.done)
     let out = board.printed ? `\x1b[${board.printed}F` : ""
-    for (const line of lines) out += `\x1b[2K${line}\n`
-    board.printed = lines.length
+    for (const state of pending) out += `\x1b[2K${boardLine(state)}\n`
+    board.printed = pending.length
     process.stdout.write(out)
 }
 
@@ -288,13 +372,11 @@ async function main() {
     }
     if (skippedSuites.length) console.log("")
 
-    // 预统计：用 --test-name-pattern 快速枚举用例数（跳过测试体，只加载测试文件）
-    let planned = 0
+    // 预统计：加载期打桩枚举用例数（跳过用例体）
     if (!SKIP_COUNT) {
         process.stdout.write("  正在统计用例总数 …\r")
         for (const suite of runnable) {
             suite.expected = await countTests(suite.files)
-            planned += suite.expected || 0
         }
         process.stdout.write(" ".repeat(40) + "\r")
     }
@@ -308,9 +390,9 @@ async function main() {
         console.log(
             `  ▶ 并行运行 ${runnable.length} 个套件（同时 ${limit} 个${
                 CONCURRENCY ? `，套件内并发 ${CONCURRENCY}` : ""
-            }${PROGRESS && !VERBOSE ? "，Ctrl-C 可中断" : ""}）`,
+            }）${PARALLEL_AUTO ? `　·　${CORES} 核自动启用，--serial 可关闭` : ""}`,
         )
-        if (VERBOSE && PROGRESS) console.log("")
+        if (VERBOSE) console.log("")
         const runners = runnable.map((suite, index) =>
             makeRunner(suite, `[${index + 1}/${runnable.length}] ${suite.title}`),
         )
@@ -326,28 +408,23 @@ async function main() {
             while (queue.length) {
                 const index = queue.shift()
                 const runner = runners[index]
+                runner.state.started = true
                 runner.state.startedAt = Date.now()
                 const { code } = await runSuite(runner.state.suite.files, [], runner.onLine)
                 runner.finish(code)
                 results[index] = runner.state
                 if (PROGRESS && !VERBOSE) {
+                    clearBoard()
+                    printSuiteBlock(runner.state)
                     renderBoard(runners.map((r) => r.state))
                 } else {
-                    const state = runner.state
-                    console.log(
-                        `     ${state.failed || state.crashed ? "✖" : "✓"} ${state.suite.title}  通过 ${
-                            state.passed
-                        }${state.failed ? ` / 失败 ${state.failed}` : ""}${
-                            state.crashed ? ` / 异常退出 (exit ${state.code})` : ""
-                        }${state.skipped ? ` / 跳过 ${state.skipped}` : ""}  ·  ${seconds(state.duration)}`,
-                    )
+                    printSuiteBlock(runner.state)
                 }
             }
         }
         await Promise.all(Array.from({ length: limit }, worker))
         if (timer) clearInterval(timer)
-        if (PROGRESS && !VERBOSE) renderBoard(runners.map((r) => r.state))
-        console.log("")
+        clearBoard()
     } else {
         for (let index = 0; index < runnable.length; index += 1) {
             const suite = runnable[index]
@@ -357,15 +434,9 @@ async function main() {
 
             const { code } = await runSuite(suite.files, [], runner.onLine)
             runner.finish(code)
-            if (PROGRESS && !VERBOSE) process.stdout.write("\r" + " ".repeat(78) + "\r")
+            if (PROGRESS && QUIET) process.stdout.write("\r" + " ".repeat(78) + "\r")
             results[index] = state
-            console.log(
-                `     ${state.failed || state.crashed ? "✖" : "✓"} 通过 ${state.passed}${
-                    state.failed ? ` / 失败 ${state.failed}` : ""
-                }${state.crashed ? ` / 异常退出 (exit ${state.code})` : ""}${
-                    state.skipped ? ` / 跳过 ${state.skipped}` : ""
-                }  ·  ${seconds(state.duration)}`,
-            )
+            console.log(verdictLine(state))
             console.log("")
         }
     }

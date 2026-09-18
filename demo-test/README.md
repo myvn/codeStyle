@@ -112,6 +112,7 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 集成套件按主题拆成 4 个文件（`lint` / `commit-chain` / `error-recovery` / `git-edge`），
 公共引导在 `integration/_runtime.cjs` 里：它负责把当前源码同步进隔离环境，并保证
 `node --test` 并行执行多个文件时只同步一次、不会读到写了一半的文件（指纹 + 目录锁）。
+`npm run test:all` 会逐个列出这些文件里的每条用例（✓/✗ + 耗时），加 `--quiet` 只看汇总。
 
 ```bash
 npm run test:integration                       # 文件级并行（Node 按 CPU 核数调度）
