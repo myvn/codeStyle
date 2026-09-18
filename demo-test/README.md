@@ -53,7 +53,7 @@ node --test demo-test/scopes.test.cjs
 
 ## 当前验证状态
 
-基础测试 59 项全部通过；现代工具链测试 47 项、ESLint 8 测试 27 项全部通过，合计 **133 项、0 TODO**。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
+基础测试 66 项全部通过；现代工具链测试 54 项、ESLint 8 测试 27 项全部通过，合计 **147 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
 
 上述 `npm test` 只验证 CLI 与配置契约；真实工具集成测试单独运行，见下文。未统计行/分支覆盖率，不代表所有功能都已覆盖。
 
@@ -63,7 +63,7 @@ node --test demo-test/scopes.test.cjs
 npm run test:integration:setup
 npm run test:integration
 npm run test:legacy:setup # test:all 还需要独立 ESLint 8 环境
-npm run test:all  # 基础回归 + ESLint 9 集成 + ESLint 8 集成
+npm run test:all  # 基础回归 + ESLint 9 集成 + ESLint 8 集成，结束时输出分类统计与总条数
 ```
 
 依赖安装到被 Git 忽略的 `demo-test/.runtime/`，不改根项目依赖或锁文件。首次安装需要网络。执行测试时将当前源码复制到隔离环境的 `node_modules/my-code-style`，因此测试的不是 npm 上的旧版工具。不要并行运行多份集成测试命令，它们共享这一隔离环境。

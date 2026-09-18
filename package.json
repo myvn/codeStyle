@@ -48,7 +48,7 @@
     "test:integration": "node --test demo-test/integration/*.test.cjs",
     "test:legacy:setup": "node demo-test/setup-legacy.cjs",
     "test:legacy": "node --test demo-test/legacy/*.test.cjs",
-    "test:all": "npm test && npm run test:integration && npm run test:legacy",
+    "test:all": "node scripts/test-all.cjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
