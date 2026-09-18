@@ -10,6 +10,7 @@
  *   npm run test:all -- --serial         # 强制串行（CI 形态，输出最稳定）
  *   npm run test:all -- --jobs=2         # 并行时限制同时运行 2 个套件
  *   npm run test:all -- --concurrency=8  # 套件内同时跑几个测试文件（默认按核数与内存自动算）
+ *   npm run test:all -- --suite=integration  # 只跑指定套件（base / integration / legacy）
  *   npm run test:all -- --profile        # 额外列出每个测试文件的耗时
  *   npm run test:all -- --verbose        # 透传原始 TAP 输出（排查单条用例时用）
  *   npm run test:all -- --no-count       # 跳过预统计（省几秒，进度条不显示总数）
@@ -45,6 +46,16 @@ const FORCE_SERIAL = argv.has("--serial")
 // CI/低核机器保持串行，输出与历史行为一致。
 const PARALLEL = FORCE_SERIAL ? false : FORCE_PARALLEL || CORES >= 8
 const PARALLEL_AUTO = PARALLEL && !FORCE_PARALLEL
+
+// --suite=integration（可逗号分隔）：只跑指定套件，便于单独计时/调并发
+const suiteArg = process.argv.slice(2).find((arg) => arg.startsWith("--suite="))
+const SUITE_FILTER = suiteArg
+    ? suiteArg
+          .split("=")[1]
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean)
+    : null
 
 const jobsArg = process.argv.slice(2).find((arg) => arg.startsWith("--jobs="))
 const JOBS = jobsArg ? Math.max(1, Number.parseInt(jobsArg.split("=")[1], 10) || 1) : Infinity
@@ -447,7 +458,18 @@ function quietProgress(state) {
 // --- 主流程 ---
 
 async function main() {
-    const plan = SUITES.map((suite) => {
+    if (SUITE_FILTER) {
+        const known = SUITES.map((suite) => suite.id)
+        const unknown = SUITE_FILTER.filter((id) => !known.includes(id))
+        if (unknown.length || SUITE_FILTER.length === 0) {
+            console.error(`未知的套件：${unknown.join(", ") || "--suite= 为空"}`)
+            console.error(`可用：${known.join(" / ")}`)
+            process.exitCode = 1
+            return
+        }
+    }
+    const active = SUITE_FILTER ? SUITES.filter((suite) => SUITE_FILTER.includes(suite.id)) : SUITES
+    const plan = active.map((suite) => {
         const files = suite.patterns.flatMap(expand)
         const missing = suite.requires ? !fs.existsSync(path.resolve(ROOT, suite.requires)) : false
         return { ...suite, files, missing }

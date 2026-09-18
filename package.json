@@ -50,6 +50,7 @@
         "test:legacy": "node --test demo-test/legacy/*.test.cjs",
         "test:all": "node scripts/test-all.cjs",
         "diagnose": "node scripts/diagnose-speed.cjs",
+        "sweep": "node scripts/sweep-concurrency.cjs",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
