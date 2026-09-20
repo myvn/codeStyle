@@ -127,3 +127,31 @@ test("发布工作流保持 provenance 契约（--provenance + 发布日志自�
     )
     assert.match(yml, /attestations\/my-code-style@\$\{version\}/)
 })
+
+test("cz 交互提示为中文，且可选类型与 type-enum 一一对应", () => {
+    const commit = require("my-code-style/commitlint")
+    const { messages, types, customScopesAlias, emptyScopesAlias } = commit.prompt
+    const cjk = /[\u4e00-\u9fa5]/
+
+    // 交互文案（cz-git 的 prompt.messages）默认中文；想改语言在自己的 .commitlintrc.cjs 里覆盖
+    for (const key of ["type", "scope", "subject", "body", "confirmCommit"]) {
+        assert.ok(messages[key], `messages.${key} 应存在`)
+        assert.match(messages[key], cjk, `messages.${key} 应为中文提示`)
+    }
+    assert.match(customScopesAlias, cjk)
+    assert.match(emptyScopesAlias, cjk)
+
+    // 此前 release 只写在 type-enum 里、cz 的选择列表没有它：两边必须完全一致
+    const ruleTypes = [...commit.rules["type-enum"][2]].sort()
+    const promptTypes = types.map((item) => item.value).sort()
+    assert.deepEqual(promptTypes, ruleTypes, "cz 可选类型必须与 type-enum 完全一致")
+    for (const item of types) {
+        assert.match(item.name, cjk, `${item.value} 的描述应为中文`)
+        assert.match(
+            item.name,
+            new RegExp(`^${item.value}:\\s`),
+            `${item.value} 的名称应带类型前缀`,
+        )
+        assert.ok(item.emoji, `${item.value} 应带 emoji（useEmoji 关闭时不影响显示）`)
+    }
+})
