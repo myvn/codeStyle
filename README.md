@@ -364,6 +364,8 @@ npm run release:push   # release + git push --follow-tags（推 tag 即触发发
 
 OIDC 要求发布环境是 GitHub-hosted runner + `id-token: write` + npm CLI ≥ 11.5.1（工作流用 Node 24 自带），因此 `setup-node` **刻意不写 `registry-url`**——那会生成带 `_authToken` 的 `.npmrc`，让 npm 以为认证已就绪而跳过 OIDC。
 
+工作流里的 action 固定在大版本号上（`actions/checkout@v7` / `actions/setup-node@v7` / `softprops/action-gh-release@v3`），它们都已迁到 **Node 24 运行时**——GitHub 已弃用 Actions 的 Node 20 运行时，停留在 `@v4` 会在每次运行时报 `Node.js 20 is deprecated` 告警。自托管 runner 需 ≥ **v2.327.1**。
+
 ## License
 
 MIT
