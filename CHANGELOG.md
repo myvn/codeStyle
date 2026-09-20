@@ -1,5 +1,19 @@
 ## 变更日志
 
+## [1.8.0](https://github.com/myvn/codeStyle/compare/v1.7.2...v1.8.0) (2026-09-20)
+
+### ✨ Features | 新功能
+
+- **commitlint:** cz 交互提示改中文，类型列表与 type-enum 对齐 ([2462c92](https://github.com/myvn/codeStyle/commit/2462c92ff85cee06e67ddcd039593fede2a217ff))
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **publish:** provenance 核验改成两层，30 秒预算不再把成功的发布误判成失败 ([5b83f4e](https://github.com/myvn/codeStyle/commit/5b83f4e996fcbd1573813945a20a92b46e339396))
+- **publish:** 增强 provenance 校验与日志自证，同步文档与发布流程 ([ba6db63](https://github.com/myvn/codeStyle/commit/ba6db63dce8144f53ad2be9c49278ff67b924518))
+- **修复:** Merge branch 'arena/01a0b214-codestyle' ([7c024dc](https://github.com/myvn/codeStyle/commit/7c024dce1bc1ef9d7fc9ef03b74f936b87a4704a))
+
+## [1.5.0](https://github.com/myvn/codeStyle/compare/v1.4.0...v1.5.0) (2026-09-18)
+
 ### [1.7.2](https://github.com/myvn/codeStyle/compare/v1.7.1...v1.7.2) (2026-09-20)
 
 ### 🐛 Bug Fixes | Bug 修复
