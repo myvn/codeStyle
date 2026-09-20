@@ -59,6 +59,8 @@ jobs:
       # 认证优先级：npm Trusted Publishing（OIDC）→ NPM_TOKEN。
       # 迁移路径：先在 npm 页面配置 Trusted Publisher，再删除仓库 secret NPM_TOKEN；
       # 删掉之后本步骤自动走 OIDC，不需要再改这个文件。
+      # 始终显式带 --provenance：只有 OIDC 是"自动生成 provenance"，token 发布必须显式加这个
+      # flag 才会有 attestation（npm 页面上的绿勾）。1.7.1 就是因为这里漏了 flag 而丢了绿勾。
       # 不再使用 `|| npm publish` 兜底：provenance 失败就应该失败，不能静默降级成无凭据发布。
       - name: 发布至 npm
         run: |
@@ -68,7 +70,7 @@ jobs:
           else
             echo "未提供 NPM_TOKEN，使用 npm Trusted Publishing（OIDC）发布"
           fi
-          npm publish --access public
+          npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -76,3 +78,21 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+
+      # 防呆：发布后回查 attestation，确保绿勾真的在。
+      # 放在最后，这样即使校验失败，包与 Release 也都已经建好，只是整条运行标红提醒。
+      # 1.7.1 的教训：publish 命令漏掉 --provenance 时，流程全绿、只有 npm 页面少一个绿勾，
+      # 不看一眼根本发现不了。
+      - name: 校验 provenance 证明（npm 页面上的绿勾）
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for attempt in 1 2 3 4 5 6; do
+            if curl -sf "https://registry.npmjs.org/-/npm/v1/attestations/my-code-style@${version}" > /dev/null; then
+              echo "✅ my-code-style@${version} 已带 provenance 证明"
+              exit 0
+            fi
+            echo "第 ${attempt} 次查询未命中（registry 可能有延迟），5 秒后重试…"
+            sleep 5
+          done
+          echo "::error::my-code-style@${version} 缺少 provenance 证明（包已发布，但 npm 页面不会有绿勾）。检查发布命令是否带 --provenance，或按 README《发布（维护者）》切到 Trusted Publishing。"
+          exit 1
