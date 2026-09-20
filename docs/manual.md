@@ -35,7 +35,7 @@
 | 样式代码无人管     | 非法属性、未知单位、选择器乱序                        | stylelint 接管，且已放行 uni-app 的 `rpx`/`page`/`::v-deep` |
 | 老项目升级无路     | 项目停在 ESLint 8，新项目用 9，配置分裂               | 同一份包同时支持 `.eslintrc.cjs`（v8）与 Flat Config（v9）  |
 | 新项目从零配置     | 每次都要拼 ESLint+Prettier+Stylelint+husky+commitlint | `init` 一键生成 11 个文件 + 6 个脚本，可 `--dry-run` 预览   |
-| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 173 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
+| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 174 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
 | 团队规范落不了地   | 文档写了没人看                                        | hook 在提交那一刻执行，默认路径就是正确路径                 |
 
 ---
@@ -149,7 +149,14 @@ pnpm 10+ 默认拦截依赖的构建脚本，不是初始化失败。执行 `pnp
 
 ### 8. commit message 被拒：`type may not be empty` / `subject may not be empty`
 
-提交信息必须符合 conventional commits（`feat(scope): 描述`）。用 `pnpm cz` 交互式生成；header 上限 108 字符。
+提交信息必须符合 conventional commits（`feat(scope): 描述`），注意**冒号后必须有空格**：`fix:(修复)Merge …` 这种写法会让 commitlint 切不出类型与描述，于是同时报 `type-empty` 与 `subject-empty`（**两条错误其实是同一个原因**）。
+
+```bash
+git commit -m "fix: 合入 codeStyle 配置（Merge branch 'arena/01a0b214-codestyle'）"   # ✔
+git commit -m "fix:(修复)Merge branch 'arena/01a0b214-codestyle'"                      # ✖（冒号后没空格）
+```
+
+用 `pnpm cz` 交互式生成最稳；header 上限 108 字符。另外 `git merge` 自动生成的 `Merge branch '…'` 消息会被 commitlint 内置忽略，所以合并分支不用手写消息。
 
 ### 9. stylelint 提示 `rpx` 单位 / `page` 选择器未知
 
@@ -176,7 +183,35 @@ lint-staged 在提交前自动修复并**重新暂存**了内容，属于预期�
 
 重跑一次 `init` 可以主动体检：它会检查「已安装版本是否落在声明范围内（精确到 minor，`10.2.0` 不满足 `^10.3.0` 也会被指出）」「上游配置文件自己的 peer 是否满足（含 `stylelint-order` 这类容易漏装的 peer）」「`typescript-eslint` 与 `@typescript-eslint/parser`、`eslint-plugin` 是否同一版本」，并给出按包管理器可执行的**对齐命令**。
 
-### 14. `stylelint` 用 16 还是 17
+### 14. `pnpm cz` 报 `No files added to staging! Did you forget to run `git add` ?`
+
+czg 是**暂存区驱动**的：暂存区为空就直接退出（退出码 1），`czg --all` / `czg -a` 都不绕过这个检查——这是 commitizen 家族的既有行为，不是配置问题。
+
+```bash
+git add -A        # 或 git add <改动文件>
+pnpm cz
+```
+
+先 `git add` 不只是"让它肯启动"：我们的 `.commitlintrc.cjs` 里 `guessCurrentScope()` 读暂存区推断 scope 默认值，`generateScopes("src")` 提供候选列表，所以暂存之后弹出的 scope 才是对的。
+
+### 15. `pnpm cz` 的提示能改成中文吗（或改回英文）
+
+可以，提示语是 cz-git 的 `prompt.messages`，本包**默认就是中文**（类型描述、scope、描述输入、BREAKING CHANGE、确认提交等全部中文；scope 列表里的两个特殊选项显示为「自定义 / 不填」）。想换语言或措辞，在你项目的 `.commitlintrc.cjs` 里覆盖即可（`...base.prompt` 之后写自己的值）：
+
+```js
+module.exports = {
+    ...base,
+    prompt: {
+        ...base.prompt,
+        messages: { type: "Select the type of change:", /* … */ },
+        types: [{ value: "feat", name: "feat:     A new feature", emoji: ":sparkles:" }],
+    },
+}
+```
+
+两类东西**改不了**：`(Use arrow keys)`、`(Move up and down to reveal more choices)`、`[103 more chars allowed]` 这类灰色小字由 czg 内置的提示库硬编码，不在配置项里。
+
+### 16. `stylelint` 用 16 还是 17
 
 两条线都支持，我们声明的范围是 `stylelint ^16.24.0 || ^17.0.0`：
 

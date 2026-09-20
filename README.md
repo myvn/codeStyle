@@ -182,7 +182,9 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 | 重复 init 后，改过的 `.prettierrc.cjs` / hooks 被覆盖                | 除 ESLint 入口与已存在的 `.gitignore` 外，目标文件一律覆盖 | 先用 `--dry-run` 看清单、用 `--backup` 留档（备份含 `package.json`，目录会自动写入 `.gitignore`）                 |
 | 自定义 `lint-staged` 分组消失                                        | `lint-staged` 为整体替换，避免残留失效分组                 | 从 `.my-code-style-backup/package.json` 恢复后手动合并                                                            |
 | 提交时 lint 报错、提交失败                                           | 修不了的错误（语法错误、非法 CSS 属性）会阻止提交          | 按提示修复；紧急情况可用 `git commit --no-verify`，但请在 **CI 用 `pnpm lint` 兜底**                              |
-| 提交信息被拒（`type may not be empty` / `subject may not be empty`） | 提交信息需符合 conventional commits                        | 用 `pnpm cz` 交互式生成；header 上限 108 字符                                                                     |
+| 提交信息被拒（`type may not be empty` / `subject may not be empty`） | 提交信息需符合 conventional commits，`类型(范围): 描述` 的**冒号后必须有空格** | 先看冒号后面有没有空格（`fix:(修复)…` 会被判成 type 与 subject 双空）；用 `pnpm cz` 交互式生成；header 上限 108 字符 |
+| `pnpm cz` 报 `No files added to staging!`                           | czg 由暂存区驱动：没有暂存文件就不启动（`--all` / `-a` 也不绕过） | 先 `git add -A` 再 `pnpm cz`；scope 候选与默认值也是按暂存区推断的 |
+| 想让 `pnpm cz` 的提示换成英文/自己的措辞                            | 提示语来自 `prompt.messages`，本包默认中文                  | 在项目的 `.commitlintrc.cjs` 里覆盖 `prompt.messages`（标题）与 `prompt.types`（类型描述）；scope 列表里的「自定义 / 不填」对应 `customScopesAlias` / `emptyScopesAlias` |
 | 老项目已有 `.eslintrc.*`，init 只读退出                              | ESLint 版本与配置格式冲突时 CLI 拒绝写入                   | 先确认/迁移版本，再重跑 init                                                                                      |
 | `pnpm release` 之后如何发布                                          | `release` 只生成版本、CHANGELOG、提交与 tag                | 另行执行 `npm publish`                                                                                            |
 | 装完看到一片 `unmet peer` 警告，要不要管                            | npm 遇到不满足的 peer 会直接 ERESOLVE 拒装，pnpm 只打印 WARN 就装完 | 先看警告来自谁：`unmet peer … from my-code-style` 说明版本声明没跟上，先升级本包；来自别的包（如 `postcss-html@1.8.1` 却要 `^2`）按提示对齐。重跑 `init` 会主动体检（范围精确到 minor，例如 `vue-eslint-parser 10.2.0` 不满足 `^10.3.0`）并打印对齐命令 |
@@ -193,10 +195,10 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 173 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 174 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
-npm test                       # 只跑基础 CLI 与配置矩阵（79 项）
+npm test                       # 只跑基础 CLI 与配置矩阵（80 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（59 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
@@ -211,46 +213,46 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
 ```text
   my-code-style 测试套件
 
-  ▶ [1/4] 基础 CLI 与配置矩阵  （共 79 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [1/4] 基础 CLI 与配置矩阵  （共 80 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 2ms
       ✓ 运行器表格：CJK 宽度按两列计算，耗时格式化区分秒与毫秒 · 0ms
+      ✓ cz 交互提示为中文，且可选类型与 type-enum 一一对应 · 1ms
       ✓ 发布工作流保持 provenance 契约（--provenance + 发布日志自证 + 慢回传重试） · 1ms
-      ✓ 依赖版本体检：minor 级错位也能发现（10.2.0 不满足 ^10.3.0） · 34ms
       …
-     ✓ 通过 79  ·  3.1s   · 最慢文件 init-matrix.test.cjs 2.9s
+     ✓ 通过 80  ·  3.1s   · 最慢文件 init-matrix.test.cjs 2.9s
 
   ▶ [2/4] 现代工具链与提交链  （共 59 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 13.5s
+      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 10.3s
       ✓ 发布防呆：HEAD 已有 v* tag 时拦截（此时 standard-version 会静默抬版并写出空 CHANGELOG） · 461ms
       …
-     ✓ 通过 59  ·  43.1s   · 最慢文件 commit-chain-both.test.cjs 13.8s
+     ✓ 通过 59  ·  45.2s   · 最慢文件 commit-chain-both.test.cjs 10.7s
 
   ▶ [3/4] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 独立运行 ESLint 8 支持下限而非 ESLint 9 · 1ms
       ✓ ESLint 8 base：实际 CLI 加载生成配置并接受正常文件 · 1.3s
       …
-     ✓ 通过 27  ·  19.6s
+     ✓ 通过 27  ·  19.2s
 
   ▶ [4/4] Stylelint 17 兼容性  （共 8 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ 隔离环境装的是 stylelint 17（不是 16） · 3ms
-      ✓ 生成的 .stylelintrc.cjs 在 stylelint 17 下可加载并放过正常 SCSS · 748ms
+      ✓ 隔离环境装的是 stylelint 17（不是 16） · 2ms
+      ✓ 生成的 .stylelintrc.cjs 在 stylelint 17 下可加载并放过正常 SCSS · 671ms
       …
-     ✓ 通过 8  ·  8.7s
+     ✓ 通过 8  ·  6.8s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
-  基础 CLI 与配置矩阵         79       0       -    3.1s
-  现代工具链与提交链          59       0       -   43.1s
-  ESLint 8 兼容性             27       0       -   19.6s
-  Stylelint 17 兼容性          8       0       -    8.7s
+  基础 CLI 与配置矩阵         80       0       -    3.1s
+  现代工具链与提交链          59       0       -   45.2s
+  ESLint 8 兼容性             27       0       -   19.2s
+  Stylelint 17 兼容性          8       0       -    6.8s
   ──────────────────────────────────────────────────────
-  合计                       173       0       -   74.6s
+  合计                       174       0       -   74.3s
   ──────────────────────────────────────────────────────
 
-  ⏱ 最慢文件：eslint8.test.cjs 19.6s · commit-chain-both.test.cjs 13.8s · commit-chain-scss.test.cjs 13.7s
+  ⏱ 最慢文件：eslint8.test.cjs 19.2s · commit-chain-both.test.cjs 10.7s · commit-chain-scss.test.cjs 10.7s
 
-  ✅ 全部通过：173/173 项，用时 74.6s
+  ✅ 全部通过：174/174 项，用时 74.3s
 ```
 
 
@@ -330,7 +332,7 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 | `npm run test:integration`（运行器调度，自动并发 3） | 30.6s（只看集成套件那一段）                    |
 | 串行套件 + 文件级并发 23（全部一波） | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL）      |
 
-同机复测（173 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 81.6s、默认自动并发 3 = 74.6s、`--parallel` 四套件 = 58.0s、`npm run test:integration` = 41.5s、`node --test demo-test/integration/*.test.cjs` = 54.7s。
+同机复测（174 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 91.0s、默认自动并发 3 = 74.3s、`--parallel` 四套件 = 62.6s、`npm run test:integration` = 42.1s、`node --test demo-test/integration/*.test.cjs` = 54.7s。
 
 （2 核沙箱里并行收益被 CPU 争抢吃掉大半，`--concurrency=1` 时单个文件只要 0.7–4.2s；
 16 核机器上集成套件那段 ≈ 最慢子文件，即"一次真实提交"的量级。）
