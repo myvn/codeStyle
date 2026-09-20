@@ -341,6 +341,29 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 
 未安装隔离运行环境时，对应套件会明确标记"未运行"并给出 setup 命令，退出码为 1（不会假装全绿）。
 
+## 发布（维护者）
+
+```bash
+npm run release        # standard-version：按 conventional commits 决定版本号，更新 CHANGELOG，提交并打 tag
+npm run release:push   # release + git push --follow-tags（推 tag 即触发发布工作流）
+```
+
+`.github/workflows/publish.yml` 只接受 **`v*` tag** 触发（`workflow_dispatch` 会先校验 ref，分支上手动触发直接失败），并且在测试全绿 + `npm pack --dry-run` 通过后才发布；发布步骤失败即失败，不做静默降级。
+
+### 发布凭据（推荐切到 Trusted Publishing）
+
+工作流默认按 **npm Trusted Publishing（OIDC）→ `NPM_TOKEN`** 的顺序取凭据：`NPM_TOKEN` secret 存在时用 token，删掉后**无需改代码**自动改走 OIDC。切换步骤：
+
+1. 打开 `https://www.npmjs.com/package/my-code-style/access` → Trusted Publisher → GitHub Actions，填：
+    - Organization or user：`myvn`
+    - Repository：`codeStyle`
+    - Workflow filename：`publish.yml`（大小写与 `.yml` 后缀都要精确匹配）
+    - Environment：`npm-publish`（与本仓库 Environments 里的名字一致）
+2. 仓库 Settings → Environments → `npm-publish` 添加 **required reviewers**（发布前人工批准；不配则该环境无保护）。
+3. 在 GitHub 仓库 Settings → Secrets 删除 `NPM_TOKEN`，并到 npm 账号下吊销对应 token。
+
+OIDC 要求发布环境是 GitHub-hosted runner + `id-token: write` + npm CLI ≥ 11.5.1（工作流用 Node 24 自带），因此 `setup-node` **刻意不写 `registry-url`**——那会生成带 `_authToken` 的 `.npmrc`，让 npm 以为认证已就绪而跳过 OIDC。
+
 ## License
 
 MIT
