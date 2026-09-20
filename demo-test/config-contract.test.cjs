@@ -93,3 +93,37 @@ test("Commitlint 标题约束和版本管理开关", () => {
     assert.deepEqual(version.skip, { bump: false, changelog: false, commit: false, tag: false })
     assert.ok(version.types.some((item) => item.type === "feat"))
 })
+
+test("发布工作流保持 provenance 契约（--provenance + 发布日志自证 + 慢回传重试）", () => {
+    const yml = fs.readFileSync(path.join(root, ".github/workflows/publish.yml"), "utf8")
+    // 注释里会提到被删掉的旧写法（例如"不再使用 || npm publish 兜底"），断言只看实际代码行
+    const code = yml
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("#"))
+        .join("\n")
+
+    // 1.7.1 的绿勾就是被删掉 --provenance 弄丢的：只有 OIDC 是自动生成 provenance，
+    // token 发布必须显式带这个 flag，否则 attestation 不会产生。
+    assert.match(code, /npm publish --provenance --access public/)
+    assert.doesNotMatch(code, /\|\|\s*npm publish/, "不能有静默降级成无凭据发布的分支")
+    assert.match(yml, /id-token:\s*write/)
+    assert.match(yml, /^\s*environment:\s*npm-publish$/m)
+
+    // npm 真正生成了 provenance 时会打印这一行（libnpmpublish 10/11/12 文案一致），
+    // 发布步骤据此在 registry 回传之前就当场自证。
+    assert.match(yml, /Signed provenance statement/)
+
+    // registry 回传延迟实测可达 2 分钟以上（1.7.2：透明日志签名 06:47:57Z，publish 结束 06:45:49Z），
+    // 回查预算必须给足，否则会把已经带 provenance 的发布误判成失败。
+    const num = (pattern) => Number(yml.match(pattern)[1])
+    const maxAttempts = num(/MAX_ATTEMPTS:-(\d+)/)
+    const fastAttempts = num(/FAST_ATTEMPTS:-(\d+)/)
+    const fastDelay = num(/RETRY_FAST:-(\d+)/)
+    const slowDelay = num(/RETRY_SLOW:-(\d+)/)
+    const budget = fastAttempts * fastDelay + (maxAttempts - fastAttempts - 1) * slowDelay
+    assert.ok(
+        budget >= 300,
+        `provenance 回查预算只有 ${budget}s，应 ≥ 300s（registry 回传实测可超过 2 分钟）`,
+    )
+    assert.match(yml, /attestations\/my-code-style@\$\{version\}/)
+})

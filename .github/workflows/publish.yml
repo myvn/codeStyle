@@ -70,9 +70,26 @@ jobs:
           else
             echo "未提供 NPM_TOKEN，使用 npm Trusted Publishing（OIDC）发布"
           fi
-          npm publish --provenance --access public
+
+          # 不用 set -o pipefail：runner 的 bash -e 会让管线失败时直接中断，
+          # 就看不到下面按退出码区分的两种失败原因了（发布失败 / 发布成功但没带 provenance）。
+          npm publish --provenance --access public 2>&1 | tee "$PUBLISH_LOG"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::error::npm publish 退出码 ${status}，发布未完成（详见上方输出）。"
+            exit 1
+          fi
+
+          # 立即自证（不依赖 registry 回传）：真正生成 provenance 时，npm 一定会打印这一行。
+          # 1.7.1 就是漏了 --provenance：日志里没有这行，流程却全绿，只有 npm 页面少一个绿勾。
+          if ! grep -q "Signed provenance statement" "$PUBLISH_LOG"; then
+            echo "::error::npm publish 成功了，但输出里没有 provenance 签名信息（包已发布，npm 页面不会有绿勾）。确认发布命令带 --provenance、runner 有 id-token: write 权限。"
+            exit 1
+          fi
+          grep "transparency log" "$PUBLISH_LOG" || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PUBLISH_LOG: ${{ runner.temp }}/npm-publish.log
 
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v3
@@ -82,17 +99,37 @@ jobs:
       # 防呆：发布后回查 attestation，确保绿勾真的在。
       # 放在最后，这样即使校验失败，包与 Release 也都已经建好，只是整条运行标红提醒。
       # 1.7.1 的教训：publish 命令漏掉 --provenance 时，流程全绿、只有 npm 页面少一个绿勾，
-      # 不看一眼根本发现不了。
+      # 不看一眼根本发现不了（这一层已由上面「发布至 npm」步骤的日志自证兜住）。
+      #
+      # 这里是 registry 侧的最终确认，必须给足耐心：registry 回传有延迟，实测 1.7.2 的
+      # attestation 在发布后约 2 分钟才可查（透明日志签名时间 06:47:57Z，publish 结束于
+      # 06:45:49Z），30 秒的预算会把「已经带 provenance」的发布误判成失败。
+      # 预算：前 6 次每 10 秒，之后每 30 秒，共 16 次 ≈ 5.5 分钟；可用环境变量覆盖（便于本地验证）。
       - name: 校验 provenance 证明（npm 页面上的绿勾）
         run: |
           version=$(node -p "require('./package.json').version")
-          for attempt in 1 2 3 4 5 6; do
-            if curl -sf "https://registry.npmjs.org/-/npm/v1/attestations/my-code-style@${version}" > /dev/null; then
-              echo "✅ my-code-style@${version} 已带 provenance 证明"
+          url="https://registry.npmjs.org/-/npm/v1/attestations/my-code-style@${version}"
+          max=${MAX_ATTEMPTS:-16}
+          fast_attempts=${FAST_ATTEMPTS:-6}
+          fast=${RETRY_FAST:-10}
+          slow=${RETRY_SLOW:-30}
+          start=$(date +%s)
+          attempt=0
+          code=000
+          while [ "$attempt" -lt "$max" ]; do
+            attempt=$((attempt + 1))
+            code=$(curl -s -o /dev/null -m 20 -w "%{http_code}" "$url" || echo "000")
+            waited=$(( $(date +%s) - start ))
+            if [ "$code" = "200" ]; then
+              echo "✅ my-code-style@${version} 已带 provenance 证明（等待 ${waited}s 后查到）"
+              echo "   $url"
               exit 0
             fi
-            echo "第 ${attempt} 次查询未命中（registry 可能有延迟），5 秒后重试…"
-            sleep 5
+            if [ "$attempt" -lt "$max" ]; then
+              if [ "$attempt" -le "$fast_attempts" ]; then delay=$fast; else delay=$slow; fi
+              echo "第 ${attempt}/${max} 次查询：HTTP ${code}（已等 ${waited}s），${delay}s 后重试…"
+              sleep "$delay"
+            fi
           done
-          echo "::error::my-code-style@${version} 缺少 provenance 证明（包已发布，但 npm 页面不会有绿勾）。检查发布命令是否带 --provenance，或按 README《发布（维护者）》切到 Trusted Publishing。"
+          echo "::error::等了 ${waited}s 仍查不到 my-code-style@${version} 的 attestation（最后一次 HTTP ${code}）。发布步骤已确认 npm 打印了 provenance 签名信息，因此这里多半只是 registry/CDN 还没回传；请稍后打开 ${url} 复核，若长期查不到再按 README《发布（维护者）》切到 Trusted Publishing。"
           exit 1
