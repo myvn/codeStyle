@@ -205,7 +205,16 @@ pnpm cz
 git commit -m "feat(user): add login page"
 ```
 
-支持的 type：`feat`、`fix`、`perf`、`style`、`docs`、`test`、`refactor`、`build`、`ci`、`chore`、`revert`、`wip`、`workflow`、`types`、`release`
+支持的 type（`rules.type-enum`）：`feat`、`fix`、`perf`、`style`、`docs`、`test`、`refactor`、`build`、`ci`、`chore`、`revert`、`wip`、`workflow`、`types`、`release`
+
+这 15 种同时也是 `prompt.types`（czg 选择列表）的取值，两边由回归测试
+（`config-contract.test.cjs`「cz 交互提示为中文，且可选类型与 type-enum 一一对应」）
+强制相等——任一侧新增类型而另一侧漏改都会让测试失败。历史上 `release` 就曾只写在
+`type-enum` 里、czg 选择列表中选不到（BUG-023）。
+
+提示文案默认中文（`prompt.messages` 全套 + 类型描述 + scope 的「自定义 / 不填」别名），
+想换语言或措辞在项目 `.commitlintrc.cjs` 里覆盖 `prompt`；交互的六步动线、可跳过项、
+字符上限算法与省键盘写法见 [README.md](README.md) 的《用 `pnpm cz` 提交（交互式）》。
 
 Scope 可从 `src/` 目录自动扫描生成，并智能猜测当前修改的模块。
 

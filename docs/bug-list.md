@@ -229,7 +229,7 @@
 
 - **现象**：`pnpm cz` 是本包交付的核心入口之一（init 会自动加 `cz: czg` 脚本、写 `.commitlintrc.cjs` 的 prompt 配置），但文档里只在 README 的常见问题里出现 3 次、manual 的「日常命令」表里占 1 行，**没有任何一处讲清楚怎么用**：六步交互、15 种类型、scope 从哪来、哪些字段能跳过、字符上限怎么算、有哪些省键盘写法（`:别名` / `-r`）。
 - **后果**：用户只能在错误的提示信息里反推用法（实测中先撞上 `No files added to staging!`，再撞上 `fix:(修复)…` 的 `type/subject may not be empty`）。
-- **修复**：README 新增《用 `pnpm cz` 提交（交互式）》（六步表 + 15 类型表 + 省键盘写法表 + 校验规则）；`docs/manual.md` 对应小节（手册随包发布，指到 README）；`docs/project-overview.html` 的「常用脚本」补全 cz 行并说明类型/scope/字符数规则；`docs/init-flow.md` 的 cz 行补「先 `git add`」与入口；`bin/init` 结尾指引加一行（先 `git add` + 指向 README 手册）。
+- **修复**：README 新增《用 `pnpm cz` 提交（交互式）》（六步表 + 15 类型表 + 省键盘写法表 + 校验规则）；`docs/manual.md` 对应小节（仓库内文档，指向随包发布的 README；`docs/` 不在 `files` 白名单里）；`docs/project-overview.html` 的「常用脚本」补全 cz 行并说明类型/scope/字符数规则；`docs/init-flow.md` 的 cz 行补「先 `git add`」与入口；`bin/init` 结尾指引加一行（先 `git add` + 指向 README 手册）。
 - **回归测试**：`demo-test/init-matrix.test.cjs`「初始化结尾指引把 cz 用法说清楚（先 git add + 指到 README 手册）」。
 
 ### DOC-002 — `demo-test/README.md` 测试计数与覆盖说明过期

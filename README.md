@@ -6,6 +6,8 @@ Lint/Format/Git 配置工程化 npm 包。适用于 Vue 3 + TypeScript + uni-app
 
 ## 项目文档
 
+> 随 npm 包发布的只有本 README 与 `CHANGELOG.md`；下面其余文档在仓库里（`docs/` 与 `TECHNICAL_DOC.md` 未列入 `files` 白名单），装包后在 `node_modules/my-code-style/README.md` 能看到的就是本文件。
+
 - [HTML 项目技术全景](docs/project-overview.html)：下载或克隆仓库后，用浏览器直接打开，查看项目结构、配置架构、接入流程与维护注意事项；支持离线阅读和打印。
 - [Markdown 技术文档](TECHNICAL_DOC.md)
 - [使用说明书](docs/manual.md)：使用后的优点、带来的福利与解决的问题、完整使用步骤与常见问题 FAQ
