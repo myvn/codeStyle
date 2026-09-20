@@ -10,6 +10,8 @@
 
 第二轮修复（下表 BUG-010 ~ 016）追加 14 项回归测试，测试基线增至 **152 项（基础 70 / 集成 55 / legacy 27），全绿**；已在 Node 18.20.8 / 22.22.3 / 26.9.0 三个运行时实测通过，Flat Config 另在 ESLint 10.10.0 上实测通过。
 
+第三轮修复（BUG-017 ~ 020）追加 14 项回归测试，测试基线增至 **166 项（基础 76 / 集成 55 / legacy 27 / Stylelint 17 共 8），全绿**；新增 `npm run test:stylelint17:setup` 隔离运行时，CI 矩阵增加 Node 24。
+
 | 编号          | 修复方式                                                                                  | 回归测试                                                                                         |
 | ------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | BUG-001 / 002 | `bin/init` 改为按 semver 区间求交集判断可安装的主版本（无新依赖）                         | `init-matrix.test.cjs`「ESLint 版本识别：范围语义」                                              |
@@ -30,6 +32,23 @@
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | NIT-013 | CLI 缺失依赖提示漏掉 `typescript`（`@typescript-eslint/parser` / `typescript-eslint` 的非可选 peer），安装命令与后续步骤硬编码 pnpm，npm 用户看到的是 `pnpm add` 与不可用的 `npm prepare` | 补 `typescript` peer 声明与体检项；按 lockfile/用户代理识别包管理器，输出 `pnpm | npm | yarn | bun`对应命令（npm 用`npm run prepare`）；pnpm 项目追加 `pnpm approve-builds`提示。回归见`init-matrix.test.cjs`「缺失依赖提示包含 typescript，并按包管理器给出可执行命令」 |
 
+### 第三轮修复：peer 声明追上生态 + 依赖版本体检（2026-09-20）
+
+触发场景：一个真实项目（Vue 3 + Vite + pnpm）装完本包后，`pnpm install` 打出一屏 `unmet peer`。逐条核对后确认：**部分是我们声明的版本范围落后于生态，部分是该项目自己的依赖跨批次拼装**，而 pnpm 只 WARN 不报错让问题长期静默。
+
+| 编号    | 严重度 | 问题                                                                                                                                                                                                                                                                                                                                                                       | 修复                                                                                                                                                                                                                                                                                    | 回归测试                                                                                       |
+| ------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| BUG-017 | P2     | peer 范围停在写下的那天（2026-07-29）：`stylelint ^16.0.0`、`config-recommended ^17`、`recommended-scss ^16`、`recess-order ^5`。而生态把"支持 stylelint 17"的配置发成了下一个大版本号（`config-recommended 18` / `recommended-scss 17`，2026-01-15），`postcss-html 2` / `stylelint-config-html 2` / `recommended-vue 2` 在 7 月底跟上；`recess-order 7` 还把 `stylelint-order` 从依赖改成了 peer（我们连这个 peer 都没声明）。用户按"装最新"配置必然撞上滞后声明 | 放宽为 `stylelint ^16.24.0 \|\| ^17.0.0`、`config-recommended ^17 \|\| ^18`、`recommended-scss ^16 \|\| ^17`、`recess-order ^5 \|\| ^6 \|\| ^7`，新增可选 peer `stylelint-order ^6 \|\| ^7 \|\| ^8`；下限取 16.24.0（`recommended-scss 16.x` 的 peer 已到 ^16.24.0，写 16.23 会 ERESOLVE） | `demo-test/stylelint17/stylelint17.test.cjs` 8 项（真实 stylelint 17 CLI + init 生成的配置：scss/less/混合、`--fix` 幂等、Vue 内嵌样式、`stylelint-order` peer） |
+| BUG-018 | P2     | `init` 只检查"依赖缺没缺"，不检查"装了的版本对不对"。于是 `postcss-html@1.8.1`（我们与 `stylelint-config-html@2` 都要 ^2）、`stylelint 16.26.1` 配 `config-recommended@18`（要 stylelint ^17）、`@typescript-eslint/parser 8.54.0` 配 `typescript-eslint 8.69.0` 这三类问题都不会被发现                                                                                                                                                     | 新增版本体检 `checkInstalledVersions`：① 我们的 peer 范围 vs 实际安装主版本；② 上游配置包自己的 peer（含 `stylelint-order` 这类易漏装的 peer）vs 实际安装；③ `typescript-eslint` 与 `@typescript-eslint/{parser,eslint-plugin}` 主次版本错位。三类都会给出按包管理器可执行的**对齐命令**                                                                 | `init-matrix.test.cjs` 6 项：「已安装版本低于 peer 范围」「上游配置 peer 冲突」「缺少 stylelint-order」「parser 错位」「两位数主版本不跳过」「版本都匹配时不产生噪音」 |
+| BUG-019 | P2     | 体检依赖的 `majorsForRange` 只枚举 0-12 主版本（当年只服务 ESLint 8/9/10），遇到 stylelint 16/17 直接返回 `null` → 整段体检**静默跳过**，等于白做。这个坑是写回归测试时才暴露出来的                                                                                                                                                                                                         | 新增 `allowsMajor(range, major)`：用区间相交直接判断，不受主版本位数限制；`majorsForRange` 行为保持不变（ESLint 版本识别依赖它）                                                                                                                                                          | 同 BUG-018 的「两位数主版本（stylelint 17）不再被静默跳过」                                     |
+| BUG-020 | NIT    | `integration/lint.test.cjs` 用 `JSON.stringify(results)` 作为断言消息。stylelint 17 的 results 带 postcss Lexer 循环引用，`JSON.stringify` 先抛 `Converting circular structure to JSON`，把 3 个用例带崩——**测试自身成了兼容性验证的阻碍**，且这种失败与断言内容无关，极易被误读成"stylelint 17 不兼容"（本轮实测确认）                                                                                                        | 改为 `summarize(results)` 只摘出 `source` / `errored` / `warnings[rule,text,line]`，两个大版本都安全                                                                                                                                                                                       | 集成套件「Stylelint 检查和修复：scss/less」「统一支持 SCSS、Less 及 Vue 内嵌双预处理」          |
+
+顺带调整（非 bug，属"声明范围两端都要有真实运行回归"）：
+
+- 集成套件的隔离运行时**钉住 stylelint 16 线**（`stylelint 16.26.1` + `config-recommended ^17` + `recommended-scss ^16` + `recess-order ^5`），17 线由新增的 `demo-test/.runtime-sl17` 覆盖；此前两边都是"装最新"，等于只测一端。
+- 低版本 Node（< 22.12，stylelint 17 生态 engines 下限）上，Stylelint 17 套件**整体跳过并说明原因**（setup 不安装、用例带 skip 标记），不会假装通过。
+- CI 矩阵增加 Node 24（此前 18/20/22，24 已进 Active LTS 却未覆盖）。
+
 ### 第二轮修复：与 ESLint 10 / Flat Config 行为对齐（2026-09-18）
 
 | 编号    | 严重度 | 问题                                                                                                                                                                                                   | 修复                                                                                                            | 回归测试                                                                                                       |
@@ -46,7 +65,7 @@
 
 - `lint-staged@17`（engines node ≥ 22.22.1）与 `@commitlint/cli@21`（node ≥ 22.12.0）等主版本升级会把 Node 门槛抬到 ≥ 22，与当前 CI 矩阵（18 / 20 / 22）冲突，本轮不升。
 - `@eslint/js` 的 peer 刻意保持 `^9.0.0`：`@eslint/js@10` 自身要求 Node ≥ 20.19，放宽会让 Node 18 用户装到不兼容版本（已实测 `@eslint/js@9.39.5` 与 ESLint 10 搭配正常）。
-- `stylelint@17` 组合当前装不上（`stylelint-config-recommended@17` 的 peer 仍锁 `stylelint ^16.23.0`)。
+- `stylelint@17` 组合此前记为"装不上"，**该结论已作废**（配错了版本线）：支持 stylelint 17 的不是 `stylelint-config-recommended@17`（它确实锁 `stylelint ^16.23.0`），而是 `@18`。正确三元组是 `stylelint 17 ↔ config-recommended 18 ↔ recommended-scss 17`，配合 `postcss-html 2`、`stylelint-config-html 2`、`recommended-vue 2`、`stylelint-order 8` 可完整跑通（见 BUG-017，已实测 + 新增回归）。
 
 初始化链路全过程见 [init-flow.md](init-flow.md)。
 
@@ -67,6 +86,10 @@
 | 第二轮 · P1（规则静默失效）   | 2     | BUG-010 ~ BUG-011 |
 | 第二轮 · P2（健壮性 / 版本口径） | 4  | BUG-012 ~ BUG-015 |
 | 第二轮 · NIT（清理死 peer）   | 1     | BUG-016           |
+| 第三轮 · P2（peer 声明滞后生态） | 1   | BUG-017           |
+| 第三轮 · P2（体检能力缺口）   | 1     | BUG-018           |
+| 第三轮 · P2（静默失效）       | 1     | BUG-019           |
+| 第三轮 · NIT（测试自身缺陷）  | 1     | BUG-020           |
 
 ---
 

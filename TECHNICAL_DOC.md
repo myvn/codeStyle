@@ -116,14 +116,15 @@ base.mjs (tseslint + import-x + prettier)
 | eslint-import-resolver-typescript | >= 3.0    | TS path alias 解析                                    |
 | globals                           | >= 16.0   | Flat Config 环境声明（`globals.browser` 等）          |
 | Prettier                          | >= 3.0    | 代码格式化                                            |
-| Stylelint                         | >= 16.0   | CSS/SCSS/Less 规范检查                                |
-| stylelint-config-recommended      | >= 16.0   | 基础推荐规则                                          |
-| stylelint-config-recommended-scss | >= 16.0   | SCSS 推荐规则                                         |
+| Stylelint                         | ^16.24 \|\| ^17 | CSS/SCSS/Less 规范检查（16 与 17 两条线都支持）  |
+| stylelint-config-recommended      | ^17 \|\| ^18 | 基础推荐规则（18 要求 stylelint 17）              |
+| stylelint-config-recommended-scss | ^16 \|\| ^17 | SCSS 推荐规则                                  |
 | stylelint-config-recommended-vue  | >= 2.0    | Vue SFC `<style>` 检查                                |
-| stylelint-config-html             | >= 1.0    | HTML/Vue 模板解析                                     |
-| stylelint-config-recess-order     | >= 5.0    | CSS 属性排序                                          |
-| stylelint-prettier                | >= 5.0    | Stylelint 内运行 Prettier                             |
-| postcss-html                      | >= 1.0    | 解析 Vue `<style>` 块                                 |
+| stylelint-config-html             | ^2.0      | HTML/Vue 模板解析                                     |
+| stylelint-config-recess-order     | ^5 \|\| ^6 \|\| ^7 | CSS 属性排序（7.x 需要 stylelint-order peer）    |
+| stylelint-prettier                | ^5.0      | Stylelint 内运行 Prettier                             |
+| stylelint-order                   | ^6 \|\| ^7 \|\| ^8 | 属性排序实现（recess-order 7 起为 peer，可选）  |
+| postcss-html                      | ^2.0      | 解析 Vue `<style>` 块                                 |
 | postcss-scss                      | >= 4.0    | 解析 SCSS 语法                                        |
 | postcss-less                      | >= 6.0    | 解析 Less 语法                                        |
 | Commitlint                        | >= 19.0   | Git commit message 校验                               |

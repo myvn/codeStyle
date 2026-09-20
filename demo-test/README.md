@@ -53,7 +53,7 @@ node --test demo-test/scopes.test.cjs
 
 ## 当前验证状态
 
-基础测试 70 项全部通过；现代工具链测试 55 项、ESLint 8 测试 27 项全部通过，合计 **152 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
+基础测试 76 项全部通过；现代工具链测试 55 项、ESLint 8 测试 27 项、Stylelint 17 测试 8 项全部通过，合计 **166 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
 
 上述 `npm test` 只验证 CLI 与配置契约；真实工具集成测试单独运行，见下文。未统计行/分支覆盖率，不代表所有功能都已覆盖。
 
@@ -63,7 +63,9 @@ node --test demo-test/scopes.test.cjs
 npm run test:integration:setup
 npm run test:integration
 npm run test:legacy:setup # test:all 还需要独立 ESLint 8 环境
-npm run test:all  # 基础回归 + ESLint 9 集成 + ESLint 8 集成，结束时输出分类统计与总条数
+npm run test:stylelint17:setup # Stylelint 17 生态（stylelint 17 + config-recommended 18 + postcss-html 2）
+npm run test:stylelint17       # Stylelint 17 兼容性回归
+npm run test:all  # 基础回归 + ESLint 9 集成 + ESLint 8 集成 + Stylelint 17，结束时输出分类统计与总条数
 ```
 
 依赖安装到被 Git 忽略的 `demo-test/.runtime/`，不改根项目依赖或锁文件。首次安装需要网络。执行测试时将当前源码复制到隔离环境的 `node_modules/my-code-style`，因此测试的不是 npm 上的旧版工具。不要并行运行多份集成测试命令，它们共享这一隔离环境。
@@ -122,7 +124,7 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 npm run test:integration                       # 走运行器：文件级并行 + 进度 + 最慢文件定位
 npm run test:integration -- --concurrency=4    # 手动指定文件级并发（默认按核数/内存自动算，封顶 8）
 npm run test:integration -- --profile          # 列出每个测试文件的耗时
-npm run test:all -- --parallel                 # 三套件再叠一层并行
+npm run test:all -- --parallel                 # 四套件再叠一层并行
 ```
 
 ### 执行策略
@@ -180,3 +182,36 @@ npm run test:legacy
 修复前真实复现 `plugin:vue/vue3-essential` 无法加载；现在使用 Vue 插件 10 的 `plugin:vue/essential`。同时修复传统 nvue 覆写、CommonJS require 规则，以及目录 lint 的扩展名漏检。
 
 依赖声明允许 `eslint ^8.57.0 || ^9.0.0`，CLI 的缺失依赖命令仍按选定格式推荐单一主版本，避免打印带 shell `||` 的安装参数。ESLint 8 已 EOL，兼容测试不意味着建议新项目继续使用它。Node/OS 矩阵和 ESLint 8 的完整 Husky 提交链仍未测试（完整提交链在 ESLint 9 环境验证）。
+
+
+## Stylelint 17 生态兼容回归
+
+```bash
+npm run test:stylelint17:setup   # 安装到被忽略的 .runtime-sl17/
+npm run test:stylelint17
+```
+
+**为什么单独有一套**：我们在 `peerDependencies` 里声明了 `stylelint ^16.24.0 || ^17.0.0`
+（以及 `stylelint-config-recommended ^17||^18`、`recommended-scss ^16||^17`、
+`recess-order ^5||^6||^7`、可选 `stylelint-order ^6||^7||^8`）。声明支持就必须真的跑，
+而 stylelint 17 时代整条配置链都换了主版本（config-recommended 18、recommended-scss 17、
+postcss-html 2、stylelint-order 8）。
+
+这个运行时装的正是 17 线，8 项用例用**真实 stylelint 17 CLI** 加载 init 生成的
+`.stylelintrc.cjs`，覆盖：
+
+- 隔离环境确实是 stylelint 17（不是 16）；配置包分别是 18 / postcss-html 2；
+- 正常 SCSS 通过、非法属性（`property-no-unknown`）被拦；
+- `--fix` 生效且幂等（第二次不再改动文件）；
+- Vue 单文件内嵌 SCSS 被检查；
+- Less 工程走 `my-code-style/stylelint/less` 分支配置；
+- 混合 SCSS + Less 工程两种文件都能检查；
+- `stylelint-order`（recess-order 7 的 peer）可用，位置属性顺序错误会被报出。
+
+stylelint 17 生态要求 Node ≥ 22.12（`postcss-html@2` / `stylelint-config-html@2` /
+`recommended-vue@2` 的 engines），所以这套用例在更低的 Node 上会**整体跳过并说明原因**，
+不会假装通过；setup 也不会尝试安装。
+
+同时，集成套件固定在 stylelint **16 线**（`demo-test/setup-integration.cjs` 里显式钉住
+`stylelint 16.26.1 + config-recommended ^17 + recommended-scss ^16 + recess-order ^5`），
+这样声明范围的**两端**都有真实运行回归，而不是只测最新那一端。

@@ -35,7 +35,7 @@
 | 样式代码无人管     | 非法属性、未知单位、选择器乱序                        | stylelint 接管，且已放行 uni-app 的 `rpx`/`page`/`::v-deep` |
 | 老项目升级无路     | 项目停在 ESLint 8，新项目用 9，配置分裂               | 同一份包同时支持 `.eslintrc.cjs`（v8）与 Flat Config（v9）  |
 | 新项目从零配置     | 每次都要拼 ESLint+Prettier+Stylelint+husky+commitlint | `init` 一键生成 11 个文件 + 6 个脚本，可 `--dry-run` 预览   |
-| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 152 项自动化回归（含 ESLint 8/9 真实运行）守护           |
+| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 166 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
 | 团队规范落不了地   | 文档写了没人看                                        | hook 在提交那一刻执行，默认路径就是正确路径                 |
 
 ---
@@ -166,6 +166,26 @@ lint-staged 在提交前自动修复并**重新暂存**了内容，属于预期�
 ### 12. `pnpm release` 生成了版本提交与 tag，但我想发布到 npm
 
 `release` 只负责版本、CHANGELOG、提交与 tag；发布需另执行 `npm publish`。
+
+### 13. 装完之后 pnpm 打了一屏 `unmet peer` 警告，要不要处理
+
+先分清是谁在报：
+
+- `unmet peer … from my-code-style`：是我们声明的版本范围没覆盖你装的版本，**先升级本包**（新版会放宽范围）；升级后仍报就是真不兼容，按提示对齐；
+- 来自别的包（例如 `postcss-html@1.8.1` 却要 `^2.0.0`、`stylelint@16.26.1` 却要 `^17.0.0`）：**按提示对齐**。npm 遇到这种情况会直接 `ERESOLVE` 拒装，pnpm 只打印 WARN 就装完，所以“装上了”不代表能跑。
+
+重跑一次 `init` 可以主动体检：它会检查「已安装版本的**主版本**是否落在声明范围内」「上游配置文件自己的 peer 是否满足（含 `stylelint-order` 这类容易漏装的 peer）」「`typescript-eslint` 与 `@typescript-eslint/parser`、`eslint-plugin` 是否同一版本」，并给出按包管理器可执行的**对齐命令**。
+
+### 14. `stylelint` 用 16 还是 17
+
+两条线都支持，我们声明的范围是 `stylelint ^16.24.0 || ^17.0.0`：
+
+| 线       | 需要的配套                                                                                  | 适用                                       |
+| -------- | ------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 16 线    | `stylelint-config-recommended@17`、`recommended-scss@16`、`recess-order@5/6`                  | 存量项目、Node 18/20                       |
+| 17 线    | `stylelint@17`、`config-recommended@18`、`recommended-scss@17`、`stylelint-order@7/8`、Node ≥ 22.12 | 新项目、Node 22.12+                        |
+
+混淆点在于**版本号是错位的**：支持 stylelint 17 的配置不是 `stylelint-config-recommended@17`（它的 peer 还锁 `stylelint ^16.23.0`），而是 `@18`。两条线都有真实运行回归：集成套件跑 16 线（`demo-test/setup-integration.cjs` 固定），Stylelint 17 套件跑 17 线（`demo-test/stylelint17/`）。
 
 ---
 

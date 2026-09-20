@@ -185,13 +185,15 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 | 提交信息被拒（`type may not be empty` / `subject may not be empty`） | 提交信息需符合 conventional commits                        | 用 `pnpm cz` 交互式生成；header 上限 108 字符                                                                     |
 | 老项目已有 `.eslintrc.*`，init 只读退出                              | ESLint 版本与配置格式冲突时 CLI 拒绝写入                   | 先确认/迁移版本，再重跑 init                                                                                      |
 | `pnpm release` 之后如何发布                                          | `release` 只生成版本、CHANGELOG、提交与 tag                | 另行执行 `npm publish`                                                                                            |
+| 装完看到一片 `unmet peer` 警告，要不要管                            | npm 遇到不满足的 peer 会直接 ERESOLVE 拒装，pnpm 只打印 WARN 就装完 | 先看警告来自谁：`unmet peer … from my-code-style` 说明版本声明没跟上，先升级本包；来自别的包（如 `postcss-html@1.8.1` 却要 `^2`）按提示对齐。重跑 `init` 会主动体检并打印对齐命令 |
+| `stylelint` 该用 16 还是 17                                          | 两条线都支持：`stylelint ^16.24.0 \|\| ^17.0.0`                    | 16 线（`stylelint-config-recommended@17`）兼容面最广；17 线要 stylelint 17 + `config-recommended@18` + `recommended-scss@17` + `stylelint-order@7/8`，且 Node ≥ 22.12。两条线都有真实运行回归（集成套件跑 16 线，Stylelint 17 套件跑 17 线） |
 
 完整 FAQ（含更多场景与解释）见 [docs/manual.md](docs/manual.md#五使用中遇到的问题faq)。
 
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 152 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 166 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
 npm test                       # 只跑基础 CLI 与配置矩阵（70 项）
@@ -199,6 +201,8 @@ npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（55 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
 npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
+npm run test:stylelint17:setup # 安装 Stylelint 17 隔离运行环境
+npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
 ```
 
 `npm run test:all` 由 `scripts/test-all.cjs` 驱动，输出**套件 → 用例 → 汇总**三层：
@@ -207,38 +211,44 @@ npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
 ```text
   my-code-style 测试套件
 
-  ▶ [1/3] 基础 CLI 与配置矩阵  （共 70 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [1/4] 基础 CLI 与配置矩阵  （共 76 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 2ms
-      ✓ 所有公共导出目标存在且可通过包名解析 · 11ms
-      ✓ Prettier 默认值和 JSON/YAML/nvue 文件例外 · 1ms
+      ✓ 依赖版本体检：两位数主版本（stylelint 17）不再被静默跳过 · 41ms
+      ✓ 所有公共导出目标存在且可通过包名解析 · 3ms
       …
-     ✓ 通过 70  ·  2.1s   · 最慢文件 init-matrix.test.cjs 1.9s
+     ✓ 通过 76  ·  3.4s   · 最慢文件 init-matrix.test.cjs 3.2s
 
-  ▶ [2/3] 现代工具链与提交链  （共 55 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/scss 自动修复及二次复检 · 8.0s
-      ✓ 完整提交链拦截 nvue 内嵌样式错误（不是仅检查脚本） · 3.6s
+  ▶ [2/4] 现代工具链与提交链  （共 55 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/scss 自动修复及二次复检 · 10.7s
       ✓ Flat Config 启用 eslint:recommended 核心规则：no-debugger · 45ms
       …
-     ✓ 通过 55  ·  30.8s   · 最慢文件 commit-chain-both.test.cjs 8.4s
+     ✓ 通过 55  ·  40.5s   · 最慢文件 commit-chain-both.test.cjs 11.4s
 
-  ▶ [3/3] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ ESLint 8 base：生成的 lint 脚本遍历并拦截 broken.ts · 1.1s
+  ▶ [3/4] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+      ✓ ESLint 8 base：生成的 lint 脚本遍历并拦截 broken.ts · 1.3s
       …
-     ✓ 通过 27  ·  14.3s
+     ✓ 通过 27  ·  18.7s
+
+  ▶ [4/4] Stylelint 17 兼容性  （共 8 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+      ✓ stylelint 17 下 --fix 生效且幂等（SCSS） · 1.4s
+      ✓ stylelint-order（recess-order 7 的 peer）在 stylelint 17 下可用 · 1.0s
+      …
+     ✓ 通过 8  ·  7.3s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
-  基础 CLI 与配置矩阵         70       0       -    2.1s
-  现代工具链与提交链          55       0       -   30.8s
-  ESLint 8 兼容性             27       0       -   14.3s
+  基础 CLI 与配置矩阵         76       0       -    3.4s
+  现代工具链与提交链          55       0       -   40.5s
+  ESLint 8 兼容性             27       0       -   18.7s
+  Stylelint 17 兼容性          8       0       -    7.3s
   ──────────────────────────────────────────────────────
-  合计                       152       0       -   47.2s
+  合计                       166       0       -   69.9s
   ──────────────────────────────────────────────────────
 
-  ⏱ 最慢文件：eslint8.test.cjs 14.3s · commit-chain-both.test.cjs 8.4s · commit-chain-scss.test.cjs 8.3s
+  ⏱ 最慢文件：eslint8.test.cjs 18.7s · commit-chain-both.test.cjs 11.4s · commit-chain-less.test.cjs 10.9s
 
-  ✅ 全部通过：152/152 项，用时 47.2s
+  ✅ 全部通过：166/166 项，用时 69.9s
 ```
 
 
@@ -248,7 +258,7 @@ npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
 | 参数                 | 作用                                                          |
 | -------------------- | ------------------------------------------------------------- |
 | `-- --quiet`         | 只看套件结论与汇总表，不列用例明细（长输出时用）                |
-| `-- --parallel`      | 强制三个套件同时跑（核数 ≥ 8 时默认已自动开启）                 |
+| `-- --parallel`      | 强制四个套件同时跑（核数 ≥ 8 时默认已自动开启）                 |
 | `-- --serial`        | 强制串行（CI 形态，输出顺序最稳定）                             |
 | `-- --jobs=2`        | 配合并行限制同时运行的套件数，其余排队（面板显示"等待中"）      |
 | `-- --suite=base,legacy` | 只跑指定套件（base / integration / legacy，逗号分隔）       |
@@ -280,7 +290,8 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 - **文件级**：集成套件按"一条提交链一个文件"拆成 23 个测试文件，**由运行器自己按文件
   调度**（每个文件一个 `node --test` 进程），不依赖 Node 的 `--test` 默认并发值——
   同一个文件内的用例仍然串行（真实 git 仓库不能并行改），文件之间才是并发的。
-- **套件级**：三个套件再并行，互不共享目录。
+- **套件级**：四个套件再并行，互不共享目录（基础只碰系统临时目录，集成用
+  `demo-test/.runtime`，ESLint 8 用 `.runtime-legacy`，Stylelint 17 用 `.runtime-sl17`）。
 
 因为每个文件里跑的都是真实 `git commit`（单次 0.5–3.9s），墙钟由**最慢的那个文件**
 决定，所以文件尽量拆到"一个文件一次提交"。每个套件跑完会直接告诉你最慢文件是谁，
@@ -306,13 +317,13 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 并发 git/npx 撑到 OOM（进程被 SIGKILL）；文件数多于并发数时，**用例少的文件（多半是同
 一条重链）优先开跑**，避免长任务被排进最后一波、墙钟再多乘一倍。
 
-实测（2 核沙箱，152 项；沙箱内存 4G，所以自动并发是 3）：
+实测（2 核沙箱，166 项；沙箱内存 4G，所以自动并发是 3）：
 
 | 运行方式                            | 墙钟时间                                        |
 | ----------------------------------- | ----------------------------------------------- |
 | 串行套件 + 文件级并发 1（CI 旧形态） | 62.4s（hook 改造前同配置 70.3s）                |
 | 串行套件 + 自动并发 3（默认）        | 47.2s（hook 改造前同配置 51.8s）                |
-| `--parallel` 三套件 + 自动并发 3     | 43.0s（hook 改造前同配置 46.6s）                |
+| `--parallel` 四套件 + 自动并发 3     | 43.0s（hook 改造前同配置 46.6s）                |
 | `node --test demo-test/integration/*.test.cjs`（Node 自己调度，等同旧命令） | 43.7s（只看集成套件那一段）      |
 | `npm run test:integration`（运行器调度，自动并发 3） | 30.6s（只看集成套件那一段）                    |
 | 串行套件 + 文件级并发 23（全部一波） | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL）      |
