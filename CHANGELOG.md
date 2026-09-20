@@ -1,5 +1,17 @@
 ## 变更日志
 
+### [1.8.1](https://github.com/myvn/codeStyle/compare/v1.8.0...v1.8.1) (2026-09-20)
+
+
+### 🐛 Bug Fixes | Bug 修复
+
+* **init:** 安装命令里的版本范围加引号，粘贴不再被 shell 截断 ([9abaf1d](https://github.com/myvn/codeStyle/commit/9abaf1d76ea3aff05f0d26d11a43e8661ed6221a))
+
+
+### ✨ Features | 新功能
+
+* **init:** 输出步骤化为固定六步，dry-run 全流程预览 ([f14ca47](https://github.com/myvn/codeStyle/commit/f14ca47449b7d3e8f9a381b6e145e99232586886))
+
 ## [1.8.0](https://github.com/myvn/codeStyle/compare/v1.7.2...v1.8.0) (2026-09-20)
 
 ### ✨ Features | 新功能
