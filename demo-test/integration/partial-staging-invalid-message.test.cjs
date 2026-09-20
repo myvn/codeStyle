@@ -1,0 +1,15 @@
+const { test } = require("node:test")
+const assert = require("node:assert/strict")
+const { commitProject } = require("./_runtime.cjs")
+
+test("完整链路：代码检查通过后非法提交信息仍被拒绝", (t) => {
+    const p = commitProject(t)
+    p.write("src/good.js", 'export const good = "hello"\n')
+    p.git("add", "--", "src/good.js")
+    const head = p.git("rev-parse", "HEAD")
+    const result = p.commit("invalid: do not allow this")
+    assert.notEqual(result.status, 0)
+    assert.match(result.stdout + result.stderr, /type-enum/)
+    assert.equal(p.git("rev-parse", "HEAD"), head)
+    assert.equal(p.git("show", ":src/good.js"), p.read("src/good.js"))
+})

@@ -1,6 +1,7 @@
 // Base ESLint Flat Config for TypeScript projects (ESLint v9+)
 // Equivalent to src/eslint/base.cjs but in flat config format
 
+import js from "@eslint/js"
 import tseslint from "typescript-eslint"
 import importX from "eslint-plugin-import-x"
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended"
@@ -22,8 +23,13 @@ export default [
         ],
     },
 
+    // ESLint 官方推荐规则
+    // Replaces: extends: ["eslint:recommended"] — 缺失它会让 flat 配置弱于传统配置
+    // （no-debugger / no-cond-assign / no-constant-condition / no-empty 等不会被检查）
+    js.configs.recommended,
+
     // TypeScript recommended rules
-    // Replaces: extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"]
+    // Replaces: extends: ["plugin:@typescript-eslint/recommended"]
     ...tseslint.configs.recommended,
 
     // eslint-plugin-import-x configuration

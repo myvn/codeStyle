@@ -1,6 +1,10 @@
 const { test } = require("node:test")
 const assert = require("node:assert/strict")
-const { project } = require("./helpers.cjs")
+const fs = require("node:fs")
+const os = require("node:os")
+const path = require("node:path")
+const { spawnSync } = require("node:child_process")
+const { project, root } = require("./helpers.cjs")
 const cases = require("./fixtures/projects.json")
 
 for (const scenario of cases) {
@@ -43,8 +47,11 @@ for (const scenario of cases) {
                       : "**/*.{html,css,scss}"
             assert.deepEqual(tasks[expectedPattern], ["prettier --write", "stylelint --fix"])
         }
-        assert.equal(p.read(".husky/pre-commit"), "npx --no-install -- lint-staged\n")
-        assert.equal(p.read(".husky/commit-msg"), 'npx --no-install commitlint --edit "${1}"\n')
+        // hook 优先直连本地 bin（省一次 npm CLI 启动），找不到时退回 npx
+        assert.match(p.read(".husky/pre-commit"), /command -v lint-staged/)
+        assert.match(p.read(".husky/pre-commit"), /npx --no-install -- lint-staged/)
+        assert.match(p.read(".husky/commit-msg"), /command -v commitlint/)
+        assert.match(p.read(".husky/commit-msg"), /npx --no-install commitlint --edit "\$1"/)
         const expectedVersionrc = scenario.esm ? ".versionrc.cjs" : ".versionrc.js"
         for (const file of [
             ".prettierrc.cjs",
@@ -328,6 +335,85 @@ test("ESLint 7 及以下版本被拒绝并提示升级", (t) => {
     assert.ok(!p.exists(".eslintrc.cjs"))
 })
 
+test("ESLint 版本识别：monorepo 子目录向上读取工作区根已安装的版本", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "monorepo",
+            private: true,
+            workspaces: ["packages/*"],
+        }),
+        // 依赖被提升安装到工作区根，子包自己的声明只是范围
+        "node_modules/eslint/package.json": JSON.stringify({
+            name: "eslint",
+            version: "8.57.0",
+        }),
+        "packages/app/package.json": JSON.stringify({
+            name: "app",
+            devDependencies: { eslint: "^8.57.0 || ^9.0.0" },
+        }),
+    })
+    const result = p.initIn("packages/app")
+    assert.equal(result.status, 0, result.stderr)
+    assert.ok(
+        p.exists("packages/app/.eslintrc.cjs"),
+        "应按工作区根已安装的 ESLint 8 生成 legacy 配置",
+    )
+    assert.ok(!p.exists("packages/app/eslint.config.mjs"))
+})
+
+test("ESLint 版本识别：不越过非工作区祖先目录", (t) => {
+    // 祖先目录里有 node_modules/eslint，但没有 package.json／workspace 标记；
+    // 说明它不是当前项目的工作区根，不能拿它的版本来决定配置格式。
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "code-style-ancestor-"))
+    t.after(() => fs.rmSync(parent, { recursive: true, force: true }))
+    fs.mkdirSync(path.join(parent, "node_modules/eslint"), { recursive: true })
+    fs.writeFileSync(
+        path.join(parent, "node_modules/eslint/package.json"),
+        JSON.stringify({ name: "eslint", version: "9.39.5" }),
+    )
+    const app = path.join(parent, "app")
+    fs.mkdirSync(app, { recursive: true })
+    fs.writeFileSync(
+        path.join(app, "package.json"),
+        JSON.stringify({ name: "standalone", devDependencies: { eslint: "^8.57.0" } }),
+    )
+
+    const result = spawnSync(process.execPath, [path.join(root, "bin/init")], {
+        cwd: app,
+        encoding: "utf8",
+        timeout: 10000,
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.ok(fs.existsSync(path.join(app, ".eslintrc.cjs")), "应按声明的 ^8.57.0 生成 legacy 配置")
+    assert.ok(!fs.existsSync(path.join(app, "eslint.config.mjs")))
+})
+
+test("ESLint 10 视为受支持版本，ESLint 11 才提示尚未声明支持", (t) => {
+    const supported = project(t, {
+        "package.json": JSON.stringify({
+            name: "eslint-10",
+            devDependencies: { eslint: "^10.0.0" },
+        }),
+    })
+    const supportedResult = supported.init()
+    assert.equal(supportedResult.status, 0, supportedResult.stderr)
+    assert.ok(supported.exists("eslint.config.mjs"))
+    assert.doesNotMatch(
+        supportedResult.stdout + supportedResult.stderr,
+        /尚未在 peerDependencies 声明支持/,
+    )
+
+    const future = project(t, {
+        "package.json": JSON.stringify({
+            name: "eslint-11",
+            devDependencies: { eslint: "^11.0.0" },
+        }),
+    })
+    const futureResult = future.init()
+    assert.equal(futureResult.status, 0, futureResult.stderr)
+    assert.match(futureResult.stdout, /ESLint 11 尚未在 peerDependencies 声明支持/)
+})
+
 test("--backup 参数在覆盖前备份已有文件到 .my-code-style-backup", (t) => {
     const p = project(t, {
         "package.json": JSON.stringify({
@@ -410,4 +496,197 @@ test("初始化异常时执行事务回滚：恢复已有文件内容并清理�
     assert.ok(!p.exists("eslint.config.mjs"), "新创建的入口文件已被清理")
     assert.ok(!p.exists(".prettierignore"), "新创建的忽略文件已被清理")
     assert.ok(!p.exists(".husky"), "新创建的 husky 目录已被清理")
+})
+
+// --- 已装依赖的版本体检（pnpm 只 WARN、npm 直接 ERESOLVE，所以 init 主动查） ---
+
+const manifest = (name, version, peerDependencies) =>
+    JSON.stringify({ name, version, ...(peerDependencies ? { peerDependencies } : {}) })
+
+test("依赖版本体检：已安装版本低于 peer 范围时提示并对齐", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: { vue: "^3", sass: "^1", "postcss-html": "^1.0.0" },
+        }),
+        "node_modules/postcss-html/package.json": manifest("postcss-html", "1.8.1"),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /已安装，但版本与当前配置不匹配/)
+    assert.match(result.stdout, /postcss-html 装了 1\.8\.1，本工具要求 \^2\.0\.0/)
+    assert.match(result.stdout, /postcss-html@\^2\.0\.0/)
+})
+
+test("依赖版本体检：两位数主版本（stylelint 17）不再被静默跳过", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "^17.0.0",
+                "stylelint-config-recommended": "^18.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "17.15.0"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "18.0.0",
+            { stylelint: "^17.0.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    // stylelint 17 满足 config-recommended@18 的 ^17.0.0，不应有任何版本体检噪音
+    assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
+})
+
+test("依赖版本体检：上游配置的 peer 与实际安装冲突时提示", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "^16.0.0",
+                "stylelint-config-recommended": "^18.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "16.26.1"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "18.0.0",
+            { stylelint: "^17.0.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(
+        result.stdout,
+        /stylelint-config-recommended@18\.0\.0 要求 stylelint@\^17\.0\.0，实际装了 16\.26\.1/,
+    )
+    assert.match(result.stdout, /stylelint@\^17\.0\.0/)
+})
+
+test("依赖版本体检：recess-order 7 缺少 stylelint-order 时提示补装", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: { vue: "^3", sass: "^1", "stylelint-config-recess-order": "^7.8.0" },
+        }),
+        "node_modules/stylelint-config-recess-order/package.json": manifest(
+            "stylelint-config-recess-order",
+            "7.8.0",
+            { stylelint: "^16.18.0 || ^17.0.0", "stylelint-order": "^7.0.0 || ^8.0.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /stylelint-config-recess-order@7\.8\.0 需要 stylelint-order@/)
+    assert.match(result.stdout, /stylelint-order@\^7\.0\.0 \|\| \^8\.0\.0/)
+})
+
+test("依赖版本体检：typescript-eslint 与 parser 版本错位时提示对齐", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                eslint: "^9.0.0",
+                "typescript-eslint": "^8.54.0",
+                "@typescript-eslint/parser": "^8.48.0",
+            },
+        }),
+        "node_modules/typescript-eslint/package.json": manifest("typescript-eslint", "8.69.0"),
+        "node_modules/@typescript-eslint/parser/package.json": manifest(
+            "@typescript-eslint/parser",
+            "8.54.0",
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(
+        result.stdout,
+        /@typescript-eslint\/parser@8\.54\.0 与 typescript-eslint@8\.69\.0 不是同一版本/,
+    )
+    assert.match(result.stdout, /@typescript-eslint\/parser@8\.69\.0/)
+})
+
+test("依赖版本体检：版本都匹配时不产生噪音", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "^17.0.0",
+                "stylelint-config-recommended": "^18.0.0",
+                "stylelint-config-recess-order": "^7.8.0",
+                "stylelint-order": "^8.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "17.15.0"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "18.0.0",
+            { stylelint: "^17.0.0" },
+        ),
+        "node_modules/stylelint-config-recess-order/package.json": manifest(
+            "stylelint-config-recess-order",
+            "7.8.0",
+            { stylelint: "^16.18.0 || ^17.0.0", "stylelint-order": "^7.0.0 || ^8.0.0" },
+        ),
+        "node_modules/stylelint-order/package.json": manifest("stylelint-order", "8.1.1"),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
+})
+
+test("依赖版本体检：minor 级错位也能发现（10.2.0 不满足 ^10.3.0）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                eslint: "^9.0.0",
+                "vue-eslint-parser": "^10.0.0",
+            },
+        }),
+        "node_modules/vue-eslint-parser/package.json": manifest("vue-eslint-parser", "10.2.0"),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /vue-eslint-parser 装了 10\.2\.0，本工具要求 \^10\.3\.0/)
+    assert.match(result.stdout, /vue-eslint-parser@\^10\.3\.0/)
+})
+
+test("依赖版本体检：stylelint 16 线的合法组合不误报", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "16.26.1",
+                "stylelint-config-recommended": "^17.0.0",
+                "stylelint-config-recommended-scss": "^16.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "16.26.1"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "17.0.0",
+            { stylelint: "^16.23.0" },
+        ),
+        "node_modules/stylelint-config-recommended-scss/package.json": manifest(
+            "stylelint-config-recommended-scss",
+            "16.0.2",
+            { stylelint: "^16.24.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
 })

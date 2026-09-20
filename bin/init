@@ -212,6 +212,25 @@ function rangeIntervals(range) {
 }
 
 /**
+ * 判断某个具体版本（含 minor / patch）是否落在声明的范围内。
+ *
+ * 为什么不用主版本判断：`vue-eslint-parser ^10.3.0` 与装到的 10.2.0 主版本相同，
+ * 但 10.3 才是 Vue 插件 10 的兼容下限，只比主版本会漏掉这类 minor 级错位。
+ * 这里直接做区间相交判断，既不受主版本位数限制（stylelint 16/17），也不丢 minor。
+ * 返回 null 表示范围无法解析（不判断）。
+ */
+function satisfiesRange(range, version) {
+    const parts = parseVersionFields(version)
+    if (!parts || parts.some((part) => part === null)) return null
+    const target = lowerBound(parts)
+    const intervals = rangeIntervals(range)
+    if (!intervals.length) return null
+    return intervals.some(
+        ([lower, upper]) => compareVersion(lower, target) <= 0 && compareVersion(target, upper) < 0,
+    )
+}
+
+/**
  * List every major version a declared range can install (0-12), or null when
  * the range cannot be parsed.
  */
@@ -233,24 +252,67 @@ function majorsForRange(range) {
 }
 
 /**
- * Detect ESLint major version from package.json or installed node_modules
- * Returns 8, 9, or null (not installed or ambiguous)
+ * 读取任意包在本项目（或向上寻找的“工作区根”）里实际安装的版本。
+ * monorepo 里依赖常被提升到工作区根，所以要向上走；只采纳项目根或带
+ * manifest 的祖先目录，避免把无关上级目录的 node_modules 当成本项目依赖。
+ */
+function findInstalledPackage(pkgName, rootDir) {
+    let dir = rootDir
+    for (let depth = 0; depth < 8; depth += 1) {
+        const isProjectRoot = dir === rootDir
+        const isWorkspaceRoot =
+            fs.existsSync(path.resolve(dir, "package.json")) ||
+            fs.existsSync(path.resolve(dir, "pnpm-workspace.yaml")) ||
+            fs.existsSync(path.resolve(dir, "lerna.json"))
+
+        if (isProjectRoot || isWorkspaceRoot) {
+            try {
+                const manifestPath = path.resolve(
+                    dir,
+                    "node_modules",
+                    ...pkgName.split("/"),
+                    "package.json",
+                )
+                if (fs.existsSync(manifestPath)) {
+                    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"))
+                    if (manifest.version) {
+                        return { version: String(manifest.version), dir, manifest }
+                    }
+                }
+            } catch {
+                // 忽略读不动的安装（半装状态），继续向上找
+            }
+        }
+
+        const parent = path.dirname(dir)
+        if (parent === dir) break
+        dir = parent
+    }
+    return null
+}
+
+/**
+ * 读取实际安装的 ESLint 主版本号（见 findInstalledPackage 的查找规则）。
+ */
+function findInstalledEslintMajor(rootDir) {
+    const installed = findInstalledPackage("eslint", rootDir)
+    if (!installed) return null
+    const major = parseInt(String(installed.version).split(".")[0], 10)
+    return Number.isNaN(major) ? null : major
+}
+
+/**
+ * Detect ESLint major version from the installed package or the declared range.
+ * Returns 8, 9, 10, … or null (not installed and no usable range).
  */
 function detectEslintVersion(pkg = getProjectPkg(), rootDir = PROJECT_ROOT) {
     if (!pkg) return null
 
-    // 1. If eslint is installed in node_modules, read its actual major version directly
-    try {
-        const installedPkgPath = path.resolve(rootDir, "node_modules", "eslint", "package.json")
-        if (fs.existsSync(installedPkgPath)) {
-            const installedPkg = JSON.parse(fs.readFileSync(installedPkgPath, "utf8"))
-            const installedMajor = parseInt(installedPkg.version?.split(".")[0], 10)
-            if (!Number.isNaN(installedMajor)) {
-                return installedMajor
-            }
-        }
-    } catch {
-        // Fall through to package.json dependency declaration
+    // 1. If eslint is installed in node_modules (or hoisted to the workspace root),
+    //    read its actual major version directly
+    const installedMajor = findInstalledEslintMajor(rootDir)
+    if (installedMajor !== null) {
+        return installedMajor
     }
 
     // 2. Parse package.json dependency declaration
@@ -398,12 +460,13 @@ function detectProjectType() {
  */
 function detectCssPreprocessor() {
     const pkg = getProjectPkg()
-    if (!pkg) return "scss"
-    const allDeps = {
-        ...(pkg.dependencies || {}),
-        ...(pkg.devDependencies || {}),
-        ...(pkg.peerDependencies || {}),
-    }
+    const allDeps = pkg
+        ? {
+              ...(pkg.dependencies || {}),
+              ...(pkg.devDependencies || {}),
+              ...(pkg.peerDependencies || {}),
+          }
+        : {}
 
     const hasSass = allDeps["sass"] || allDeps["node-sass"] || allDeps["sass-loader"]
     const hasLess = allDeps["less"] || allDeps["less-loader"]
@@ -435,6 +498,11 @@ function detectCssPreprocessor() {
         if (usesLess) return "less"
         if (usesScss) return "scss"
         return "scss"
+    }
+
+    // 无 package.json 时无法判断项目类型，不猜测样式方案（避免凭空安装一堆 stylelint 依赖）
+    if (!pkg) {
+        return "none"
     }
 
     // If not a Vue/uni-app project and no css preprocessor found, skip stylelint
@@ -678,15 +746,15 @@ function main() {
 
     if (eslintVersion !== null && eslintVersion < 8) {
         console.error(
-            `不支持 ESLint ${eslintVersion} 版本；本配置包仅支持 ESLint 8 或 9，未修改任何文件`,
+            `不支持 ESLint ${eslintVersion} 版本；本配置包仅支持 ESLint 8 / 9 / 10，未修改任何文件`,
         )
         process.exitCode = 1
         return
     }
 
-    if (eslintVersion !== null && eslintVersion >= 10) {
+    if (eslintVersion !== null && eslintVersion > 10) {
         warn(
-            `ESLint ${eslintVersion} 尚未在 peerDependencies 声明支持（^8.57.0 || ^9.0.0），将按 Flat Config 生成`,
+            `ESLint ${eslintVersion} 尚未在 peerDependencies 声明支持（^8.57.0 || ^9.0.0 || ^10.0.0），将按 Flat Config 生成`,
         )
     }
 
@@ -1154,6 +1222,8 @@ function checkPeerDeps({
         ...(pkg.devDependencies || {}),
     }
 
+    checkInstalledVersions({ peerDeps, allPeerDeps })
+
     const missing = allPeerDeps.filter((dep) => !allDeps[dep])
     if (missing.length > 0) {
         console.log("")
@@ -1169,6 +1239,109 @@ function checkPeerDeps({
             console.log(`  ${depWithVersion}${suffix}`)
         })
     }
+}
+
+// 体检时会顺着这些包的 peerDependencies 反查底层依赖的实际版本
+const PEER_SOURCE_PACKAGES = [
+    "stylelint-config-recommended",
+    "stylelint-config-recommended-scss",
+    "stylelint-config-recommended-vue",
+    "stylelint-config-html",
+    "stylelint-config-recess-order",
+    "stylelint-prettier",
+]
+// 只反查这些“装错就真的会坏”的底层包，避免把上游配置之间的宽松约束也报出来
+const PEER_SOURCE_TARGETS = [
+    "stylelint",
+    "stylelint-order",
+    "postcss-html",
+    "stylelint-config-recommended",
+    "stylelint-config-html",
+    "stylelint-config-recommended-scss",
+]
+
+/**
+ * 已装依赖的版本体检。
+ *
+ * 为什么需要它：npm 遇到不满足的 peer 会直接 ERESOLVE 拒装，pnpm 只打印一行
+ * WARN 就装完，于是“装是装上了，跑起来才坏”的组合会长期潜伏。这里把两类问题
+ * 主动查出来并给出对齐命令（只做 major 级别判断，保持零依赖）：
+ *   1. 我们声明的 peer 范围 vs 项目里实际安装的版本（含 minor / patch）；
+ *   2. 上游配置包自己的 peer（例如 stylelint-config-recommended@18 要求
+ *      stylelint ^17），以及 typescript-eslint 与其 parser/plugin 的版本错位。
+ */
+function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT }) {
+    const problems = [];
+    const seen = new Set();
+    const add = (name, message, target) => {
+        const key = `${name}\u0000${message}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        problems.push({ name, message, target });
+    };
+    const minorOf = (version) => String(version).split(".").slice(0, 2).join(".");
+
+    // 1) 本工具的 peer 范围 vs 实际安装
+    for (const dep of allPeerDeps) {
+        const range = dep === "eslint" ? peerDeps.eslint : peerDeps[dep];
+        if (!range || range === "*" || range.startsWith("npm:")) continue;
+        const installed = findInstalledPackage(dep, rootDir);
+        if (!installed) continue;
+        const allowed = satisfiesRange(range, installed.version);
+        if (allowed === null || allowed) continue;
+        add(dep, `${dep} 装了 ${installed.version}，本工具要求 ${range}`, `${dep}@${range}`);
+    }
+
+    // 2) 上游配置包的 peer vs 实际安装（配置文件本身也会挑底层版本）
+    for (const dep of PEER_SOURCE_PACKAGES) {
+        const source = findInstalledPackage(dep, rootDir);
+        if (!source) continue;
+        for (const [target, range] of Object.entries(source.manifest.peerDependencies || {})) {
+            if (!PEER_SOURCE_TARGETS.includes(target)) continue;
+            if (range === "*" || String(range).startsWith("npm:")) continue;
+            const installed = findInstalledPackage(target, rootDir);
+            if (!installed) {
+                if (!rangeIntervals(range).length) continue;
+                add(
+                    target,
+                    `${dep}@${source.version} 需要 ${target}@${range}，项目里没有安装`,
+                    `${target}@${range}`,
+                );
+                continue;
+            }
+            const allowed = satisfiesRange(range, installed.version);
+            if (allowed === null || allowed) continue;
+            add(
+                target,
+                `${dep}@${source.version} 要求 ${target}@${range}，实际装了 ${installed.version}`,
+                `${target}@${range}`,
+            );
+        }
+    }
+
+    // 3) typescript-eslint 与 @typescript-eslint/parser、eslint-plugin 必须同版本
+    const meta = findInstalledPackage("typescript-eslint", rootDir);
+    if (meta) {
+        for (const sibling of ["@typescript-eslint/parser", "@typescript-eslint/eslint-plugin"]) {
+            const installed = findInstalledPackage(sibling, rootDir);
+            if (!installed) continue;
+            if (minorOf(installed.version) === minorOf(meta.version)) continue;
+            add(
+                sibling,
+                `${sibling}@${installed.version} 与 typescript-eslint@${meta.version} 不是同一版本`,
+                `${sibling}@${meta.version}`,
+            );
+        }
+    }
+
+    if (!problems.length) return;
+    console.log("");
+    warn("以下依赖已安装，但版本与当前配置不匹配：");
+    for (const problem of problems) console.log(`  · ${problem.message}`);
+    console.log("");
+    warn("对齐命令（也可以把上游配置包降到与你现有版本匹配的大版本）：");
+    const targets = [...new Set(problems.map((problem) => problem.target))];
+    console.log(`  ${addDevCommand(detectPackageManager())} ${targets.join(" ")}`);
 }
 
 // Only run when executed directly; requiring this file must be side-effect free.

@@ -1,14 +1,58 @@
 ## 变更日志
 
+### [1.7.2](https://github.com/myvn/codeStyle/compare/v1.7.1...v1.7.2) (2026-09-20)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **publish:** 恢复 --provenance —— 1.7.1 因此丢了 npm 页面的绿勾 ([df8e379](https://github.com/myvn/codeStyle/commit/df8e37978df62265e11454050cb1afce6b003dbf))
+- **release:** 发布前防呆，拦住 "tag 已在 HEAD" 时多发一个空版本 ([9da41a8](https://github.com/myvn/codeStyle/commit/9da41a88fdf275e29576daa03a350a6ac780d566))
+
+### [1.7.1](https://github.com/myvn/codeStyle/compare/v1.7.0...v1.7.1) (2026-09-20)
+
+## [1.7.0](https://github.com/myvn/codeStyle/compare/v1.6.1...v1.7.0) (2026-09-20)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **deps:** stylelint 生态 peer 放宽到 16/17 两条线，并补 Stylelint 17 运行时回归 ([a230edc](https://github.com/myvn/codeStyle/commit/a230edcae73d2b935977567b8f082aaaa74dc938))
+
+### ✨ Features | 新功能
+
+- **init:** 依赖版本体检 —— 已装但版本不匹配、上游配置 peer 冲突、parser 错位 ([2820834](https://github.com/myvn/codeStyle/commit/2820834bc3062900724132f7b29c2581eace13e8))
+- **init:** 版本体检精确到 minor —— 只比主版本会漏掉 10.2.0 vs ^10.3.0 ([d13629c](https://github.com/myvn/codeStyle/commit/d13629c947575109ed3319854ab902e5caada145))
+
+### [1.6.1](https://github.com/myvn/codeStyle/compare/v1.6.0...v1.6.1) (2026-09-18)
+
+## [1.6.0](https://github.com/myvn/codeStyle/compare/v1.4.0...v1.6.0) (2026-09-18)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- 修复 ESLint 版本/样式检测误判、规则冲突与 scope 生成缺陷 ([033967b](https://github.com/myvn/codeStyle/commit/033967b0efadbb705bdafe5d4dfc34dbc90578c2))
+- 修复 Flat Config 缺 eslint:recommended、Prettier 选项漂移等 7 类问题 ([e4533bb](https://github.com/myvn/codeStyle/commit/e4533bbdaf5752146289a2b4e044ce59658c9453))
+
+### ✨ Features | 新功能
+
+- **diagnose:** ⑤ 拆分排队来源：纯 git 链膨胀 vs 完整链膨胀 vs 错峰启动 ([5caa437](https://github.com/myvn/codeStyle/commit/5caa4372d6ebbc52e19ec771b65d9a0edf041d63))
+- **diagnose:** 增加 ⑤ 并发压力段，量"单个耗时被并发放大多少倍" ([df060d5](https://github.com/myvn/codeStyle/commit/df060d56cecfa7f3b830864cc01082ee14583662))
+- **diagnose:** 对照 fixture 落在仓库内 vs 系统临时目录 ([7ea7fdc](https://github.com/myvn/codeStyle/commit/7ea7fdc6f913dcad1e76fb110241f875a204c341))
+- **diagnose:** 新增 npm run diagnose，定位"一次提交到底花在哪" ([61dbfdb](https://github.com/myvn/codeStyle/commit/61dbfdb99813384097cf2f243b31d20c84695cbd))
+- **init:** 补全 peer 体检并按包管理器输出命令，新增初始化链路文档 ([0396198](https://github.com/myvn/codeStyle/commit/03961983be3a6f8cda96d4047450e7595ffefb97))
+- **sweep:** 新增 --suite 过滤与 npm run sweep，给本机找最佳并发 ([d65254d](https://github.com/myvn/codeStyle/commit/d65254d1c9ef3277fbc23dc87bb6285d5ef3829c))
+
 ## [1.5.0](https://github.com/myvn/codeStyle/compare/v1.4.0...v1.5.0) (2026-09-18)
 
 ### 🐛 Bug Fixes | Bug 修复
 
 - 修复 ESLint 版本/样式检测误判、规则冲突与 scope 生成缺陷 ([033967b](https://github.com/myvn/codeStyle/commit/033967b0efadbb705bdafe5d4dfc34dbc90578c2))
+- 修复 Flat Config 缺 eslint:recommended、Prettier 选项漂移等 7 类问题 ([e4533bb](https://github.com/myvn/codeStyle/commit/e4533bbdaf5752146289a2b4e044ce59658c9453))
 
 ### ✨ Features | 新功能
 
+- **diagnose:** ⑤ 拆分排队来源：纯 git 链膨胀 vs 完整链膨胀 vs 错峰启动 ([5caa437](https://github.com/myvn/codeStyle/commit/5caa4372d6ebbc52e19ec771b65d9a0edf041d63))
+- **diagnose:** 增加 ⑤ 并发压力段，量"单个耗时被并发放大多少倍" ([df060d5](https://github.com/myvn/codeStyle/commit/df060d56cecfa7f3b830864cc01082ee14583662))
+- **diagnose:** 对照 fixture 落在仓库内 vs 系统临时目录 ([7ea7fdc](https://github.com/myvn/codeStyle/commit/7ea7fdc6f913dcad1e76fb110241f875a204c341))
+- **diagnose:** 新增 npm run diagnose，定位"一次提交到底花在哪" ([61dbfdb](https://github.com/myvn/codeStyle/commit/61dbfdb99813384097cf2f243b31d20c84695cbd))
 - **init:** 补全 peer 体检并按包管理器输出命令，新增初始化链路文档 ([0396198](https://github.com/myvn/codeStyle/commit/03961983be3a6f8cda96d4047450e7595ffefb97))
+- **sweep:** 新增 --suite 过滤与 npm run sweep，给本机找最佳并发 ([d65254d](https://github.com/myvn/codeStyle/commit/d65254d1c9ef3277fbc23dc87bb6285d5ef3829c))
 
 ## [1.4.0](https://github.com/myvn/codeStyle/compare/v1.2.0...v1.4.0) (2026-09-17)
 

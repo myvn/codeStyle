@@ -16,12 +16,25 @@ function project(t, files = {}) {
         dir,
         read: (name) => fs.readFileSync(path.join(dir, name), "utf8"),
         exists: (name) => fs.existsSync(path.join(dir, name)),
-        init: (...args) => spawnSync(process.execPath, [path.join(root, "bin/init"), ...args], {
-            cwd: dir, encoding: "utf8", timeout: 10000,
-        }),
-        node: (script) => spawnSync(process.execPath, ["-e", script], {
-            cwd: dir, encoding: "utf8", timeout: 10000,
-        }),
+        init: (...args) =>
+            spawnSync(process.execPath, [path.join(root, "bin/init"), ...args], {
+                cwd: dir,
+                encoding: "utf8",
+                timeout: 10000,
+            }),
+        // 在子目录里运行 init（monorepo 场景：工作区根安装了 ESLint，子包声明范围）
+        initIn: (subdir, ...args) =>
+            spawnSync(process.execPath, [path.join(root, "bin/init"), ...args], {
+                cwd: path.join(dir, subdir),
+                encoding: "utf8",
+                timeout: 10000,
+            }),
+        node: (script) =>
+            spawnSync(process.execPath, ["-e", script], {
+                cwd: dir,
+                encoding: "utf8",
+                timeout: 10000,
+            }),
     }
 }
 module.exports = { project, root }

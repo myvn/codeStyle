@@ -147,6 +147,8 @@ function getStagedFiles(cwd) {
         const output = execSync("git diff --cached --name-only -z", {
             cwd,
             stdio: ["pipe", "pipe", "ignore"],
+            // 大仓库/大量暂存文件可能超过默认 1MB，避免 ENOBUFS 导致 scope 猜测整体失败
+            maxBuffer: 64 * 1024 * 1024,
         }).toString()
         return output.split("\0").filter(Boolean)
     } catch {
@@ -154,17 +156,22 @@ function getStagedFiles(cwd) {
             const output = execSync("git status --porcelain -z", {
                 cwd,
                 stdio: ["pipe", "pipe", "ignore"],
+                maxBuffer: 64 * 1024 * 1024,
             }).toString()
             const parts = output.split("\0")
             const staged = []
             for (let i = 0; i < parts.length; i++) {
                 const entry = parts[i]
-                if (!entry) continue
+                if (!entry) {
+                    continue
+                }
                 const x = entry[0]
                 const isRenameOrCopy = x === "R" || x === "C"
                 const filePath = entry.slice(3)
                 if (x !== " " && x !== "?" && x !== "!") {
-                    if (filePath) staged.push(filePath)
+                    if (filePath) {
+                        staged.push(filePath)
+                    }
                 }
                 if (isRenameOrCopy) {
                     i++

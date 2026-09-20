@@ -1,5 +1,7 @@
 name: Publish to npm
 
+# 只在 v* tag 上发布。workflow_dispatch 保留给"重跑一次 tag 构建"，
+# 但下面第一步会校验 ref 必须是 tag —— 防止有人在任意分支上手动触发发版。
 on:
   push:
     tags:
@@ -9,21 +11,35 @@ on:
 jobs:
   test-and-publish:
     runs-on: ubuntu-latest
+    # 环境审批闸门：在仓库 Settings → Environments 给 npm-publish 配 required reviewers 后，
+    # 每次发布都需要人工批准（未配置时 GitHub 会自动创建该环境、无审批）。
+    # 名称要与 npm 页面 Trusted Publisher 里填的 environment 一致。
+    environment: npm-publish
     permissions:
       contents: write
+      # Trusted Publishing（OIDC）交换令牌用；不写任何长期凭据
       id-token: write
 
     steps:
+      - name: 校验触发来源（只允许 tag 发布）
+        run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::发布工作流只允许通过 v* tag 触发（当前 ref: ${GITHUB_REF}）。请用 npm run release:push 或 git push --follow-tags。"
+            exit 1
+          fi
+          echo "触发来源校验通过：${GITHUB_REF}"
+
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: 设置 Node.js 环境
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
-          registry-url: "https://registry.npmjs.org"
+          # Node 24 自带 npm ≥ 11.5.1，这是 Trusted Publishing 的硬性要求；
+          # 刻意不写 registry-url：那会生成带 _authToken 的 .npmrc，让 npm 以为"认证已配好"从而不再走 OIDC。
+          node-version: 24
 
       - name: 安装基础依赖
         run: npm install --ignore-scripts
@@ -32,6 +48,7 @@ jobs:
         run: |
           npm run test:integration:setup
           npm run test:legacy:setup
+          npm run test:stylelint17:setup
 
       - name: 执行全量测试套件 (门禁：测试全过才允许发布)
         run: npm run test:all
@@ -39,13 +56,43 @@ jobs:
       - name: 检查发布文件清单 (防泄露测试/临时文件)
         run: npm pack --dry-run
 
+      # 认证优先级：npm Trusted Publishing（OIDC）→ NPM_TOKEN。
+      # 迁移路径：先在 npm 页面配置 Trusted Publisher，再删除仓库 secret NPM_TOKEN；
+      # 删掉之后本步骤自动走 OIDC，不需要再改这个文件。
+      # 始终显式带 --provenance：只有 OIDC 是"自动生成 provenance"，token 发布必须显式加这个
+      # flag 才会有 attestation（npm 页面上的绿勾）。1.7.1 就是因为这里漏了 flag 而丢了绿勾。
+      # 不再使用 `|| npm publish` 兜底：provenance 失败就应该失败，不能静默降级成无凭据发布。
       - name: 发布至 npm
-        run: npm publish --provenance --access public || npm publish --access public
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> "$HOME/.npmrc"
+            echo "使用 NPM_TOKEN 发布（已可切到 Trusted Publishing：配置后删除该 secret 即自动改走 OIDC）"
+          else
+            echo "未提供 NPM_TOKEN，使用 npm Trusted Publishing（OIDC）发布"
+          fi
+          npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: 创建 GitHub Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+
+      # 防呆：发布后回查 attestation，确保绿勾真的在。
+      # 放在最后，这样即使校验失败，包与 Release 也都已经建好，只是整条运行标红提醒。
+      # 1.7.1 的教训：publish 命令漏掉 --provenance 时，流程全绿、只有 npm 页面少一个绿勾，
+      # 不看一眼根本发现不了。
+      - name: 校验 provenance 证明（npm 页面上的绿勾）
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for attempt in 1 2 3 4 5 6; do
+            if curl -sf "https://registry.npmjs.org/-/npm/v1/attestations/my-code-style@${version}" > /dev/null; then
+              echo "✅ my-code-style@${version} 已带 provenance 证明"
+              exit 0
+            fi
+            echo "第 ${attempt} 次查询未命中（registry 可能有延迟），5 秒后重试…"
+            sleep 5
+          done
+          echo "::error::my-code-style@${version} 缺少 provenance 证明（包已发布，但 npm 页面不会有绿勾）。检查发布命令是否带 --provenance，或按 README《发布（维护者）》切到 Trusted Publishing。"
+          exit 1

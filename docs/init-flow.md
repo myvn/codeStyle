@@ -25,7 +25,7 @@ npx my-code-style-init
 
 ### 2. peerDependencies 全部是 optional
 
-27 个 peer 在 `peerDependenciesMeta` 里逐个声明 `optional: true`，因此 **pnpm 一个都不会自动安装**。此时项目里只有一份"配置工厂"，还没有被配置的 ESLint / Prettier / Stylelint 本体。
+32 个 peer 在 `peerDependenciesMeta` 里逐个声明 `optional: true`，因此 **pnpm 一个都不会自动安装**。此时项目里只有一份"配置工厂"，还没有被配置的 ESLint / Prettier / Stylelint 本体。
 
 > 对照：`typescript-eslint` 对 `typescript` 的 peer 是**非可选**的（`>=4.8.4 <6.1.0`），pnpm 会把它自动装到 `.pnpm/typescript@6.x`，顶层 `node_modules` 看不到。这也是 CLI 的缺失依赖提示必须列出 `typescript` 的原因。
 
@@ -84,7 +84,9 @@ npx my-code-style-init
 
 ### 6. 收尾
 
-比对 `peerDependencies` 与项目实际依赖，列出缺失项并给出一条**按当前包管理器生成**的安装命令（`pnpm add -D` / `npm i -D` / `yarn add -D` / `bun add -d`），随后打印下一步（安装 peer → 初始化 husky → `cz` 提交）。pnpm 项目额外提示 `pnpm approve-builds`（pnpm 10+ 默认拦截依赖构建脚本，如 `unrs-resolver`）。
+比对 `peerDependencies` 与项目实际依赖，先做**版本体检**再列缺失项。体检查三类：① 已安装版本是否落在本包声明的 peer 范围内（精确到 minor / patch）；② 上游配置包自己的 peer 是否被满足（例如 `stylelint-config-recommended@18` 要求 `stylelint ^17`、`recess-order 7` 需要 `stylelint-order`）；③ `typescript-eslint` 与 `@typescript-eslint/parser`、`@typescript-eslint/eslint-plugin` 是否同一版本。命中时逐条打印原因，并给出一条可复制的**对齐命令**（`pnpm add -D …` / `npm i -D …`），也可以选择把上游配置包降到与现有版本匹配的大版本。
+
+然后列出缺失项并给出一条**按当前包管理器生成**的安装命令（`pnpm add -D` / `npm i -D` / `yarn add -D` / `bun add -d`），随后打印下一步（安装 peer → 初始化 husky → `cz` 提交）。pnpm 项目额外提示 `pnpm approve-builds`（pnpm 10+ 默认拦截依赖构建脚本，如 `unrs-resolver`）。
 
 ---
 
@@ -111,13 +113,13 @@ npx my-code-style-init
 
 ## 五、相关实现与测试
 
-| 位置                                       | 内容                                                     |
-| ------------------------------------------ | -------------------------------------------------------- |
-| `bin/init`                                 | CLI 本体（检测、生成、回滚、peer 体检）                  |
-| `src/prettier/index.cjs` 等                | 生成文件里 `require("my-code-style/...")` 指向的真实配置 |
-| `src/husky/*`                              | hook 模板，CLI 直接读取，避免内容漂移                    |
-| `demo-test/init-matrix.test.cjs`           | 检测矩阵、包管理器提示、`--backup`、回滚                 |
-| `demo-test/integration/toolchain.test.cjs` | Flat Config 真实运行与完整提交链                         |
-| `demo-test/legacy/eslint8.test.cjs`        | ESLint 8 传统格式真实运行                                |
+| 位置                                                                                                                                                                                  | 内容                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `bin/init`                                                                                                                                                                            | CLI 本体（检测、生成、回滚、peer 体检）                                                        |
+| `src/prettier/index.cjs` 等                                                                                                                                                           | 生成文件里 `require("my-code-style/...")` 指向的真实配置                                       |
+| `src/husky/*`                                                                                                                                                                         | hook 模板，CLI 直接读取，避免内容漂移                                                          |
+| `demo-test/init-matrix.test.cjs`                                                                                                                                                      | 检测矩阵、包管理器提示、`--backup`、回滚                                                       |
+| `demo-test/integration/*.test.cjs`（23 个文件：lint / commit-chain-* / empty-commit-guard / error-recovery* / embedded-style* / partial-staging* / git-edge-* / git-mv-rm / release） | Flat Config 真实运行、提交链与 Git 边界；`_runtime.cjs` 负责加锁同步隔离环境源码并惰性加载依赖 |
+| `demo-test/legacy/eslint8.test.cjs`                                                                                                                                                   | ESLint 8 传统格式真实运行                                                                      |
 
 实测命令记录见本文件；如需复现，可在空目录执行 `npx my-code-style-init --dry-run` 观察检测结果。

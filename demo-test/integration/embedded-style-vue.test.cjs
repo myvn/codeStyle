@@ -1,0 +1,22 @@
+const { test } = require("node:test")
+const assert = require("node:assert/strict")
+const { commitProject } = require("./_runtime.cjs")
+
+const ext = "vue"
+
+test(`完整提交链拦截 ${ext} 内嵌样式错误（不是仅检查脚本）`, (t) => {
+    const p = commitProject(t)
+    const name = `src/BadStyle.${ext}`
+    const source =
+        "<template><view>Hello</view></template>\n<style>\n.demo {\n    unknown-property: red;\n}\n</style>\n"
+    p.write(name, source)
+    p.git("add", "--", name)
+    const head = p.git("rev-parse", "HEAD")
+    const staged = p.git("diff", "--cached", "--binary")
+    const result = p.commit()
+    assert.notEqual(result.status, 0)
+    assert.match(result.stdout + result.stderr, /property-no-unknown/)
+    assert.equal(p.git("rev-parse", "HEAD"), head)
+    assert.equal(p.git("diff", "--cached", "--binary"), staged)
+    assert.equal(p.read(name), source)
+})

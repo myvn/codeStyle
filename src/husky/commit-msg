@@ -1,1 +1,5 @@
-npx --no-install commitlint --edit "${1}"
+# 同 pre-commit：直接用本地 commitlint，省掉一次 npm CLI（npx）启动。
+if command -v commitlint >/dev/null 2>&1; then
+    exec commitlint --edit "$1"
+fi
+npx --no-install commitlint --edit "$1"
