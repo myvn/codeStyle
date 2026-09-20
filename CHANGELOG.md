@@ -1,17 +1,17 @@
 ## 变更日志
 
-## [1.7.0](https://github.com/myvn/codeStyle/compare/v1.6.1...v1.7.0) (2026-09-20)
+### [1.7.1](https://github.com/myvn/codeStyle/compare/v1.7.0...v1.7.1) (2026-09-20)
 
+## [1.7.0](https://github.com/myvn/codeStyle/compare/v1.6.1...v1.7.0) (2026-09-20)
 
 ### 🐛 Bug Fixes | Bug 修复
 
-* **deps:** stylelint 生态 peer 放宽到 16/17 两条线，并补 Stylelint 17 运行时回归 ([a230edc](https://github.com/myvn/codeStyle/commit/a230edcae73d2b935977567b8f082aaaa74dc938))
-
+- **deps:** stylelint 生态 peer 放宽到 16/17 两条线，并补 Stylelint 17 运行时回归 ([a230edc](https://github.com/myvn/codeStyle/commit/a230edcae73d2b935977567b8f082aaaa74dc938))
 
 ### ✨ Features | 新功能
 
-* **init:** 依赖版本体检 —— 已装但版本不匹配、上游配置 peer 冲突、parser 错位 ([2820834](https://github.com/myvn/codeStyle/commit/2820834bc3062900724132f7b29c2581eace13e8))
-* **init:** 版本体检精确到 minor —— 只比主版本会漏掉 10.2.0 vs ^10.3.0 ([d13629c](https://github.com/myvn/codeStyle/commit/d13629c947575109ed3319854ab902e5caada145))
+- **init:** 依赖版本体检 —— 已装但版本不匹配、上游配置 peer 冲突、parser 错位 ([2820834](https://github.com/myvn/codeStyle/commit/2820834bc3062900724132f7b29c2581eace13e8))
+- **init:** 版本体检精确到 minor —— 只比主版本会漏掉 10.2.0 vs ^10.3.0 ([d13629c](https://github.com/myvn/codeStyle/commit/d13629c947575109ed3319854ab902e5caada145))
 
 ### [1.6.1](https://github.com/myvn/codeStyle/compare/v1.6.0...v1.6.1) (2026-09-18)
 
