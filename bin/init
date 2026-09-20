@@ -1071,6 +1071,9 @@ function main() {
         console.log("  3. 使用 czg 提交 commit：")
     }
     console.log(`     ${runScriptCommand(pm, "cz")}`)
+    console.log(
+        "     （先 git add 暂存改动；交互步骤、类型与 scope 规则见本包 README《用 pnpm cz 提交》）",
+    )
     if (pm === "pnpm") {
         console.log("")
         console.log("  提示：pnpm 10+ 默认拦截依赖的构建脚本，若安装时提示")

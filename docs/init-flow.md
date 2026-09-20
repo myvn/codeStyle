@@ -92,11 +92,11 @@ npx my-code-style-init
 
 ## 三、初始化之后（三个必要动作）
 
-| 动作                                       | 说明                                                                                                                          |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 安装 peerDependencies                      | 按 CLI 输出的命令执行。**不要漏掉 `typescript`**，它是 `@typescript-eslint/parser` / `typescript-eslint` 的非可选 peer        |
-| `pnpm prepare`（npm 用 `npm run prepare`） | husky 把 `git config core.hooksPath` 设为 `.husky/_`。**必须在 git 仓库内执行**，否则只输出 `.git can't be found` 且不生效    |
-| `pnpm cz` / `git commit`                   | commit-msg 走 commitlint，pre-commit 走 lint-staged（按文件分组串行 `prettier --write` → `eslint --fix` → `stylelint --fix`） |
+| 动作                                       | 说明                                                                                                                                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 安装 peerDependencies                      | 按 CLI 输出的命令执行。**不要漏掉 `typescript`**，它是 `@typescript-eslint/parser` / `typescript-eslint` 的非可选 peer                                                                                                          |
+| `pnpm prepare`（npm 用 `npm run prepare`） | husky 把 `git config core.hooksPath` 设为 `.husky/_`。**必须在 git 仓库内执行**，否则只输出 `.git can't be found` 且不生效                                                                                                      |
+| `pnpm cz` / `git commit`                   | commit-msg 走 commitlint，pre-commit 走 lint-staged（按文件分组串行 `prettier --write` → `eslint --fix` → `stylelint --fix`）。`pnpm cz` 由暂存区驱动，**先 `git add`**；六步交互与 15 种类型见本包 README《用 `pnpm cz` 提交》 |
 
 ---
 

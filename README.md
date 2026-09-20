@@ -46,6 +46,48 @@ init 脚本会自动检测技术栈类型（uni-app / Vue 3 / Node 基础库）�
 | 样式代码   | 基本无人检查                 | stylelint 覆盖 SCSS/Less/Vue 内嵌样式             |
 | 规则同步   | 每个项目各抄一份             | 升级一个依赖版本，全项目生效                      |
 
+### 用 `pnpm cz` 提交（交互式）
+
+`czg` 由**暂存区驱动**——没有暂存文件会直接报 `No files added to staging!` 并退出，所以顺序是先 `git add` 再 `pnpm cz`：
+
+```bash
+git add -A
+pnpm cz                 # = czg；npm 项目：npm run cz
+```
+
+六步交互，**除类型外每一步都能直接回车跳过**：
+
+| 步骤 | 界面            | 说明                                                                                                                                                         |
+| ---- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | 选择类型        | 15 种（见下表），支持输入关键字过滤                                                                                                                          |
+| 2    | 选择 scope      | 候选来自 `src/` 下的目录（自动转单数：`components` → `component`）；默认值按**暂存文件**推断，改了 `src/api/` 默认就是 `api`；也可选「自定义」手填或「不填」 |
+| 3    | 一句话描述      | 右侧 `[N more chars allowed]` 是还能写多少字符，已扣除 `类型(scope): ` 前缀——上限就是 commitlint 的 `header-max-length`（本配置 108）                        |
+| 4    | 详细描述        | 可选，写多行时用管道符分隔                                                                                                                                   |
+| 5    | BREAKING CHANGE | 可选                                                                                                                                                         |
+| 6    | 关联 ISSUE      | 可选（如 `#31, #34`），最后预览并确认 Y/n                                                                                                                    |
+
+| 类型       | 含义                               | 类型       | 含义                          |
+| ---------- | ---------------------------------- | ---------- | ----------------------------- |
+| `feat`     | 新功能                             | `build`    | 影响构建系统或外部依赖的变更  |
+| `fix`      | 修复缺陷                           | `ci`       | CI 配置与脚本变更             |
+| `docs`     | 仅文档变更                         | `chore`    | 其他不涉及 src 与测试的杂项   |
+| `style`    | 不影响代码含义的格式调整           | `revert`   | 回滚此前的提交                |
+| `refactor` | 既非修复缺陷也非新增功能的代码调整 | `wip`      | 开发中（临时提交）            |
+| `perf`     | 性能优化                           | `workflow` | 工作流改进                    |
+| `test`     | 补测试或修正既有测试               | `types`    | 类型定义文件变更              |
+|            |                                    | `release`  | 发布相关（版本号 / 变更日志） |
+
+省键盘的写法：
+
+| 写法                              | 作用                                                                                                                                                              |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm cz :f`                      | 用预置别名直接提交：`f`=`docs: fix typos`、`r`=`docs: update README`、`s`=`style: update code format`、`b`=`build: bump dependencies`、`c`=`chore: update config` |
+| `pnpm cz -r`                      | 重放上一条提交信息（改完文件再提交同样的说明）                                                                                                                    |
+| `pnpm cz --help`                  | 其他模式：`emoji` / `break` / `ai` / `gpg` / `checkbox`（默认都不开启）                                                                                           |
+| `git commit -m "feat(api): 说明"` | 不用交互也行，但**冒号后必须有空格**，否则报 `type may not be empty` + `subject may not be empty`                                                                 |
+
+提交时 `commit-msg` 钩子会用同一份 commitlint 配置复核：type 必须是上表 15 种之一、描述不能为空、标题 ≤ 108 字符；`Merge branch …` / `Revert …` 这类消息自动忽略。想换提示语言或措辞，见下方常见问题。
+
 ## 生成的文件
 
 | 文件                               | 说明                                                                          |
@@ -195,10 +237,10 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 174 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 175 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
-npm test                       # 只跑基础 CLI 与配置矩阵（80 项）
+npm test                       # 只跑基础 CLI 与配置矩阵（81 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（59 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
@@ -213,46 +255,46 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
 ```text
   my-code-style 测试套件
 
-  ▶ [1/4] 基础 CLI 与配置矩阵  （共 80 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [1/4] 基础 CLI 与配置矩阵  （共 81 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 2ms
-      ✓ 运行器表格：CJK 宽度按两列计算，耗时格式化区分秒与毫秒 · 0ms
+      ✓ 运行器表格：CJK 宽度按两列计算，耗时格式化区分秒与毫秒 · 1ms
       ✓ cz 交互提示为中文，且可选类型与 type-enum 一一对应 · 1ms
-      ✓ 发布工作流保持 provenance 契约（--provenance + 发布日志自证 + 慢回传重试） · 1ms
+      ✓ 初始化结尾指引把 cz 用法说清楚（先 git add + 指到 README 手册） · 83ms
       …
-     ✓ 通过 80  ·  3.1s   · 最慢文件 init-matrix.test.cjs 2.9s
+     ✓ 通过 81  ·  3.8s   · 最慢文件 init-matrix.test.cjs 3.5s
 
   ▶ [2/4] 现代工具链与提交链  （共 59 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 10.3s
+      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 10.9s
       ✓ 发布防呆：HEAD 已有 v* tag 时拦截（此时 standard-version 会静默抬版并写出空 CHANGELOG） · 461ms
       …
-     ✓ 通过 59  ·  45.2s   · 最慢文件 commit-chain-both.test.cjs 10.7s
+     ✓ 通过 59  ·  41.6s   · 最慢文件 commit-chain-scss.test.cjs 11.5s
 
   ▶ [3/4] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 独立运行 ESLint 8 支持下限而非 ESLint 9 · 1ms
-      ✓ ESLint 8 base：实际 CLI 加载生成配置并接受正常文件 · 1.3s
+      ✓ ESLint 8 base：实际 CLI 加载生成配置并接受正常文件 · 1.7s
       …
-     ✓ 通过 27  ·  19.2s
+     ✓ 通过 27  ·  20.5s
 
   ▶ [4/4] Stylelint 17 兼容性  （共 8 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 隔离环境装的是 stylelint 17（不是 16） · 2ms
-      ✓ 生成的 .stylelintrc.cjs 在 stylelint 17 下可加载并放过正常 SCSS · 671ms
+      ✓ 生成的 .stylelintrc.cjs 在 stylelint 17 下可加载并放过正常 SCSS · 747ms
       …
-     ✓ 通过 8  ·  6.8s
+     ✓ 通过 8  ·  7.5s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
-  基础 CLI 与配置矩阵         80       0       -    3.1s
-  现代工具链与提交链          59       0       -   45.2s
-  ESLint 8 兼容性             27       0       -   19.2s
-  Stylelint 17 兼容性          8       0       -    6.8s
+  基础 CLI 与配置矩阵         81       0       -    3.8s
+  现代工具链与提交链          59       0       -   41.6s
+  ESLint 8 兼容性             27       0       -   20.5s
+  Stylelint 17 兼容性          8       0       -    7.5s
   ──────────────────────────────────────────────────────
-  合计                       174       0       -   74.3s
+  合计                       175       0       -   73.5s
   ──────────────────────────────────────────────────────
 
-  ⏱ 最慢文件：eslint8.test.cjs 19.2s · commit-chain-both.test.cjs 10.7s · commit-chain-scss.test.cjs 10.7s
+  ⏱ 最慢文件：eslint8.test.cjs 20.5s · commit-chain-scss.test.cjs 11.5s · commit-chain-both.test.cjs 11.2s
 
-  ✅ 全部通过：174/174 项，用时 74.3s
+  ✅ 全部通过：175/175 项，用时 73.5s
 ```
 
 终端里每个套件下方还有一条实时进度条（`██████░░░░ 38/66  失败 0  4.0s`）。附加参数：
@@ -330,7 +372,7 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 | `npm run test:integration`（运行器调度，自动并发 3）                        | 30.6s（只看集成套件那一段）                 |
 | 串行套件 + 文件级并发 23（全部一波）                                        | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL） |
 
-同机复测（174 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 91.0s、默认自动并发 3 = 74.3s、`--parallel` 四套件 = 62.6s、`npm run test:integration` = 42.1s、`node --test demo-test/integration/*.test.cjs` = 54.7s。
+同机复测（175 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 85.1s、默认自动并发 3 = 73.5s、`--parallel` 四套件 = 63.8s、`npm run test:integration` = 40.7s、`node --test demo-test/integration/*.test.cjs` = 54.5s。
 
 （2 核沙箱里并行收益被 CPU 争抢吃掉大半，`--concurrency=1` 时单个文件只要 0.7–4.2s；
 16 核机器上集成套件那段 ≈ 最慢子文件，即"一次真实提交"的量级。）

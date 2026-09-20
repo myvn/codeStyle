@@ -690,3 +690,25 @@ test("依赖版本体检：stylelint 16 线的合法组合不误报", (t) => {
     assert.equal(result.status, 0)
     assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
 })
+
+test("初始化结尾指引把 cz 用法说清楚（先 git add + 指到 README 手册）", (t) => {
+    for (const [lock, isFlat] of [
+        ["pnpm-lock.yaml", true],
+        ["package-lock.json", false],
+    ]) {
+        const p = project(t, {
+            "package.json": JSON.stringify({
+                name: "cz-doc-pointer",
+                devDependencies: { eslint: isFlat ? "^9.0.0" : "^8.57.0" },
+            }),
+            [lock]: "",
+        })
+        const result = p.init()
+        assert.equal(result.status, 0, result.stderr)
+        assert.match(result.stdout, /使用 czg 提交 commit/)
+        // czg 由暂存区驱动：不先 git add 会直接退出，指引里必须写明
+        assert.match(result.stdout, /先 git add 暂存改动/, result.stdout)
+        // 使用手册随包发布（package.json files 含 README.md），指过去就能看到
+        assert.match(result.stdout, /README《用 pnpm cz 提交》/, result.stdout)
+    }
+})

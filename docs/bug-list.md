@@ -16,6 +16,8 @@
 
 第五轮修复（BUG-023）追加 1 项回归测试，测试基线增至 **174 项（基础 80 / 集成 59 / legacy 27 / Stylelint 17 共 8），全绿**；cz 交互提示默认改为中文，`prompt.types` 与 `type-enum` 完全对齐。
 
+文档补全（DOC-003）追加 1 项回归测试，测试基线增至 **175 项（基础 81 / 集成 59 / legacy 27 / Stylelint 17 共 8），全绿**；README 新增《用 `pnpm cz` 提交（交互式）》使用手册，init 结尾指引给出入口。
+
 | 编号          | 修复方式                                                                                  | 回归测试                                                                                    |
 | ------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | BUG-001 / 002 | `bin/init` 改为按 semver 区间求交集判断可安装的主版本（无新依赖）                         | `init-matrix.test.cjs`「ESLint 版本识别：范围语义」                                         |
@@ -222,6 +224,13 @@
 1. `lint:fix` 写的是 `npm run lint -- --fix`，代码实际生成 `${lintCommand} --fix`（`bin/init:716`）；且用户自定义 `lint` 后两者会脱节。
 2. v8 preset 写 `plugin:vue/vue3-essential`，代码实际是 `plugin:vue/essential`（代码是对的，见 demo-test/README 记载的切换原因）。
 3. `.nvue sourceType: script`，vue 层代码实际是 `module`（`module` 是对的，否则 nvue 内 `import` 无法通过）。
+
+### DOC-003 — `cz` 命令没有使用手册（只有零散 FAQ）
+
+- **现象**：`pnpm cz` 是本包交付的核心入口之一（init 会自动加 `cz: czg` 脚本、写 `.commitlintrc.cjs` 的 prompt 配置），但文档里只在 README 的常见问题里出现 3 次、manual 的「日常命令」表里占 1 行，**没有任何一处讲清楚怎么用**：六步交互、15 种类型、scope 从哪来、哪些字段能跳过、字符上限怎么算、有哪些省键盘写法（`:别名` / `-r`）。
+- **后果**：用户只能在错误的提示信息里反推用法（实测中先撞上 `No files added to staging!`，再撞上 `fix:(修复)…` 的 `type/subject may not be empty`）。
+- **修复**：README 新增《用 `pnpm cz` 提交（交互式）》（六步表 + 15 类型表 + 省键盘写法表 + 校验规则）；`docs/manual.md` 对应小节（手册随包发布，指到 README）；`docs/project-overview.html` 的「常用脚本」补全 cz 行并说明类型/scope/字符数规则；`docs/init-flow.md` 的 cz 行补「先 `git add`」与入口；`bin/init` 结尾指引加一行（先 `git add` + 指向 README 手册）。
+- **回归测试**：`demo-test/init-matrix.test.cjs`「初始化结尾指引把 cz 用法说清楚（先 git add + 指到 README 手册）」。
 
 ### DOC-002 — `demo-test/README.md` 测试计数与覆盖说明过期
 

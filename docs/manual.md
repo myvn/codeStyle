@@ -35,7 +35,7 @@
 | 样式代码无人管     | 非法属性、未知单位、选择器乱序                        | stylelint 接管，且已放行 uni-app 的 `rpx`/`page`/`::v-deep`           |
 | 老项目升级无路     | 项目停在 ESLint 8，新项目用 9，配置分裂               | 同一份包同时支持 `.eslintrc.cjs`（v8）与 Flat Config（v9）            |
 | 新项目从零配置     | 每次都要拼 ESLint+Prettier+Stylelint+husky+commitlint | `init` 一键生成 11 个文件 + 6 个脚本，可 `--dry-run` 预览             |
-| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 174 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
+| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 175 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
 | 团队规范落不了地   | 文档写了没人看                                        | hook 在提交那一刻执行，默认路径就是正确路径                           |
 
 ---
@@ -90,9 +90,26 @@ pnpm lint
 | ----------------------------- | ------------------------------------------------------- |
 | `pnpm lint` / `pnpm lint:fix` | 全量检查 / 自动修复                                     |
 | `pnpm format`                 | Prettier 重写项目文件                                   |
-| `pnpm cz`                     | 交互式生成规范提交信息                                  |
+| `pnpm cz`                     | 交互式生成规范提交信息（用法见下节）                    |
 | `pnpm release`                | 生成版本号、CHANGELOG、提交与 tag（不等于 npm publish） |
 | `git commit`                  | pre-commit 自动修复暂存文件，commit-msg 校验信息        |
+
+### 用 `pnpm cz` 提交（交互式）
+
+`pnpm cz` 就是 `czg`，**暂存区驱动**：先 `git add`，再跑命令；暂存区为空会直接报 `No files added to staging!` 退出（`--all` / `-a` 也不绕过）。
+
+```bash
+git add -A && pnpm cz
+```
+
+六步交互：**类型 → scope → 一句话描述 → 详细描述（可跳过）→ BREAKING CHANGE（可跳过）→ 关联 ISSUE（可跳过）→ 预览确认**。
+
+- **类型**：`feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert` / `wip` / `workflow` / `types` / `release` 共 15 种，中文含义见 [README 的类型表](../README.md)。选择列表与 commitlint 的 `type-enum` 由回归测试保证一一对应，不会出现"规则允许但选不到"。
+- **scope**：候选来自 `src/` 下的目录（自动转单数，如 `components` → `component`），默认值按**暂存文件**推断（改了 `src/api/` 默认就是 `api`）；可选「自定义」手填或「不填」跳过。
+- **描述框右侧的字符数**是"还能写多少"，上限 = commitlint 的 `header-max-length`（108）减去 `类型(scope): ` 前缀，所以填完类型与 scope 后才是最终可用长度。
+- **省键盘**：`pnpm cz :f`（预置别名直提：f/r/s/b/c）、`pnpm cz -r`（重放上一条消息）、`pnpm cz --help`（`emoji` / `break` / `ai` / `gpg` / `checkbox` 等模式，默认都不开启）。
+- **校验与兜底**：提交时 `commit-msg` 钩子校验 type 是否在列、描述是否为空、标题是否超长；`Merge …` / `Revert …` 消息自动忽略；不想用交互也可 `git commit -m "feat(api): 说明"`（**冒号后要有空格**）。
+- **换语言/措辞**：见 FAQ 15；**报错排查**：FAQ 8（冒号后的空格）与 FAQ 14（未暂存）。
 
 ### 不通过 init 的手动接入
 
