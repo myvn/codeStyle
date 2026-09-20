@@ -688,7 +688,7 @@
                             <tr>
                                 <td>配置写错长期潜伏（如 quotes 与 Prettier 打架）</td>
                                 <td>
-                                    172 项自动化回归覆盖，含 ESLint 8 / 9 / 10 与 Stylelint 16 /
+                                    173 项自动化回归覆盖，含 ESLint 8 / 9 / 10 与 Stylelint 16 /
                                     17 的真实运行
                                 </td>
                             </tr>
@@ -1322,8 +1322,8 @@ export default [
                                 <td>已修复并验证</td>
                                 <td>工程化测试体系与回归套件建设。</td>
                                 <td>
-                                    已建立分层测试套件（基础 CLI 78 项 + 现代集成提交链 59 项 +
-                                    ESLint 8 兼容性 27 项 + Stylelint 17 兼容性 8 项，共 172
+                                    已建立分层测试套件（基础 CLI 79 项 + 现代集成提交链 59 项 +
+                                    ESLint 8 兼容性 27 项 + Stylelint 17 兼容性 8 项，共 173
                                     项测试全部通过），`npm run test:all`
                                     输出「套件 → 用例明细 → 分类统计」三层结果，并在核数 ≥ 8 的机器上自动并行；
                                     声明范围的**两端**都有真实运行回归（集成套件固定 stylelint 16 线，
@@ -1386,7 +1386,7 @@ export default [
                     <small>11</small>
                     本次核验与版本脉络
                 </h2>
-                <h3>全量分层自动化测试（172 项通过，0 失败）</h3>
+                <h3>全量分层自动化测试（173 项通过，0 失败）</h3>
                 <p>在 Node.js 18.20.8 / 22.22.3 / 26.9.0 三个运行时上执行全量自动化测试套件（npm run test:all），
                     输出每个套件下的用例明细、实时进度与分类统计：</p>
                 <div class="table-wrap">
@@ -1404,9 +1404,9 @@ export default [
                                 <td>
                                     导出解析、初始化矩阵、SCSS/Less 依赖提示、Scope
                                     暂存区推断、参数校验、配置冲突拦截、ESLint 版本识别（含 monorepo
-                                    向上查找）、Prettier 单一来源契约、大仓库 maxBuffer、--backup 与事务回滚
+                                    向上查找）、Prettier 单一来源契约、发布工作流 provenance 契约、大仓库 maxBuffer、--backup 与事务回滚
                                 </td>
-                                <td>78 项全部通过</td>
+                                <td>79 项全部通过</td>
                             </tr>
                             <tr>
                                 <td>现代工具链与真实提交链路 (npm run test:integration)</td>
@@ -1439,7 +1439,7 @@ export default [
                             <tr>
                                 <td><b>合计</b></td>
                                 <td><b>全部核心功能与边界场景</b></td>
-                                <td><b>172 项通过，0 失败，0 TODO</b></td>
+                                <td><b>173 项通过，0 失败，0 TODO</b></td>
                             </tr>
                         </tbody>
                     </table>
@@ -1447,10 +1447,17 @@ export default [
                 <h3>近期演进</h3>
                 <ul>
                     <li>
-                        <b>1.3.1 (当前分支 arena/01a0a973-codestyle)：</b>
+                        <b>1.7.2（当前分支 arena/01a0b214-codestyle）：</b>
+                        发布链路防呆——发布前拦下"HEAD 已有版本 tag"（这种情形 standard-version 会静默抬版、
+                        写出空 CHANGELOG、多发一个空版本），发布后两层 provenance 核验（npm 日志自证 +
+                        registry 回查，预算约 5.5 分钟）；CI action 迁到 Node 24 运行时；peer 范围覆盖
+                        ESLint 8/9/10 与 Stylelint 16/17，init 依赖版本体检精确到 minor；
+                        173 项全量测试验证（Node 18 / 20 / 22 / 24 实测通过）。
+                    </li>
+                    <li>
+                        <b>1.3.1：</b>
                         支持 SCSS/Less 混合工程、JSX/TSX 全链路解析、ESM .versionrc.cjs 适配、ESLint
-                        版本识别强化、初始化安全备份与事务回滚、guessCurrentScope 严格暂存区推断与
-                        172 项全量测试验证（Node 18 / 20 / 22 / 24 实测通过）。
+                        版本识别强化、初始化安全备份与事务回滚、guessCurrentScope 严格暂存区推断。
                     </li>
                     <li>
                         <b>1.3.1 · 2026-09-16：</b>

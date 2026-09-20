@@ -193,10 +193,10 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 172 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 173 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
-npm test                       # 只跑基础 CLI 与配置矩阵（78 项）
+npm test                       # 只跑基础 CLI 与配置矩阵（79 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（59 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
@@ -211,46 +211,46 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
 ```text
   my-code-style 测试套件
 
-  ▶ [1/4] 基础 CLI 与配置矩阵  （共 78 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 6ms
+  ▶ [1/4] 基础 CLI 与配置矩阵  （共 79 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+      ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 2ms
       ✓ 运行器表格：CJK 宽度按两列计算，耗时格式化区分秒与毫秒 · 0ms
+      ✓ 发布工作流保持 provenance 契约（--provenance + 发布日志自证 + 慢回传重试） · 1ms
       ✓ 依赖版本体检：minor 级错位也能发现（10.2.0 不满足 ^10.3.0） · 34ms
-      ✓ 所有公共导出目标存在且可通过包名解析 · 10ms
       …
-     ✓ 通过 78  ·  2.5s   · 最慢文件 init-matrix.test.cjs 2.3s
+     ✓ 通过 79  ·  3.1s   · 最慢文件 init-matrix.test.cjs 2.9s
 
   ▶ [2/4] 现代工具链与提交链  （共 59 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 8.5s
+      ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 13.5s
       ✓ 发布防呆：HEAD 已有 v* tag 时拦截（此时 standard-version 会静默抬版并写出空 CHANGELOG） · 461ms
       …
-     ✓ 通过 59  ·  31.7s   · 最慢文件 commit-chain-both.test.cjs 8.9s
+     ✓ 通过 59  ·  43.1s   · 最慢文件 commit-chain-both.test.cjs 13.8s
 
   ▶ [3/4] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 独立运行 ESLint 8 支持下限而非 ESLint 9 · 1ms
-      ✓ ESLint 8 base：实际 CLI 加载生成配置并接受正常文件 · 1.1s
+      ✓ ESLint 8 base：实际 CLI 加载生成配置并接受正常文件 · 1.3s
       …
-     ✓ 通过 27  ·  14.7s
+     ✓ 通过 27  ·  19.6s
 
   ▶ [4/4] Stylelint 17 兼容性  （共 8 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
-      ✓ stylelint 17 下 --fix 生效且幂等（SCSS） · 1.1s
-      ✓ stylelint 17 下 Vue 单文件的内嵌 SCSS 样式被检查 · 596ms
+      ✓ 隔离环境装的是 stylelint 17（不是 16） · 3ms
+      ✓ 生成的 .stylelintrc.cjs 在 stylelint 17 下可加载并放过正常 SCSS · 748ms
       …
-     ✓ 通过 8  ·  5.5s
+     ✓ 通过 8  ·  8.7s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
-  基础 CLI 与配置矩阵         78       0       -    2.5s
-  现代工具链与提交链          59       0       -   31.7s
-  ESLint 8 兼容性             27       0       -   14.7s
-  Stylelint 17 兼容性          8       0       -    5.5s
+  基础 CLI 与配置矩阵         79       0       -    3.1s
+  现代工具链与提交链          59       0       -   43.1s
+  ESLint 8 兼容性             27       0       -   19.6s
+  Stylelint 17 兼容性          8       0       -    8.7s
   ──────────────────────────────────────────────────────
-  合计                       172       0       -   54.5s
+  合计                       173       0       -   74.6s
   ──────────────────────────────────────────────────────
 
-  ⏱ 最慢文件：eslint8.test.cjs 14.7s · commit-chain-both.test.cjs 8.9s · commit-chain-scss.test.cjs 8.7s
+  ⏱ 最慢文件：eslint8.test.cjs 19.6s · commit-chain-both.test.cjs 13.8s · commit-chain-scss.test.cjs 13.7s
 
-  ✅ 全部通过：172/172 项，用时 54.5s
+  ✅ 全部通过：173/173 项，用时 74.6s
 ```
 
 
@@ -330,7 +330,7 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 | `npm run test:integration`（运行器调度，自动并发 3） | 30.6s（只看集成套件那一段）                    |
 | 串行套件 + 文件级并发 23（全部一波） | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL）      |
 
-同机复测（172 项；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 69.7s、默认自动并发 3 = 54.5s、`--parallel` 四套件 = 49.2s、`npm run test:integration` = 33.5s、`node --test demo-test/integration/*.test.cjs` = 44.6s。
+同机复测（173 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 81.6s、默认自动并发 3 = 74.6s、`--parallel` 四套件 = 58.0s、`npm run test:integration` = 41.5s、`node --test demo-test/integration/*.test.cjs` = 54.7s。
 
 （2 核沙箱里并行收益被 CPU 争抢吃掉大半，`--concurrency=1` 时单个文件只要 0.7–4.2s；
 16 核机器上集成套件那段 ≈ 最慢子文件，即"一次真实提交"的量级。）
@@ -360,6 +360,21 @@ npm run release:push
 > 两条命令的第一步都是 `scripts/release-guard.cjs` 发布前防呆，命中下面两种情况会直接中止并打印该执行的命令：HEAD 上已经有 `v*` tag（说明这一版已生成，只差推送）、已跟踪文件还有未提交改动（会被卷进版本提交）。未跟踪文件不拦截。
 
 `.github/workflows/publish.yml` 只接受 **`v*` tag** 触发（`workflow_dispatch` 会先校验 ref，分支上手动触发直接失败），并且在测试全绿 + `npm pack --dry-run` 通过后才发布；发布步骤失败即失败，不做静默降级。
+
+### 发布后的 provenance 自动核验（npm 页面上的绿勾）
+
+绿勾 = 该版本带 provenance 证明。工作流用两层核验保证它不会悄悄消失：
+
+1. **发布当场自证**（不等 registry）：npm 真正生成 provenance 时必定打印
+   `Signed provenance statement with source and build information from GitHub Actions`，
+   工作流把这行当硬断言——没有就当场失败标红。1.7.1 正是漏了 `--provenance`，日志里没有这行、
+   流程却全绿，只有 npm 页面少一个勾。
+2. **registry 侧回查**：轮询 `https://registry.npmjs.org/-/npm/v1/attestations/my-code-style@<version>`，
+   前 6 次每 10 秒、之后每 30 秒，共约 5.5 分钟。**这里的耐心是必需的**：1.7.2 的 attestation
+   在发布后约 2 分钟才可查（透明日志签名时间 06:47:57Z，而 publish 结束于 06:45:49Z），
+   30 秒的预算会把一次成功的发布误判成失败。
+
+等待参数可用环境变量覆盖（`MAX_ATTEMPTS` / `FAST_ATTEMPTS` / `RETRY_FAST` / `RETRY_SLOW`），便于本地复现这套轮询逻辑。
 
 ### 发布凭据（推荐切到 Trusted Publishing）
 

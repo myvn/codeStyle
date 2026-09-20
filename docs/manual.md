@@ -35,7 +35,7 @@
 | 样式代码无人管     | 非法属性、未知单位、选择器乱序                        | stylelint 接管，且已放行 uni-app 的 `rpx`/`page`/`::v-deep` |
 | 老项目升级无路     | 项目停在 ESLint 8，新项目用 9，配置分裂               | 同一份包同时支持 `.eslintrc.cjs`（v8）与 Flat Config（v9）  |
 | 新项目从零配置     | 每次都要拼 ESLint+Prettier+Stylelint+husky+commitlint | `init` 一键生成 11 个文件 + 6 个脚本，可 `--dry-run` 预览   |
-| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 172 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
+| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 173 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
 | 团队规范落不了地   | 文档写了没人看                                        | hook 在提交那一刻执行，默认路径就是正确路径                 |
 
 ---
