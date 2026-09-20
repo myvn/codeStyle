@@ -1,5 +1,12 @@
 ## 变更日志
 
+### [1.7.2](https://github.com/myvn/codeStyle/compare/v1.7.1...v1.7.2) (2026-09-20)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **publish:** 恢复 --provenance —— 1.7.1 因此丢了 npm 页面的绿勾 ([df8e379](https://github.com/myvn/codeStyle/commit/df8e37978df62265e11454050cb1afce6b003dbf))
+- **release:** 发布前防呆，拦住 "tag 已在 HEAD" 时多发一个空版本 ([9da41a8](https://github.com/myvn/codeStyle/commit/9da41a88fdf275e29576daa03a350a6ac780d566))
+
 ### [1.7.1](https://github.com/myvn/codeStyle/compare/v1.7.0...v1.7.1) (2026-09-20)
 
 ## [1.7.0](https://github.com/myvn/codeStyle/compare/v1.6.1...v1.7.0) (2026-09-20)
