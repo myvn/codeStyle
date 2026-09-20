@@ -497,3 +497,148 @@ test("初始化异常时执行事务回滚：恢复已有文件内容并清理�
     assert.ok(!p.exists(".prettierignore"), "新创建的忽略文件已被清理")
     assert.ok(!p.exists(".husky"), "新创建的 husky 目录已被清理")
 })
+
+// --- 已装依赖的版本体检（pnpm 只 WARN、npm 直接 ERESOLVE，所以 init 主动查） ---
+
+const manifest = (name, version, peerDependencies) =>
+    JSON.stringify({ name, version, ...(peerDependencies ? { peerDependencies } : {}) })
+
+test("依赖版本体检：已安装版本低于 peer 范围时提示并对齐", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: { vue: "^3", sass: "^1", "postcss-html": "^1.0.0" },
+        }),
+        "node_modules/postcss-html/package.json": manifest("postcss-html", "1.8.1"),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /已安装，但版本与当前配置不匹配/)
+    assert.match(result.stdout, /postcss-html 装了 1\.8\.1，本工具要求 \^2\.0\.0/)
+    assert.match(result.stdout, /postcss-html@\^2\.0\.0/)
+})
+
+test("依赖版本体检：两位数主版本（stylelint 17）不再被静默跳过", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "^17.0.0",
+                "stylelint-config-recommended": "^18.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "17.15.0"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "18.0.0",
+            { stylelint: "^17.0.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    // stylelint 17 满足 config-recommended@18 的 ^17.0.0，不应有任何版本体检噪音
+    assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
+})
+
+test("依赖版本体检：上游配置的 peer 与实际安装冲突时提示", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "^16.0.0",
+                "stylelint-config-recommended": "^18.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "16.26.1"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "18.0.0",
+            { stylelint: "^17.0.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(
+        result.stdout,
+        /stylelint-config-recommended@18\.0\.0 要求 stylelint@\^17\.0\.0，实际装了 16\.26\.1/,
+    )
+    assert.match(result.stdout, /stylelint@\^17\.0\.0/)
+})
+
+test("依赖版本体检：recess-order 7 缺少 stylelint-order 时提示补装", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: { vue: "^3", sass: "^1", "stylelint-config-recess-order": "^7.8.0" },
+        }),
+        "node_modules/stylelint-config-recess-order/package.json": manifest(
+            "stylelint-config-recess-order",
+            "7.8.0",
+            { stylelint: "^16.18.0 || ^17.0.0", "stylelint-order": "^7.0.0 || ^8.0.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /stylelint-config-recess-order@7\.8\.0 需要 stylelint-order@/)
+    assert.match(result.stdout, /stylelint-order@\^7\.0\.0 \|\| \^8\.0\.0/)
+})
+
+test("依赖版本体检：typescript-eslint 与 parser 版本错位时提示对齐", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                eslint: "^9.0.0",
+                "typescript-eslint": "^8.54.0",
+                "@typescript-eslint/parser": "^8.48.0",
+            },
+        }),
+        "node_modules/typescript-eslint/package.json": manifest("typescript-eslint", "8.69.0"),
+        "node_modules/@typescript-eslint/parser/package.json": manifest(
+            "@typescript-eslint/parser",
+            "8.54.0",
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(
+        result.stdout,
+        /@typescript-eslint\/parser@8\.54\.0 与 typescript-eslint@8\.69\.0 不是同一版本/,
+    )
+    assert.match(result.stdout, /@typescript-eslint\/parser@8\.69\.0/)
+})
+
+test("依赖版本体检：版本都匹配时不产生噪音", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "^17.0.0",
+                "stylelint-config-recommended": "^18.0.0",
+                "stylelint-config-recess-order": "^7.8.0",
+                "stylelint-order": "^8.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "17.15.0"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "18.0.0",
+            { stylelint: "^17.0.0" },
+        ),
+        "node_modules/stylelint-config-recess-order/package.json": manifest(
+            "stylelint-config-recess-order",
+            "7.8.0",
+            { stylelint: "^16.18.0 || ^17.0.0", "stylelint-order": "^7.0.0 || ^8.0.0" },
+        ),
+        "node_modules/stylelint-order/package.json": manifest("stylelint-order", "8.1.1"),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
+})
