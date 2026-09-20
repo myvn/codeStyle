@@ -431,6 +431,13 @@ function addDevCommand(packageManager) {
     }
 }
 
+// 打印安装规格时按需加引号：`name@range` 里含 || 或 >= 等字符会被 shell 当成
+// 管道/重定向，把整条命令截断（stylelint@^16.24.0 || ^17.0.0 原样粘贴必炸）。
+// 规格含安全字符集（字母数字 @ / . _ ^ ~ -）之外的任何字符就整体包一层双引号。
+function shellSafeSpec(spec) {
+    return /[^A-Za-z0-9@/._^~-]/.test(spec) ? `"${spec}"` : spec
+}
+
 /**
  * `pnpm prepare` / `yarn prepare` run the script directly, but npm needs an
  * explicit `npm run prepare` (plain `npm prepare` is not a command).
@@ -1237,7 +1244,7 @@ function checkPeerDeps({
         missing.forEach((dep, i) => {
             const version =
                 dep === "eslint" ? (useFlatConfig ? "^9.0.0" : "^8.57.0") : peerDeps[dep] || ""
-            const depWithVersion = version ? `${dep}@${version}` : dep
+            const depWithVersion = shellSafeSpec(version ? `${dep}@${version}` : dep)
             const suffix = i < missing.length - 1 ? " \\" : ""
             console.log(`  ${depWithVersion}${suffix}`)
         })
@@ -1344,7 +1351,9 @@ function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT 
     console.log("");
     warn("对齐命令（也可以把上游配置包降到与你现有版本匹配的大版本）：");
     const targets = [...new Set(problems.map((problem) => problem.target))];
-    console.log(`  ${addDevCommand(detectPackageManager())} ${targets.join(" ")}`);
+    console.log(
+        `  ${addDevCommand(detectPackageManager())} ${targets.map(shellSafeSpec).join(" ")}`,
+    );
 }
 
 // Only run when executed directly; requiring this file must be side-effect free.

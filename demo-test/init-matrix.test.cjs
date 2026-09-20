@@ -169,6 +169,24 @@ test("缺失依赖提示包含 typescript，并按包管理器给出可执行命
     assert.ok(!/：typescript,|：typescript$/.test(missing), `typescript 不应重复提示: ${missing}`)
 })
 
+test("一键安装命令对含 || 的版本范围加引号，可整段粘贴执行", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "quote-install-specs",
+            devDependencies: { eslint: "^9.0.0", vue: "^3", sass: "^1" },
+        }),
+        "pnpm-lock.yaml": "",
+    })
+    const result = p.init()
+    assert.equal(result.status, 0, result.stderr)
+    // stylelint 的联合范围必须整体加引号，否则 || 会被 shell 当管道截断命令
+    assert.ok(
+        result.stdout.includes('"stylelint@^16.24.0 || ^17.0.0"'),
+        "stylelint 联合范围应带双引号",
+    )
+    assert.ok(!result.stdout.includes(" stylelint@^16.24.0 ||"), "不应出现未加引号的 || 范围")
+})
+
 test("ESLint 版本识别：支持 npm alias、workspace、latest、联合范围及本地已安装版本", (t) => {
     // 1. npm alias: 8
     const pAlias8 = project(t, {
@@ -610,6 +628,37 @@ test("依赖版本体检：typescript-eslint 与 parser 版本错位时提示对
         /@typescript-eslint\/parser@8\.54\.0 与 typescript-eslint@8\.69\.0 不是同一版本/,
     )
     assert.match(result.stdout, /@typescript-eslint\/parser@8\.69\.0/)
+})
+
+test("对齐命令对含 >= 的版本范围加引号（裸 > 会被 shell 当重定向）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "quote-align-specs",
+            devDependencies: { eslint: "^9.0.0", "stylelint-prettier": "^5.0.0" },
+        }),
+        "node_modules/stylelint-prettier/package.json": manifest("stylelint-prettier", "5.0.3", {
+            stylelint: ">=16.0.0",
+        }),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(
+        result.stdout,
+        /stylelint-prettier@5\.0\.3 需要 stylelint@>=16\.0\.0，项目里没有安装/,
+    )
+    assert.ok(result.stdout.includes('"stylelint@>=16.0.0"'), "对齐命令的 >= 范围应带双引号")
+    // 只检查命令行本身：体检消息行里的 >= 是给人看的说明，不受引号约束；
+    // 包管理器按环境检测结果可能是 pnpm/npm/yarn/bun，断言只看规格引号
+    const lines = result.stdout.split("\n")
+    const alignIdx = lines.findIndex((line) => line.includes("对齐命令"))
+    assert.ok(alignIdx >= 0 && alignIdx + 1 < lines.length, "应输出对齐命令")
+    const alignCommand = lines[alignIdx + 1]
+    assert.match(alignCommand, /"stylelint@>=16\.0\.0"/, "对齐命令应整段加引号")
+    assert.doesNotMatch(
+        alignCommand.replaceAll('"stylelint@>=16.0.0"', ""),
+        /stylelint@/,
+        "命令行里不应残留未加引号的规格",
+    )
 })
 
 test("依赖版本体检：版本都匹配时不产生噪音", (t) => {
