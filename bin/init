@@ -212,21 +212,21 @@ function rangeIntervals(range) {
 }
 
 /**
- * 判断某个具体主版本是否落在声明的范围内。
+ * 判断某个具体版本（含 minor / patch）是否落在声明的范围内。
  *
- * 与 majorsForRange 的区别：后者为了 ESLint 8/9/10 的取值枚举 0-12，遇到
- * stylelint 16/17 这类两位数主版本会返回 null（等于放弃判断）；这里直接用
- * 区间相交判断，不受主版本位数限制。返回 null 表示范围无法解析（不判断）。
+ * 为什么不用主版本判断：`vue-eslint-parser ^10.3.0` 与装到的 10.2.0 主版本相同，
+ * 但 10.3 才是 Vue 插件 10 的兼容下限，只比主版本会漏掉这类 minor 级错位。
+ * 这里直接做区间相交判断，既不受主版本位数限制（stylelint 16/17），也不丢 minor。
+ * 返回 null 表示范围无法解析（不判断）。
  */
-function allowsMajor(range, major) {
+function satisfiesRange(range, version) {
+    const parts = parseVersionFields(version)
+    if (!parts || parts.some((part) => part === null)) return null
+    const target = lowerBound(parts)
     const intervals = rangeIntervals(range)
     if (!intervals.length) return null
-    const lower = [major, 0, 0]
-    const upper = [major + 1, 0, 0]
     return intervals.some(
-        ([intervalLower, intervalUpper]) =>
-            compareVersion(intervalLower, upper) < 0 &&
-            compareVersion(intervalUpper, lower) > 0,
+        ([lower, upper]) => compareVersion(lower, target) <= 0 && compareVersion(target, upper) < 0,
     )
 }
 
@@ -1266,7 +1266,7 @@ const PEER_SOURCE_TARGETS = [
  * 为什么需要它：npm 遇到不满足的 peer 会直接 ERESOLVE 拒装，pnpm 只打印一行
  * WARN 就装完，于是“装是装上了，跑起来才坏”的组合会长期潜伏。这里把两类问题
  * 主动查出来并给出对齐命令（只做 major 级别判断，保持零依赖）：
- *   1. 我们声明的 peer 范围 vs 项目里实际安装的版本；
+ *   1. 我们声明的 peer 范围 vs 项目里实际安装的版本（含 minor / patch）；
  *   2. 上游配置包自己的 peer（例如 stylelint-config-recommended@18 要求
  *      stylelint ^17），以及 typescript-eslint 与其 parser/plugin 的版本错位。
  */
@@ -1279,7 +1279,6 @@ function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT 
         seen.add(key);
         problems.push({ name, message, target });
     };
-    const majorOf = (version) => parseInt(String(version).split(".")[0], 10);
     const minorOf = (version) => String(version).split(".").slice(0, 2).join(".");
 
     // 1) 本工具的 peer 范围 vs 实际安装
@@ -1288,9 +1287,7 @@ function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT 
         if (!range || range === "*" || range.startsWith("npm:")) continue;
         const installed = findInstalledPackage(dep, rootDir);
         if (!installed) continue;
-        const major = majorOf(installed.version);
-        if (Number.isNaN(major)) continue;
-        const allowed = allowsMajor(range, major);
+        const allowed = satisfiesRange(range, installed.version);
         if (allowed === null || allowed) continue;
         add(dep, `${dep} 装了 ${installed.version}，本工具要求 ${range}`, `${dep}@${range}`);
     }
@@ -1304,7 +1301,7 @@ function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT 
             if (range === "*" || String(range).startsWith("npm:")) continue;
             const installed = findInstalledPackage(target, rootDir);
             if (!installed) {
-                if (allowsMajor(range, 0) === null) continue;
+                if (!rangeIntervals(range).length) continue;
                 add(
                     target,
                     `${dep}@${source.version} 需要 ${target}@${range}，项目里没有安装`,
@@ -1312,9 +1309,7 @@ function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT 
                 );
                 continue;
             }
-            const major = majorOf(installed.version);
-            if (Number.isNaN(major)) continue;
-            const allowed = allowsMajor(range, major);
+            const allowed = satisfiesRange(range, installed.version);
             if (allowed === null || allowed) continue;
             add(
                 target,

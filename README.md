@@ -185,7 +185,7 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 | 提交信息被拒（`type may not be empty` / `subject may not be empty`） | 提交信息需符合 conventional commits                        | 用 `pnpm cz` 交互式生成；header 上限 108 字符                                                                     |
 | 老项目已有 `.eslintrc.*`，init 只读退出                              | ESLint 版本与配置格式冲突时 CLI 拒绝写入                   | 先确认/迁移版本，再重跑 init                                                                                      |
 | `pnpm release` 之后如何发布                                          | `release` 只生成版本、CHANGELOG、提交与 tag                | 另行执行 `npm publish`                                                                                            |
-| 装完看到一片 `unmet peer` 警告，要不要管                            | npm 遇到不满足的 peer 会直接 ERESOLVE 拒装，pnpm 只打印 WARN 就装完 | 先看警告来自谁：`unmet peer … from my-code-style` 说明版本声明没跟上，先升级本包；来自别的包（如 `postcss-html@1.8.1` 却要 `^2`）按提示对齐。重跑 `init` 会主动体检并打印对齐命令 |
+| 装完看到一片 `unmet peer` 警告，要不要管                            | npm 遇到不满足的 peer 会直接 ERESOLVE 拒装，pnpm 只打印 WARN 就装完 | 先看警告来自谁：`unmet peer … from my-code-style` 说明版本声明没跟上，先升级本包；来自别的包（如 `postcss-html@1.8.1` 却要 `^2`）按提示对齐。重跑 `init` 会主动体检（范围精确到 minor，例如 `vue-eslint-parser 10.2.0` 不满足 `^10.3.0`）并打印对齐命令 |
 | `stylelint` 该用 16 还是 17                                          | 两条线都支持：`stylelint ^16.24.0 \|\| ^17.0.0`                    | 16 线（`stylelint-config-recommended@17`）兼容面最广；17 线要 stylelint 17 + `config-recommended@18` + `recommended-scss@17` + `stylelint-order@7/8`，且 Node ≥ 22.12。两条线都有真实运行回归（集成套件跑 16 线，Stylelint 17 套件跑 17 线） |
 
 完整 FAQ（含更多场景与解释）见 [docs/manual.md](docs/manual.md#五使用中遇到的问题faq)。
@@ -193,7 +193,7 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 166 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 168 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
 npm test                       # 只跑基础 CLI 与配置矩阵（70 项）
@@ -211,44 +211,44 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
 ```text
   my-code-style 测试套件
 
-  ▶ [1/4] 基础 CLI 与配置矩阵  （共 76 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [1/4] 基础 CLI 与配置矩阵  （共 78 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 2ms
       ✓ 依赖版本体检：两位数主版本（stylelint 17）不再被静默跳过 · 41ms
       ✓ 所有公共导出目标存在且可通过包名解析 · 3ms
       …
-     ✓ 通过 76  ·  3.4s   · 最慢文件 init-matrix.test.cjs 3.2s
+     ✓ 通过 78  ·  3.2s   · 最慢文件 init-matrix.test.cjs 3.0s
 
   ▶ [2/4] 现代工具链与提交链  （共 55 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 完整提交链：JS/TS/Vue/nvue/CSS/scss 自动修复及二次复检 · 10.7s
       ✓ Flat Config 启用 eslint:recommended 核心规则：no-debugger · 45ms
       …
-     ✓ 通过 55  ·  40.5s   · 最慢文件 commit-chain-both.test.cjs 11.4s
+     ✓ 通过 55  ·  42.7s   · 最慢文件 commit-chain-scss.test.cjs 11.4s
 
   ▶ [3/4] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ ESLint 8 base：生成的 lint 脚本遍历并拦截 broken.ts · 1.3s
       …
-     ✓ 通过 27  ·  18.7s
+     ✓ 通过 27  ·  19.0s
 
   ▶ [4/4] Stylelint 17 兼容性  （共 8 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ stylelint 17 下 --fix 生效且幂等（SCSS） · 1.4s
       ✓ stylelint-order（recess-order 7 的 peer）在 stylelint 17 下可用 · 1.0s
       …
-     ✓ 通过 8  ·  7.3s
+     ✓ 通过 8  ·  7.4s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
-  基础 CLI 与配置矩阵         76       0       -    3.4s
-  现代工具链与提交链          55       0       -   40.5s
-  ESLint 8 兼容性             27       0       -   18.7s
-  Stylelint 17 兼容性          8       0       -    7.3s
+  基础 CLI 与配置矩阵         78       0       -    3.2s
+  现代工具链与提交链          55       0       -   42.7s
+  ESLint 8 兼容性             27       0       -   19.0s
+  Stylelint 17 兼容性          8       0       -    7.4s
   ──────────────────────────────────────────────────────
-  合计                       166       0       -   69.9s
+  合计                       168       0       -   72.3s
   ──────────────────────────────────────────────────────
 
-  ⏱ 最慢文件：eslint8.test.cjs 18.7s · commit-chain-both.test.cjs 11.4s · commit-chain-less.test.cjs 10.9s
+  ⏱ 最慢文件：eslint8.test.cjs 19.0s · commit-chain-scss.test.cjs 11.4s · commit-chain-less.test.cjs 11.1s
 
-  ✅ 全部通过：166/166 项，用时 69.9s
+  ✅ 全部通过：168/168 项，用时 72.3s
 ```
 
 
@@ -317,7 +317,7 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 并发 git/npx 撑到 OOM（进程被 SIGKILL）；文件数多于并发数时，**用例少的文件（多半是同
 一条重链）优先开跑**，避免长任务被排进最后一波、墙钟再多乘一倍。
 
-实测（2 核沙箱，166 项；沙箱内存 4G，所以自动并发是 3）：
+实测（2 核沙箱，168 项；沙箱内存 4G，所以自动并发是 3）：
 
 | 运行方式                            | 墙钟时间                                        |
 | ----------------------------------- | ----------------------------------------------- |

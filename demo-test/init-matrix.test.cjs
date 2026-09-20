@@ -642,3 +642,51 @@ test("依赖版本体检：版本都匹配时不产生噪音", (t) => {
     assert.equal(result.status, 0)
     assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
 })
+
+test("依赖版本体检：minor 级错位也能发现（10.2.0 不满足 ^10.3.0）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                eslint: "^9.0.0",
+                "vue-eslint-parser": "^10.0.0",
+            },
+        }),
+        "node_modules/vue-eslint-parser/package.json": manifest("vue-eslint-parser", "10.2.0"),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /vue-eslint-parser 装了 10\.2\.0，本工具要求 \^10\.3\.0/)
+    assert.match(result.stdout, /vue-eslint-parser@\^10\.3\.0/)
+})
+
+test("依赖版本体检：stylelint 16 线的合法组合不误报", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "demo-consumer",
+            devDependencies: {
+                vue: "^3",
+                sass: "^1",
+                stylelint: "16.26.1",
+                "stylelint-config-recommended": "^17.0.0",
+                "stylelint-config-recommended-scss": "^16.0.0",
+            },
+        }),
+        "node_modules/stylelint/package.json": manifest("stylelint", "16.26.1"),
+        "node_modules/stylelint-config-recommended/package.json": manifest(
+            "stylelint-config-recommended",
+            "17.0.0",
+            { stylelint: "^16.23.0" },
+        ),
+        "node_modules/stylelint-config-recommended-scss/package.json": manifest(
+            "stylelint-config-recommended-scss",
+            "16.0.2",
+            { stylelint: "^16.24.0" },
+        ),
+    })
+    const result = p.init()
+    assert.equal(result.status, 0)
+    assert.doesNotMatch(result.stdout, /已安装，但版本与当前配置不匹配/)
+})

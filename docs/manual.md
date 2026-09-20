@@ -35,7 +35,7 @@
 | 样式代码无人管     | 非法属性、未知单位、选择器乱序                        | stylelint 接管，且已放行 uni-app 的 `rpx`/`page`/`::v-deep` |
 | 老项目升级无路     | 项目停在 ESLint 8，新项目用 9，配置分裂               | 同一份包同时支持 `.eslintrc.cjs`（v8）与 Flat Config（v9）  |
 | 新项目从零配置     | 每次都要拼 ESLint+Prettier+Stylelint+husky+commitlint | `init` 一键生成 11 个文件 + 6 个脚本，可 `--dry-run` 预览   |
-| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 166 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
+| 配置写错没人发现   | 规则冲突（如 `quotes` 与 Prettier 打架）长期潜伏      | 有 168 项自动化回归（含 ESLint 8/9/10、Stylelint 16/17 真实运行）守护 |
 | 团队规范落不了地   | 文档写了没人看                                        | hook 在提交那一刻执行，默认路径就是正确路径                 |
 
 ---
@@ -174,7 +174,7 @@ lint-staged 在提交前自动修复并**重新暂存**了内容，属于预期�
 - `unmet peer … from my-code-style`：是我们声明的版本范围没覆盖你装的版本，**先升级本包**（新版会放宽范围）；升级后仍报就是真不兼容，按提示对齐；
 - 来自别的包（例如 `postcss-html@1.8.1` 却要 `^2.0.0`、`stylelint@16.26.1` 却要 `^17.0.0`）：**按提示对齐**。npm 遇到这种情况会直接 `ERESOLVE` 拒装，pnpm 只打印 WARN 就装完，所以“装上了”不代表能跑。
 
-重跑一次 `init` 可以主动体检：它会检查「已安装版本的**主版本**是否落在声明范围内」「上游配置文件自己的 peer 是否满足（含 `stylelint-order` 这类容易漏装的 peer）」「`typescript-eslint` 与 `@typescript-eslint/parser`、`eslint-plugin` 是否同一版本」，并给出按包管理器可执行的**对齐命令**。
+重跑一次 `init` 可以主动体检：它会检查「已安装版本是否落在声明范围内（精确到 minor，`10.2.0` 不满足 `^10.3.0` 也会被指出）」「上游配置文件自己的 peer 是否满足（含 `stylelint-order` 这类容易漏装的 peer）」「`typescript-eslint` 与 `@typescript-eslint/parser`、`eslint-plugin` 是否同一版本」，并给出按包管理器可执行的**对齐命令**。
 
 ### 14. `stylelint` 用 16 还是 17
 

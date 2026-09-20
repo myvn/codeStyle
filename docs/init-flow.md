@@ -84,7 +84,7 @@ npx my-code-style-init
 
 ### 6. 收尾
 
-比对 `peerDependencies` 与项目实际依赖，先做**版本体检**再列缺失项。体检查三类：① 已安装的主版本是否落在本包声明的 peer 范围内；② 上游配置包自己的 peer 是否被满足（例如 `stylelint-config-recommended@18` 要求 `stylelint ^17`、`recess-order 7` 需要 `stylelint-order`）；③ `typescript-eslint` 与 `@typescript-eslint/parser`、`@typescript-eslint/eslint-plugin` 是否同一版本。命中时逐条打印原因，并给出一条可复制的**对齐命令**（`pnpm add -D …` / `npm i -D …`），也可以选择把上游配置包降到与现有版本匹配的大版本。
+比对 `peerDependencies` 与项目实际依赖，先做**版本体检**再列缺失项。体检查三类：① 已安装版本是否落在本包声明的 peer 范围内（精确到 minor / patch）；② 上游配置包自己的 peer 是否被满足（例如 `stylelint-config-recommended@18` 要求 `stylelint ^17`、`recess-order 7` 需要 `stylelint-order`）；③ `typescript-eslint` 与 `@typescript-eslint/parser`、`@typescript-eslint/eslint-plugin` 是否同一版本。命中时逐条打印原因，并给出一条可复制的**对齐命令**（`pnpm add -D …` / `npm i -D …`），也可以选择把上游配置包降到与现有版本匹配的大版本。
 
 然后列出缺失项并给出一条**按当前包管理器生成**的安装命令（`pnpm add -D` / `npm i -D` / `yarn add -D` / `bun add -d`），随后打印下一步（安装 peer → 初始化 husky → `cz` 提交）。pnpm 项目额外提示 `pnpm approve-builds`（pnpm 10+ 默认拦截依赖构建脚本，如 `unrs-resolver`）。
 
