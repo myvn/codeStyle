@@ -65,7 +65,6 @@ function ensureGitignoreEntry(entry) {
         `${content}${separator}\n# my-code-style 初始化备份目录\n${entry}\n`,
         "utf8",
     )
-    log(`已将 ${entry} 追加到 .gitignore`)
 }
 
 function getProjectPkg() {
@@ -431,6 +430,21 @@ function addDevCommand(packageManager) {
     }
 }
 
+// 步骤标题行：CJK 字符按 2 列计宽，右侧补齐横线，让每个步骤标题线等长
+function displayWidth(text) {
+    let width = 0
+    for (const ch of text) {
+        width += ch.codePointAt(0) > 0xff ? 2 : 1
+    }
+    return width
+}
+
+function stepHeader(current, total, title) {
+    const head = `步骤 ${current}/${total} · ${title}`
+    const pad = Math.max(4, 46 - displayWidth(head))
+    console.log(`\n  ── ${head} ${"─".repeat(pad)}`)
+}
+
 // 打印安装规格时按需加引号：`name@range` 里含 || 或 >= 等字符会被 shell 当成
 // 管道/重定向，把整条命令截断（stylelint@^16.24.0 || ^17.0.0 原样粘贴必炸）。
 // 规格含安全字符集（字母数字 @ / . _ ^ ~ -）之外的任何字符就整体包一层双引号。
@@ -719,15 +733,17 @@ function main() {
     }
 
     const dryRun = process.argv.includes("--dry-run")
-    const label = dryRun ? "[DRY RUN] " : ""
+
+    let toolVersion = ""
+    try {
+        toolVersion = ` v${require("../package.json").version}`
+    } catch {}
 
     console.log("")
-    console.log("  my-code-style-init — 初始化项目配置")
-    console.log("")
-
+    console.log(`  my-code-style-init${toolVersion} — 把 my-code-style 接入当前项目`)
     if (dryRun) {
-        warn("Dry run mode — no files will be written")
         console.log("")
+        warn("Dry run 预览模式：以下所有步骤都不会写入文件")
     }
 
     // --- Detection phase ---
@@ -759,11 +775,7 @@ function main() {
         return
     }
 
-    if (eslintVersion !== null && eslintVersion > 10) {
-        warn(
-            `ESLint ${eslintVersion} 尚未在 peerDependencies 声明支持（^8.57.0 || ^9.0.0 || ^10.0.0），将按 Flat Config 生成`,
-        )
-    }
+    const eslintUnannounced = eslintVersion !== null && eslintVersion > 10
 
     // Do not silently mix an installed major version with an incompatible format.
     if (
@@ -784,21 +796,32 @@ function main() {
     const useFlatConfig = eslintVersion !== 8
     const eslintFormat = useFlatConfig ? "flat" : "eslintrc"
 
-    log(`检测到 ESLint 版本: ${eslintVersion || "默认最新 (9+)"} → 使用 ${eslintFormat} 格式`)
-    log(
-        `检测到项目类型: ${projectType === "uniapp" ? "uni-app" : projectType === "vue" ? "Vue" : "Node/TS 基础"}`,
+    stepHeader(1, 6, "检测项目环境")
+    console.log(`      · 包管理器：${pm}`)
+    console.log(
+        `      · ESLint：${eslintVersion || "未声明，按已安装版本处理"} → ${eslintFormat === "flat" ? "Flat Config" : "传统 .eslintrc 格式"}`,
     )
-    log(
-        `检测到 CSS 预处理器: ${cssPreprocessor === "both" ? "SCSS + Less (混合)" : cssPreprocessor}`,
+    console.log(
+        `      · 项目类型：${projectType === "uniapp" ? "uni-app" : projectType === "vue" ? "Vue" : "Node/TS 基础库"}`,
     )
-    console.log("")
+    console.log(
+        `      · CSS 预处理器：${cssPreprocessor === "both" ? "SCSS + Less（混合）" : cssPreprocessor === "none" ? "未检测到" : cssPreprocessor}`,
+    )
+    if (eslintUnannounced) {
+        warn(
+            `ESLint ${eslintVersion} 尚未在 peerDependencies 声明支持（^8.57.0 || ^9.0.0 || ^10.0.0），将按 Flat Config 生成`,
+        )
+    }
 
     // --- Build file list based on detection ---
     const files = []
+    let skipStylelint = false
 
+    stepHeader(2, 6, "ESLint 入口")
     if (hasFlatConfigFile || hasLegacyConfigFile) {
-        log("保留已有 ESLint 配置，不生成额外入口")
+        console.log("      保留已有 ESLint 配置，不生成额外入口")
     } else if (useFlatConfig) {
+        console.log("      生成 Flat Config 入口 eslint.config.mjs")
         files.push({
             path: "eslint.config.mjs",
             exists:
@@ -809,6 +832,7 @@ function main() {
             content: eslintFlatConfigContent(projectType),
         })
     } else {
+        console.log("      生成传统格式入口 .eslintrc.cjs")
         files.push({
             path: ".eslintrc.cjs",
             exists: fileExists(".eslintrc.cjs"),
@@ -836,7 +860,7 @@ function main() {
             content: stylelintrcContent(cssPreprocessor),
         })
     } else {
-        log("跳过 Stylelint 配置 (未检测到 CSS 预处理器)")
+        skipStylelint = true
     }
 
     files.push({
@@ -851,11 +875,7 @@ function main() {
         versionrcPath = ".versionrc.cjs"
     }
 
-    if (isEsm && fileExists(".versionrc.js") && !fileExists(".versionrc.cjs")) {
-        warn(
-            "检测到 ESM 项目 (type: module) 存在旧的 .versionrc.js，standard-version 需使用 .versionrc.cjs",
-        )
-    }
+    const staleVersionrc = isEsm && fileExists(".versionrc.js") && !fileExists(".versionrc.cjs")
 
     files.push({
         path: versionrcPath,
@@ -883,12 +903,17 @@ function main() {
         })
     }
 
-    // Show what will be created/overwritten
+    const backup = args.includes("--backup")
+    stepHeader(3, 6, "配置文件与 Git hooks")
+    let overwriteTotal = 0
+    let createTotal = 0
     for (const f of files) {
         if (f.exists) {
-            warn(`${label}覆盖 ${f.path}`)
+            overwriteTotal++
+            console.log(`      覆盖 ${f.path}`)
         } else {
-            success(`${label}创建 ${f.path}`)
+            createTotal++
+            console.log(`      新建 ${f.path}`)
         }
     }
 
@@ -896,7 +921,7 @@ function main() {
     const huskyDir = path.resolve(PROJECT_ROOT, ".husky")
     const hasHusky = fs.existsSync(huskyDir)
     if (!hasHusky) {
-        success(`${label}创建 .husky/ 目录`)
+        console.log("      新建 .husky/ 目录")
     }
 
     const hooks = [
@@ -906,23 +931,86 @@ function main() {
 
     for (const h of hooks) {
         if (fileExists(h.path)) {
-            warn(`${label}覆盖 ${h.path}`)
+            overwriteTotal++
+            console.log(`      覆盖 ${h.path}`)
         } else {
-            success(`${label}创建 ${h.path}`)
+            createTotal++
+            console.log(`      新建 ${h.path}`)
         }
     }
 
+    console.log(
+        `      小计：覆盖 ${overwriteTotal} 个 · 新建 ${createTotal} 个` +
+            (backup ? " · 旧文件将备份到 .my-code-style-backup/" : "") +
+            (dryRun ? "（Dry run 预览，不写入）" : ""),
+    )
+    if (skipStylelint) {
+        console.log("      · 跳过 .stylelintrc.cjs（未检测到 CSS 预处理器）")
+    }
+    if (staleVersionrc) {
+        warn(
+            "检测到 ESM 项目 (type: module) 存在旧的 .versionrc.js，standard-version 需使用 .versionrc.cjs",
+        )
+    }
+
+    const printPackageJsonStep = () => {
+        stepHeader(4, 6, "package.json")
+        if (dryRun) {
+            console.log(
+                "      · 将更新 scripts（lint / lint:fix / format / prepare / release / cz）与 lint-staged",
+            )
+            return
+        }
+        console.log("      ✓ scripts 已更新（lint / lint:fix / format / prepare / release / cz）")
+        console.log("      ✓ lint-staged 已按检测到的 CSS 预处理器生成")
+    }
+
+    const printDepsStep = () => {
+        stepHeader(5, 6, "依赖体检")
+        const findings = checkPeerDeps({ useFlatConfig, cssPreprocessor, projectType })
+        if (findings === 0) {
+            console.log("      ✓ 已装依赖版本都在要求范围内，声明的依赖也都已安装")
+        }
+    }
+
+    const printFooter = () => {
+        stepHeader(6, 6, "接下来")
+        console.log(`      1. 启用 husky hooks：${runScriptCommand(pm, "prepare")}`)
+        console.log(`      2. 首次检查：${runScriptCommand(pm, "lint")}`)
+        console.log("      3. 使用 czg 提交 commit：")
+        console.log(`         ${runScriptCommand(pm, "cz")}`)
+        console.log(
+            "         （先 git add 暂存改动；交互步骤、类型与 scope 规则见本包 README《用 pnpm cz 提交》）",
+        )
+        if (pm === "pnpm") {
+            console.log("")
+            console.log(
+                "      提示：pnpm 10+ 默认拦截依赖的构建脚本，若安装时提示 ERR_PNPM_IGNORED_BUILDS（如 unrs-resolver），执行 pnpm approve-builds 后重试。",
+            )
+        }
+        console.log("")
+        if (dryRun) {
+            success("Dry run 结束：未写入任何文件；去掉 --dry-run 执行真实初始化")
+        } else {
+            success(
+                `初始化完成：覆盖 ${overwriteTotal} 个 · 新建 ${createTotal} 个 · package.json 已更新`,
+            )
+        }
+        console.log("")
+    }
+
+    // Dry run：把 package.json / 依赖体检 / 下一步三步也预览出来，然后结束
     if (dryRun) {
-        console.log("")
-        warn("Dry run 结束，未修改任何文件")
-        console.log("")
+        printPackageJsonStep()
+        printDepsStep()
+        printFooter()
         return
     }
 
     // Optional backup of existing files before modifying
-    const backup = args.includes("--backup")
+    const backupDir = path.resolve(PROJECT_ROOT, ".my-code-style-backup")
+    let backedUpCount = 0
     if (backup) {
-        const backupDir = path.resolve(PROJECT_ROOT, ".my-code-style-backup")
         ensureDir(backupDir)
         // package.json is rewritten (scripts + lint-staged), so it must be backed
         // up as well — users lose custom lint-staged groups otherwise.
@@ -932,7 +1020,7 @@ function main() {
                 const targetPath = path.resolve(backupDir, item.path)
                 ensureDir(path.dirname(targetPath))
                 fs.copyFileSync(srcPath, targetPath)
-                log(`已备份 ${item.path} -> .my-code-style-backup/${item.path}`)
+                backedUpCount++
             }
         }
     }
@@ -1015,11 +1103,14 @@ function main() {
             },
             "lint-staged": getLintStagedConfig(cssPreprocessor),
         })
-        success("更新 package.json (scripts + lint-staged)")
+        printPackageJsonStep()
 
         // The backup directory is ours, not the user's source — keep it out of git
         if (backup) {
             ensureGitignoreEntry(".my-code-style-backup/")
+            console.log(
+                `      ✓ ${backedUpCount} 个旧文件已备份到 .my-code-style-backup/（目录已写入 .gitignore）`,
+            )
         }
     } catch (err) {
         console.error(`\n  ✖ 初始化写入失败: ${err.message}；正在回滚...`)
@@ -1055,40 +1146,8 @@ function main() {
         return
     }
 
-    // Check for missing peerDependencies
-    checkPeerDeps({ useFlatConfig, cssPreprocessor, projectType })
-
-    console.log("")
-    success("配置初始化完成！")
-    console.log("")
-    console.log("  下一步：")
-    console.log("  1. 确保已安装 peerDependencies：")
-    console.log(`     ${addDevCommand(pm)} my-code-style`)
-    if (useFlatConfig) {
-        console.log("  2. Flat Config 需要的额外依赖：")
-        console.log(
-            `     ${addDevCommand(pm)} typescript-eslint globals eslint-plugin-import-x @eslint/js`,
-        )
-        console.log("  3. 初始化 husky：")
-        console.log(`     ${runScriptCommand(pm, "prepare")}`)
-        console.log("  4. 使用 czg 提交 commit：")
-    } else {
-        console.log("  2. 初始化 husky：")
-        console.log(`     ${runScriptCommand(pm, "prepare")}`)
-        console.log("  3. 使用 czg 提交 commit：")
-    }
-    console.log(`     ${runScriptCommand(pm, "cz")}`)
-    console.log(
-        "     （先 git add 暂存改动；交互步骤、类型与 scope 规则见本包 README《用 pnpm cz 提交》）",
-    )
-    if (pm === "pnpm") {
-        console.log("")
-        console.log("  提示：pnpm 10+ 默认拦截依赖的构建脚本，若安装时提示")
-        console.log(
-            "  ERR_PNPM_IGNORED_BUILDS（如 unrs-resolver），执行 pnpm approve-builds 后重试。",
-        )
-    }
-    console.log("")
+    printDepsStep()
+    printFooter()
 }
 
 function modifyPackageJson(updates) {
@@ -1138,11 +1197,11 @@ function checkPeerDeps({
     projectType = "base",
 } = {}) {
     const pkg = getProjectPkg()
-    if (!pkg) return
+    if (!pkg) return 0
 
     // If running within the package itself, skip external missing deps check
     if (pkg.name === "my-code-style") {
-        return
+        return 0
     }
 
     const baseDeps = [
@@ -1232,23 +1291,24 @@ function checkPeerDeps({
         ...(pkg.devDependencies || {}),
     }
 
-    checkInstalledVersions({ peerDeps, allPeerDeps })
+    const versionProblems = checkInstalledVersions({ peerDeps, allPeerDeps })
 
     const missing = allPeerDeps.filter((dep) => !allDeps[dep])
     if (missing.length > 0) {
         console.log("")
-        warn(`以下依赖未安装：${missing.join(", ")}`)
+        warn(`以下依赖未安装（${missing.length} 个）：${missing.join(", ")}`)
         console.log("")
-        warn("一键安装命令：")
-        console.log(`  ${addDevCommand(detectPackageManager())} my-code-style \\`)
+        warn("一键安装命令（可整段粘贴执行）：")
+        console.log(`        ${addDevCommand(detectPackageManager())} my-code-style \\`)
         missing.forEach((dep, i) => {
             const version =
                 dep === "eslint" ? (useFlatConfig ? "^9.0.0" : "^8.57.0") : peerDeps[dep] || ""
             const depWithVersion = shellSafeSpec(version ? `${dep}@${version}` : dep)
             const suffix = i < missing.length - 1 ? " \\" : ""
-            console.log(`  ${depWithVersion}${suffix}`)
+            console.log(`          ${depWithVersion}${suffix}`)
         })
     }
+    return missing.length + versionProblems
 }
 
 // 体检时会顺着这些包的 peerDependencies 反查底层依赖的实际版本
@@ -1344,16 +1404,17 @@ function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT 
         }
     }
 
-    if (!problems.length) return;
+    if (!problems.length) return 0
     console.log("");
-    warn("以下依赖已安装，但版本与当前配置不匹配：");
-    for (const problem of problems) console.log(`  · ${problem.message}`);
+    warn(`以下依赖已安装，但版本与当前配置不匹配（${problems.length} 个）：`);
+    for (const problem of problems) console.log(`      · ${problem.message}`);
     console.log("");
-    warn("对齐命令（也可以把上游配置包降到与你现有版本匹配的大版本）：");
+    warn("对齐命令（可整段粘贴执行；也可以把上游配置包降到匹配的大版本）：");
     const targets = [...new Set(problems.map((problem) => problem.target))];
     console.log(
-        `  ${addDevCommand(detectPackageManager())} ${targets.map(shellSafeSpec).join(" ")}`,
+        `        ${addDevCommand(detectPackageManager())} ${targets.map(shellSafeSpec).join(" ")}`,
     );
+    return problems.length
 }
 
 // Only run when executed directly; requiring this file must be side-effect free.

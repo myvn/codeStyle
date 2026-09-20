@@ -169,6 +169,38 @@ test("缺失依赖提示包含 typescript，并按包管理器给出可执行命
     assert.ok(!/：typescript,|：typescript$/.test(missing), `typescript 不应重复提示: ${missing}`)
 })
 
+test("init 输出按六步组织，dry-run 也完整预览依赖体检与下一步", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "six-step-output",
+            devDependencies: { eslint: "^9.0.0", vue: "^3", sass: "^1" },
+        }),
+        "pnpm-lock.yaml": "",
+    })
+    const dry = p.init("--dry-run")
+    assert.equal(dry.status, 0, dry.stderr)
+    const titles = [
+        "检测项目环境",
+        "ESLint 入口",
+        "配置文件与 Git hooks",
+        "package.json",
+        "依赖体检",
+        "接下来",
+    ]
+    titles.forEach((title, i) => {
+        assert.ok(dry.stdout.includes(`步骤 ${i + 1}/6 · ${title}`), `缺少步骤标题: ${title}`)
+    })
+    // dry-run 必须预览到依赖体检与安装命令（此前在这之前就 return 了）
+    assert.match(dry.stdout, /以下依赖未安装（\d+ 个）/)
+    assert.match(dry.stdout, /一键安装命令（可整段粘贴执行）/)
+    assert.ok(dry.stdout.includes("Dry run 结束：未写入任何文件"))
+    assert.ok(!p.exists(".prettierrc.cjs"), "dry-run 不得写文件")
+
+    const real = p.init()
+    assert.equal(real.status, 0, real.stderr)
+    assert.match(real.stdout, /初始化完成：覆盖 0 个 · 新建 \d+ 个 · package\.json 已更新/)
+})
+
 test("一键安装命令对含 || 的版本范围加引号，可整段粘贴执行", (t) => {
     const p = project(t, {
         "package.json": JSON.stringify({
