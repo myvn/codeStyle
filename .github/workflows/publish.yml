@@ -32,6 +32,7 @@ jobs:
         run: |
           npm run test:integration:setup
           npm run test:legacy:setup
+          npm run test:stylelint17:setup
 
       - name: 执行全量测试套件 (门禁：测试全过才允许发布)
         run: npm run test:all

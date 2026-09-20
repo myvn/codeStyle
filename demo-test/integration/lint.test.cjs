@@ -8,6 +8,22 @@ const {
     root, runtime, copy, localRequire, prettier, prettierConfig, ESLint, eslint, commitlint,
 } = require("./_runtime.cjs")
 
+/**
+ * stylelint 17 的 results 里带 postcss Lexer 的循环引用，直接 JSON.stringify 会抛
+ * "Converting circular structure to JSON"（会把断言消息本身变成失败）。这里只摘出
+ * 断言需要的信息，两个 stylelint 大版本都安全。
+ */
+const summarize = (results) =>
+    (results || []).map((result) => ({
+        source: result.source,
+        errored: Boolean(result.errored),
+        warnings: (result.warnings || []).map((warning) => ({
+            rule: warning.rule,
+            text: warning.text,
+            line: warning.line,
+        })),
+    }))
+
 for (const [parser, source, expected] of [
     ["babel", "const name='demo';\n", 'const name = "demo"\n'],
     ["typescript", "const count:number=1;\n", "const count: number = 1\n"],
@@ -226,11 +242,11 @@ for (const [entry, ext, source] of [
             codeFilename: path.join(runtime, `demo.${ext}`),
         }
         const fixed = await stylelint.lint({ ...options, code: source, fix: true })
-        assert.equal(fixed.errored, false, JSON.stringify(fixed.results))
+        assert.equal(fixed.errored, false, JSON.stringify(summarize(fixed.results)))
         const output = fixed.code ?? fixed.output
         assert.ok(output.includes("color"))
         const clean = await stylelint.lint({ ...options, code: output })
-        assert.equal(clean.errored, false, JSON.stringify(clean.results))
+        assert.equal(clean.errored, false, JSON.stringify(summarize(clean.results)))
         const bad = await stylelint.lint({ ...options, code: ".demo { unknown-property: red; }" })
         assert.ok(
             bad.results.some((result) =>
@@ -250,7 +266,7 @@ test("Stylelint (my-code-style/stylelint) 统一支持 SCSS、Less 及 Vue 内�
         code: "$color: red;\n.demo { color: $color; }\n",
         fix: true,
     })
-    assert.equal(scssRes.errored, false, JSON.stringify(scssRes.results))
+    assert.equal(scssRes.errored, false, JSON.stringify(summarize(scssRes.results)))
 
     const lessRes = await stylelint.lint({
         config,
@@ -259,7 +275,7 @@ test("Stylelint (my-code-style/stylelint) 统一支持 SCSS、Less 及 Vue 内�
         code: "@color: blue;\n.demo { color: @color; }\n",
         fix: true,
     })
-    assert.equal(lessRes.errored, false, JSON.stringify(lessRes.results))
+    assert.equal(lessRes.errored, false, JSON.stringify(summarize(lessRes.results)))
 
     const vueMixedRes = await stylelint.lint({
         config,
@@ -268,7 +284,7 @@ test("Stylelint (my-code-style/stylelint) 统一支持 SCSS、Less 及 Vue 内�
         code: '<template><div /></template>\n<style lang="scss">\n$c: red;\n.s { color: $c; }\n</style>\n<style lang="less">\n@c: blue;\n.l { color: @c; }\n</style>\n',
         fix: true,
     })
-    assert.equal(vueMixedRes.errored, false, JSON.stringify(vueMixedRes.results))
+    assert.equal(vueMixedRes.errored, false, JSON.stringify(summarize(vueMixedRes.results)))
 })
 
 test("Commitlint 接受规范提交并拒绝非法 type / 超长标题", async () => {

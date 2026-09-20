@@ -107,6 +107,13 @@ const SUITES = [
         requires: "demo-test/.runtime-legacy",
         hint: "npm run test:legacy:setup",
     },
+    {
+        id: "stylelint17",
+        title: "Stylelint 17 兼容性",
+        patterns: ["demo-test/stylelint17/*.test.cjs"],
+        requires: "demo-test/.runtime-sl17",
+        hint: "npm run test:stylelint17:setup",
+    },
 ]
 
 // --- 工具 ---

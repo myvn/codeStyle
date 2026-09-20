@@ -47,7 +47,9 @@
     "test:integration:setup": "node demo-test/setup-integration.cjs",
     "test:integration": "node scripts/test-all.cjs --suite=integration",
     "test:legacy:setup": "node demo-test/setup-legacy.cjs",
+        "test:stylelint17:setup": "node demo-test/setup-stylelint17.cjs",
     "test:legacy": "node scripts/test-all.cjs --suite=legacy",
+        "test:stylelint17": "node scripts/test-all.cjs --suite=stylelint17",
     "test:all": "node scripts/test-all.cjs",
     "diagnose": "node scripts/diagnose-speed.cjs",
     "sweep": "node scripts/sweep-concurrency.cjs",
@@ -88,12 +90,13 @@
     "postcss-scss": "^4.0.0",
     "prettier": "^3.0.0",
     "standard-version": "^9.0.0",
-    "stylelint": "^16.0.0",
+    "stylelint": "^16.24.0 || ^17.0.0",
     "stylelint-config-html": "^2.0.0",
-    "stylelint-config-recess-order": "^5.0.0",
-    "stylelint-config-recommended": "^17.0.0",
-    "stylelint-config-recommended-scss": "^16.0.0",
+    "stylelint-config-recess-order": "^5.0.0 || ^6.0.0 || ^7.0.0",
+    "stylelint-config-recommended": "^17.0.0 || ^18.0.0",
+    "stylelint-config-recommended-scss": "^16.0.0 || ^17.0.0",
     "stylelint-config-recommended-vue": "^2.0.0",
+    "stylelint-order": "^6.0.0 || ^7.0.0 || ^8.0.0",
     "stylelint-prettier": "^5.0.0",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.0.0",
@@ -179,6 +182,9 @@
       "optional": true
     },
     "stylelint-config-recommended-vue": {
+      "optional": true
+    },
+    "stylelint-order": {
       "optional": true
     },
     "stylelint-prettier": {

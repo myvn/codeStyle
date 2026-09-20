@@ -12,3 +12,6 @@ demo-test/.runtime/
 
 # ESLint 8 isolated validation
 demo-test/.runtime-legacy/
+
+# Stylelint 17 isolated validation
+demo-test/.runtime-sl17/
