@@ -1,5 +1,11 @@
 ## 变更日志
 
+## [1.8.3](https://github.com/myvn/codeStyle/compare/v1.8.2...v1.8.3) (2026-09-21)
+
+### 🐛 Bug Fixes | Bug 修复
+
+* 校准 peer 范围，修复 eslint 10 组合被 npm 拒装（BUG-027） ([33d211d](https://github.com/myvn/codeStyle/commit/33d211dcbdb24b2e67962c6c32d02628d13cec32))
+
 ## [1.8.2](https://github.com/myvn/codeStyle/compare/v1.8.1...v1.8.2) (2026-09-21)
 
 
