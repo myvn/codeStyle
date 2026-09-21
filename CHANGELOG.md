@@ -1,5 +1,12 @@
 ## 变更日志
 
+## [1.8.2](https://github.com/myvn/codeStyle/compare/v1.8.1...v1.8.2) (2026-09-21)
+
+
+### 🐛 Bug Fixes | Bug 修复
+
+* versionrc 静默压优先级警告 + CHANGELOG 结构修复 + 发布工具迁移 catv@12 ([d1b8abf](https://github.com/myvn/codeStyle/commit/d1b8abfcccb595c33d4b9490e87b0599fe37b6bc))
+
 ### [1.8.1](https://github.com/myvn/codeStyle/compare/v1.8.0...v1.8.1) (2026-09-20)
 
 
