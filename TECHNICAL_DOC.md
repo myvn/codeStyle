@@ -44,6 +44,7 @@
 | `my-code-style/commitlint`              | `src/commitlint/base.cjs`         | Commitlint 提交规范               |
 | `my-code-style/commitlint/scopes`       | `src/commitlint/scopes.cjs`       | 动态 scope 工具函数               |
 | `my-code-style/versionrc`               | `src/versionrc/index.cjs`         | commit-and-tag-version 版本号配置 |
+| `my-code-style/package.json`           | `package.json`                    | 包元数据（工具读取版本用）        |
 
 ### 2.2 配置链式继承
 

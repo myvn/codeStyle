@@ -13,6 +13,32 @@ test("所有公共导出目标存在且可通过包名解析", () => {
     }
 })
 
+test("peer 范围覆盖我们声明支持的上游大版本（校准防回退，BUG-027）", () => {
+    const peers = pkg.peerDependencies
+    // eslint 声明支持 ^10 → @eslint/js 必须同时放行 10，否则 npm ERESOLVE 直接拒装
+    // （1.8.2 实测：eslint 10 + @eslint/js 10 组合安装被 ERESOLVE 拒绝）
+    assert.match(peers["@eslint/js"], /\^10\.0\.0/)
+    // 已在对应大版本下 fixture 实测的放宽项
+    const widened = [
+        ["@commitlint/cli", "^20.0.0", "^21.0.0"],
+        ["@commitlint/config-conventional", "^20.0.0", "^21.0.0"],
+        ["eslint-import-resolver-typescript", "^4.0.0"],
+        ["globals", "^17.0.0"],
+        ["lint-staged", "^17.0.0"],
+    ]
+    for (const [name, ...majors] of widened) {
+        for (const major of majors) {
+            assert.ok(peers[name].includes(major), `${name} 应包含 ${major}`)
+        }
+    }
+    // 有意不放宽的两项：catv 13 的 changelog writer 丢失 types/hidden 分组（上游回归）；
+    // typescript 7 超出 typescript-eslint 的支持上限（>=4.8.4 <6.1.0）
+    assert.equal(peers["commit-and-tag-version"], "^12.0.0")
+    assert.equal(peers.typescript, "^5.0.0")
+    // 消费者工具读取包版本需要 ./package.json 导出
+    assert.equal(pkg.exports["./package.json"], "./package.json")
+})
+
 test("Prettier 默认值和 JSON/YAML/nvue 文件例外", () => {
     const config = require("my-code-style/prettier")
     assert.equal(config.singleQuote, false)
@@ -80,8 +106,11 @@ test("peerDependencies 覆盖 ESLint 8/9/10，无残留的 @eslint/eslintrc", ()
     // Flat Config 现在真的 import 了 @eslint/js
     assert.ok(pkg.peerDependencies["@eslint/js"], "@eslint/js 应保留在 peerDependencies")
     assert.equal(pkg.peerDependenciesMeta["@eslint/js"].optional, true)
-    // 刻意不含 ^10：@eslint/js 10 要求 Node >= 20.19
-    assert.equal(pkg.peerDependencies["@eslint/js"], "^9.0.0")
+    // 曾"刻意不含 ^10"（顾虑 @eslint/js 10 要求 Node >= 20.19），但范围收窄防不住
+    // 该组合：eslint 10 用户必然装 @eslint/js 10，而 1.8.2 实测这种组合会被 npm
+    // ERESOLVE 直接拒装（BUG-027）。Node 约束由各包自己的 engines 把守
+    // （eslint 10 本身就要求 Node >= 20.19），Node 18 用户解析到的仍是 9.x。
+    assert.equal(pkg.peerDependencies["@eslint/js"], "^9.0.0 || ^10.0.0")
 })
 
 test("Commitlint 标题约束和版本管理开关", () => {
