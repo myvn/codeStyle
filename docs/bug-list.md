@@ -28,6 +28,29 @@
 
 第八轮修复（BUG-027）追加 1 项回归测试，并加固集成 runtime 的钉版与源码同步，测试基线增至 **180 项（基础 86 / 集成 59 / legacy 27 / Stylelint 17 共 8），全绿**。
 
+第九轮（1.8.3 后例行找茬）：NIT-012 三处规则分叉全部了结并配守护断言；新增 BUG-028（发布工具版本失控）；CI 增加工件冒烟 job；测试基线增至 **182 项（基础 86 / 集成 61 / legacy 27 / Stylelint 17 共 8），全绿**。
+
+### 第九轮修复：规则分叉了结 + 发布工具防失控 + 工件冒烟进 CI（2026-09-21）
+
+触发场景：1.8.3 发布后的例行找茬轮。复盘发现上次发版时 `commit-and-tag-version` 命令曾因环境缺依赖被 npm 的 exec 回退静默换成 13.x（`npm warn exec … will be installed`）——发布工具版本失控，且此前 fixture 中「catv 13 丢分组」的结论需要修正归因。
+
+| 编号    | 严重度 | 问题                                                                                                                                                                                                                                      | 修复                                                                                                                                                                   | 回归测试                                                                                        |
+| ------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| BUG-028 | P2     | `release` / `release:push` 不检查发布工具是否本地可用：`node_modules` 缺失时 bash 找不到命令，npm 的 exec 回退会**静默 npx 安装最新大版本**执行（1.8.3 发版实测被换到 13.2.1）。工具版本直接决定 CHANGELOG 格式与抬版行为，不允许这样失控 | `release-guard.cjs` 新增第 1 项只读检查：`node_modules/.bin/commit-and-tag-version` 必须存在（Windows 兼容 .cmd/.ps1），缺失即中止并解释回退风险，提示先 `npm install` | `release.test.cjs`「发布防呆：发布工具未安装时拦截」（fixture 同步补假 bin，其余 3 例不受影响） |
+
+NIT-012 三处全部了结（①经查已修复，②③本轮修复）：
+
+- ① **nvue prettier 覆写**：flat 的 `nvuePrettierRules` 已携带完整选项（`{...prettierOptions, parser:"vue", semi:true}`），与 legacy 等同——此前只差守护断言。新增集成断言 deepEqual 锁死。
+- ② **flat uniapp globals 的 files**：`{vue,ts,js,nvue}` → 补全 `mjs,cjs,mts,cts,jsx,tsx`，覆盖 base 的全部语言文件（`no-undef: off` 下无害但属分叉）。
+- ③ **import-x/extensions**：`off` → 与 legacy 的 `import/extensions` 同参（`error + ignorePackages + {js,jsx,ts,tsx}: never`）。仓库根 `eslint.config.mjs` 对 `**/*.{cjs,mjs,js}` 豁免——本仓测试文件自引用包名（`import "my-code-style/*"`）经 symlink 解析后 `ignorePackages` 识别不了会误报，消费者项目无此形态。
+
+顺带记录与加固：
+
+- **catv 13「丢分组」归因修正**：真机 dry-run（npx 安装的 13 + 其自带新 preset）分组与 compare 链接均正常；fixture 里坏掉的组合是 **13 + 旧 preset 7.0.2**（runtime 依赖树解析产物）。即 13 的 writer 与旧 preset 不兼容，属环境敏感而非必然回归。peer 维持 `^12` 不放宽（12 对 preset 版本不敏感），但 guard 已确保实际执行的是钉定版本。
+- **typescript 7 已发布上游**（7.0.2），typescript-eslint 8 的 peer 仍是 `>=4.8.4 <6.1.0`——工件冒烟脚本首跑就撞上（裸 `typescript` 解析到 7 被拒），`typescript: ^5.0.0` 的保守 peer 再次被证实正确。
+- **CI 增加工件冒烟 job**：`npm pack` → 干净目录当真实依赖安装（ESLint 9 / 10 两条线，BUG-027 组合防回归）→ `my-code-style-init` 真跑 → `eslint .` → `./package.json` 导出探针。peer 用 `^`，上游出新大版本时该 job 变红，作为范围校准的早期预警。
+- 新增 `npm run test:count`（`scripts/count-tests.cjs` 快速计数，不执行用例体）。
+
 ### 第八轮修复：发布后工件复检揪出 npm 安装级 peer 冲突（2026-09-21）
 
 触发场景：1.8.2 发布后的工件级复检——从 npm 实装、用 init 自产命令走完真实用户流程，再把全部 peer 范围与上游 latest 逐一比对，发现 8 个范围不含上游最新大版本，其中一条自相矛盾且 npm 直接拒装。

@@ -11,15 +11,20 @@
  * 退出码 0，只是多了一句 "Run git push --follow-tags"。所以「先 `npm run release`、
  * 再 `npm run release:push`」这种顺序会额外产出一个空版本；已经发到 npm 的版本不可撤销。
  *
- * 三项只读检查（任一失败即中止，不修改任何文件）：
- *   1. 当前目录在 git 工作区内（版本提交与 tag 都依赖 git）；
- *   2. 已跟踪文件没有未提交改动（release 工具会把它们卷进版本提交）；
- *   3. HEAD 没有被 v* tag 命中（命中说明这一版的 tag 已经生成，只差推送）。
+ * 四项只读检查（任一失败即中止，不修改任何文件）：
+ *   1. 发布工具来自本仓 node_modules（命令缺失时 npm 的 exec 回退会静默 npx
+ *      安装最新版执行——实测 1.8.3 发版时环境缺依赖被回退到 13.x，CHANGELOG
+ *      行为与钉定的 ^12 不同，发布工具版本不允许这样失控）；
+ *   2. 当前目录在 git 工作区内（版本提交与 tag 都依赖 git）；
+ *   3. 已跟踪文件没有未提交改动（release 工具会把它们卷进版本提交）；
+ *   4. HEAD 没有被 v* tag 命中（命中说明这一版的 tag 已经生成，只差推送）。
  *
  * 未跟踪文件不拦截：它们不会进入版本提交，阻止发布只会碍事。
  */
 
 const { spawnSync } = require("node:child_process")
+const fs = require("node:fs")
+const path = require("node:path")
 
 function git(args) {
     const result = spawnSync("git", args, { encoding: "utf8" })
@@ -32,6 +37,23 @@ function git(args) {
 function abort(lines) {
     process.stderr.write(`\n✖ 发布中止\n\n${lines.join("\n")}\n\n`)
     process.exit(1)
+}
+
+// 1) 发布工具必须已装进本仓 node_modules：命令缺失时 npm 的 exec 回退会
+//    静默 npx 最新版执行（工具版本直接决定 CHANGELOG 格式与抬版行为）
+const binCandidates = [
+    "commit-and-tag-version",
+    "commit-and-tag-version.cmd",
+    "commit-and-tag-version.ps1",
+]
+const binDir = path.join(process.cwd(), "node_modules", ".bin")
+if (!binCandidates.some((name) => fs.existsSync(path.join(binDir, name)))) {
+    abort([
+        "- 发布工具没有安装到本仓（找不到 node_modules/.bin/commit-and-tag-version）。",
+        "  若直接执行，npm 的回退机制会静默 npx 安装最新版运行——工具版本影响",
+        "  CHANGELOG 格式与抬版行为，不能失控。",
+        "  请先 `npm install`（版本已钉在 devDependencies），再执行发布命令。",
+    ])
 }
 
 const inside = git(["rev-parse", "--is-inside-work-tree"])

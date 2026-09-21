@@ -36,7 +36,13 @@ export const commonRules = {
 
     // Import rules (using import-x for flat config compatibility)
     "import-x/no-unresolved": "off",
-    "import-x/extensions": "off",
+    // 与 legacy 的 import/extensions 对齐（NIT-012）：相对导入的 js/jsx/ts/tsx 不带
+    // 扩展名；mjs/cjs 未列出、按规则默认要求带扩展名（与本仓 .mjs 互引一致）
+    "import-x/extensions": [
+        "error",
+        "ignorePackages",
+        { js: "never", jsx: "never", ts: "never", tsx: "never" },
+    ],
     "import-x/prefer-default-export": "off",
     "import-x/no-extraneous-dependencies": "off",
 

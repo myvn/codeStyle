@@ -160,11 +160,27 @@ function releaseFixture(t) {
         path.join(dir, "package.json"),
         JSON.stringify({ name: "release-fixture", version: "1.0.0" }, null, 2),
     )
+    // 防呆第 1 项要求发布工具已装进本仓（npm 的 exec 回退会静默换最新版）
+    fs.mkdirSync(path.join(dir, "node_modules", ".bin"), { recursive: true })
+    fs.writeFileSync(
+        path.join(dir, "node_modules", ".bin", "commit-and-tag-version"),
+        "#!/bin/sh\n",
+    )
     run("git", ["add", "."])
     const commit = run("git", ["commit", "-q", "-m", "feat: initial feature"])
     assert.equal(commit.status, 0, commit.stdout + commit.stderr)
     return { dir, run }
 }
+
+test("发布防呆：发布工具未安装时拦截（npm 的 exec 回退会静默换最新版执行）", (t) => {
+    const { dir, run } = releaseFixture(t)
+    fs.rmSync(path.join(dir, "node_modules"), { recursive: true, force: true })
+
+    const res = run("node", [guardScript])
+    assert.notEqual(res.status, 0)
+    assert.match(res.stderr, /发布工具没有安装到本仓/)
+    assert.match(res.stderr, /npm install/)
+})
 
 test("发布防呆：干净的发布点放行，未跟踪文件不阻断（它们不会进版本提交）", (t) => {
     const { dir, run } = releaseFixture(t)

@@ -9,7 +9,8 @@ export default [
 
     // Add uni-app globals
     {
-        files: ["**/*.{vue,ts,js,nvue}"],
+        // 覆盖 base 配置的全部语言文件（此前漏了 mjs/cjs/mts/cts/jsx/tsx，NIT-012）
+        files: ["**/*.{vue,ts,js,mjs,cjs,mts,cts,jsx,tsx,nvue}"],
         languageOptions: {
             globals: uniappGlobals,
         },

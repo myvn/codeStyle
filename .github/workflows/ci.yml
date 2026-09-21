@@ -33,3 +33,51 @@ jobs:
 
       - name: 执行全量测试套件
         run: npm run test:all
+
+  smoke:
+    # 发布工件冒烟：npm pack 后在干净目录里当真实依赖安装（ESLint 9 / 10 两条线），
+    # 走 init 与 lint，并探针 ./package.json 导出。peer 用 ^：上游一发新大版本本 job
+    # 就会红——作为范围校准的早期预警（BUG-027 那类 ERESOLVE 拒装在发布前就会被拦）。
+    name: 工件冒烟
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      - name: 设置 Node.js (22)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: npm pack
+        run: npm pack
+
+      - name: 冒烟 · ESLint 9 线
+        run: |
+          set -e
+          SMOKE=$(mktemp -d)
+          cd "$SMOKE"
+          echo '{"name":"artifact-smoke-9","private":true,"type":"module"}' > package.json
+          npm i "$GITHUB_WORKSPACE"/my-code-style-*.tgz \
+            eslint@^9 @eslint/js@^9 typescript@^5 typescript-eslint@^8 \
+            eslint-plugin-import-x@^4 eslint-plugin-prettier@^5 eslint-config-prettier@^10 \
+            eslint-import-resolver-typescript@^3 globals@^16 prettier@^3 --no-audit --no-fund
+          npx my-code-style-init
+          printf 'export const greeting = "hello"\n' > index.ts
+          npx eslint .
+          node -e "console.log('smoke ok:', require('my-code-style/package.json').version)"
+
+      - name: 冒烟 · ESLint 10 线（BUG-027 防回归）
+        run: |
+          set -e
+          SMOKE=$(mktemp -d)
+          cd "$SMOKE"
+          echo '{"name":"artifact-smoke-10","private":true,"type":"module"}' > package.json
+          npm i "$GITHUB_WORKSPACE"/my-code-style-*.tgz \
+            eslint@^10 @eslint/js@^10 typescript@^5 typescript-eslint@^8 \
+            eslint-plugin-import-x@^4 eslint-plugin-prettier@^5 eslint-config-prettier@^10 \
+            eslint-import-resolver-typescript@^3 globals@^16 prettier@^3 --no-audit --no-fund
+          npx my-code-style-init
+          printf 'export const greeting = "hello"\n' > index.ts
+          npx eslint .
+          node -e "console.log('smoke ok:', require('my-code-style/package.json').version)"
