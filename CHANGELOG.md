@@ -24,8 +24,6 @@
 - **publish:** 增强 provenance 校验与日志自证，同步文档与发布流程 ([ba6db63](https://github.com/myvn/codeStyle/commit/ba6db63dce8144f53ad2be9c49278ff67b924518))
 - **修复:** Merge branch 'arena/01a0b214-codestyle' ([7c024dc](https://github.com/myvn/codeStyle/commit/7c024dce1bc1ef9d7fc9ef03b74f936b87a4704a))
 
-## [1.5.0](https://github.com/myvn/codeStyle/compare/v1.4.0...v1.5.0) (2026-09-18)
-
 ### [1.7.2](https://github.com/myvn/codeStyle/compare/v1.7.1...v1.7.2) (2026-09-20)
 
 ### 🐛 Bug Fixes | Bug 修复

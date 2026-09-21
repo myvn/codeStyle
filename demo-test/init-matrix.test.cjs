@@ -169,6 +169,24 @@ test("缺失依赖提示包含 typescript，并按包管理器给出可执行命
     assert.ok(!/：typescript,|：typescript$/.test(missing), `typescript 不应重复提示: ${missing}`)
 })
 
+test("检测到会压过 .versionrc.cjs 的旧配置文件时给出警告", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "stale-versionrc",
+            type: "module",
+            devDependencies: { eslint: "^9.0.0" },
+        }),
+        ".versionrc": '{"header":"旧配置"}',
+    })
+    const result = p.init("--dry-run")
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(
+        result.stdout,
+        /检测到 \.versionrc：发布工具会优先读取它，本次生成的 \.versionrc\.cjs 不会生效/,
+    )
+    assert.ok(!p.exists(".versionrc.cjs"), "dry-run 不得写文件")
+})
+
 test("init 输出按六步组织，dry-run 也完整预览依赖体检与下一步", (t) => {
     const p = project(t, {
         "package.json": JSON.stringify({

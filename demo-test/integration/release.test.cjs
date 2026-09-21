@@ -78,8 +78,8 @@ test("所有支持的文件只匹配一个任务组，组件工具严格按序�
     }
 })
 
-test("standard-version 在 ESM (type: module) 项目中读取 .versionrc.cjs 成功生成版本与 CHANGELOG", (t) => {
-    const dir = fs.mkdtempSync(path.join(runtime, "standard-version-esm-"))
+test("commit-and-tag-version 在 ESM (type: module) 项目中读取 .versionrc.cjs 成功生成版本与 CHANGELOG", (t) => {
+    const dir = fs.mkdtempSync(path.join(runtime, "catv-esm-"))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
     const run = (cmd, args) => spawnSync(cmd, args, { cwd: dir, encoding: "utf8", timeout: 60000 })
 
@@ -112,8 +112,8 @@ test("standard-version 在 ESM (type: module) 项目中读取 .versionrc.cjs 成
     const initCommit = run("git", ["commit", "-m", "feat: initial feature"])
     assert.equal(initCommit.status, 0)
 
-    // Run standard-version binary from runtime
-    const svBin = path.join(runtime, "node_modules/.bin/standard-version")
+    // Run commit-and-tag-version binary from runtime
+    const svBin = path.join(runtime, "node_modules/.bin/commit-and-tag-version")
     const svRes = run(svBin, ["--skip.commit", "--skip.tag"])
     assert.equal(svRes.status, 0, svRes.stdout + svRes.stderr)
 
@@ -125,7 +125,7 @@ test("standard-version 在 ESM (type: module) 项目中读取 .versionrc.cjs 成
     assert.match(changelog, /1\.1\.0/)
     assert.match(changelog, /initial feature/)
 
-    // Also verify that a .versionrc.js in an ESM project fails: standard-version
+    // Also verify that a .versionrc.js in an ESM project fails: the release tool
     // loads the config with require(), but the file is treated as an ES module.
     // The error text depends on the Node version, so assert on the cause:
     //   Node 18        → ERR_REQUIRE_ESM (require() of ESM is not supported)
@@ -186,7 +186,7 @@ test("发布防呆：已跟踪文件未提交时拦截，避免被卷进版本�
     assert.match(res.stderr, /git commit/)
 })
 
-test("发布防呆：HEAD 已有 v* tag 时拦截（此时 standard-version 会静默抬版并写出空 CHANGELOG）", (t) => {
+test("发布防呆：HEAD 已有 v* tag 时拦截（此时 release 工具会静默抬版并写出空 CHANGELOG）", (t) => {
     const { dir, run } = releaseFixture(t)
     run("git", ["tag", "-a", "v1.0.0", "-m", "chore(release): 1.0.0"])
 
@@ -196,12 +196,14 @@ test("发布防呆：HEAD 已有 v* tag 时拦截（此时 standard-version 会�
     assert.match(res.stderr, /v1\.0\.0/)
     assert.match(res.stderr, /git push --follow-tags origin main/)
 
-    // 反证：没有防呆时 standard-version 退出码为 0，却把版本抬到 1.0.1 并生成空 CHANGELOG 段
-    const svBin = path.join(runtime, "node_modules/.bin/standard-version")
+    // 反证：没有防呆时发布工具退出码为 0，却把版本抬到 1.0.1 并生成空 CHANGELOG 段
+    // （catv 13 的空段标题是 `## <small>1.0.1 (date)</small>`，与 standard-version 的
+    //   `### [1.0.1](url)` 不同，断言只认版本号与"没有任何条目"）
+    const svBin = path.join(runtime, "node_modules/.bin/commit-and-tag-version")
     const dry = run(svBin, ["--dry-run"])
     assert.equal(dry.status, 0, dry.stdout + dry.stderr)
     assert.match(dry.stdout, /bumping version in package\.json from 1\.0\.0 to 1\.0\.1/)
-    assert.match(dry.stdout, /### \[1\.0\.1\]/)
+    assert.match(dry.stdout, /1\.0\.1/)
     assert.doesNotMatch(dry.stdout, /^\* /m, `CHANGELOG 段应为空：\n${dry.stdout}`)
 })
 

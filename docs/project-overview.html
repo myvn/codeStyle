@@ -690,7 +690,7 @@
                             <tr>
                                 <td>配置写错长期潜伏（如 quotes 与 Prettier 打架）</td>
                                 <td>
-                                    178 项自动化回归覆盖，含 ESLint 8 / 9 / 10 与 Stylelint 16 / 17
+                                    179 项自动化回归覆盖，含 ESLint 8 / 9 / 10 与 Stylelint 16 / 17
                                     的真实运行
                                 </td>
                             </tr>
@@ -1347,8 +1347,8 @@ export default [
                                 <td>已修复并验证</td>
                                 <td>工程化测试体系与回归套件建设。</td>
                                 <td>
-                                    已建立分层测试套件（基础 CLI 84 项 + 现代集成提交链 59 项 +
-                                    ESLint 8 兼容性 27 项 + Stylelint 17 兼容性 8 项，共 178
+                                    已建立分层测试套件（基础 CLI 85 项 + 现代集成提交链 59 项 +
+                                    ESLint 8 兼容性 27 项 + Stylelint 17 兼容性 8 项，共 179
                                     项测试全部通过），`npm run test:all` 输出「套件 → 用例明细 →
                                     分类统计」三层结果，并在核数 ≥ 8 的机器上自动并行；
                                     声明范围的**两端**都有真实运行回归（集成套件固定 stylelint 16
@@ -1411,7 +1411,7 @@ export default [
                     <small>11</small>
                     本次核验与版本脉络
                 </h2>
-                <h3>全量分层自动化测试（178 项通过，0 失败）</h3>
+                <h3>全量分层自动化测试（179 项通过，0 失败）</h3>
                 <p>
                     在 Node.js 18.20.8 / 22.22.3 / 26.9.0 三个运行时上执行全量自动化测试套件（npm
                     run test:all）， 输出每个套件下的用例明细、实时进度与分类统计：
@@ -1434,7 +1434,7 @@ export default [
                                     向上查找）、Prettier 单一来源契约、发布工作流 provenance
                                     契约、大仓库 maxBuffer、--backup 与事务回滚
                                 </td>
-                                <td>84 项全部通过</td>
+                                <td>85 项全部通过</td>
                             </tr>
                             <tr>
                                 <td>现代工具链与真实提交链路 (npm run test:integration)</td>
@@ -1468,7 +1468,7 @@ export default [
                             <tr>
                                 <td><b>合计</b></td>
                                 <td><b>全部核心功能与边界场景</b></td>
-                                <td><b>178 项通过，0 失败，0 TODO</b></td>
+                                <td><b>179 项通过，0 失败，0 TODO</b></td>
                             </tr>
                         </tbody>
                     </table>
@@ -1481,7 +1481,7 @@ export default [
                         会静默抬版、 写出空 CHANGELOG、多发一个空版本），发布后两层 provenance
                         核验（npm 日志自证 + registry 回查，预算约 5.5 分钟）；CI action 迁到 Node
                         24 运行时；peer 范围覆盖 ESLint 8/9/10 与 Stylelint 16/17，init
-                        依赖版本体检精确到 minor； 178 项全量测试验证（Node 18 / 20 / 22 / 24
+                        依赖版本体检精确到 minor； 179 项全量测试验证（Node 18 / 20 / 22 / 24
                         实测通过）。
                     </li>
                     <li>

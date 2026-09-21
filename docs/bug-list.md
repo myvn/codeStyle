@@ -24,6 +24,31 @@
 
 同轮体验优化追加 1 项回归测试（六步输出），测试基线增至 **178 项（基础 84 / 集成 59 / legacy 27 / Stylelint 17 共 8），全绿**。
 
+第七轮修复（BUG-025 / BUG-026）追加 1 项回归测试，并了结 NIT-002、NIT-011 尾巴、把发布工具从 standard-version 迁移到 commit-and-tag-version，测试基线增至 **179 项（基础 85 / 集成 59 / legacy 27 / Stylelint 17 共 8），全绿**。
+
+### 第七轮修复：versionrc 静默压优先级 + CHANGELOG 结构修复 + 发布工具迁移（2026-09-21）
+
+触发场景：例行找茬。在一比一复刻用户项目的 fixture 里实测发现 `.versionrc` 陷阱；读 CHANGELOG 发现结构损坏；`npm run lint` 因 NIT-002 的修复而首次真正跑起来，立即抓出 2 个文件 15 处积欠。
+
+| 编号    | 严重度 | 问题                                                                                                                                                                                                                                                                        | 修复                                                                                                                                                       | 回归测试                                                                     |
+| ------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| BUG-025 | P2     | 发布工具读配置的顺序是 `.versionrc` → `.versionrc.cjs` → `.versionrc.json` → `.versionrc.js`：存量无扩展名 `.versionrc`（或 `.json`）会**静默压过** init 生成的 `.versionrc.cjs`（standard-version 9.5 实测读到旧文件），init 对 `.versionrc.js` 会警告、对这两个却一声不吭 | init 检测到即警告「发布工具会优先读取它，本次生成的 .versionrc.cjs 不会生效；请把配置合并进来或删除旧文件」（`init-flow.md` 此前只写了现象，现在工具闭环） | `init-matrix.test.cjs`「检测到会压过 .versionrc.cjs 的旧配置文件时给出警告」 |
+| BUG-026 | P1     | CHANGELOG 第 27 行有一个孤立的 `## [1.5.0]` 标题，后来追加的 1.7.2 / 1.7.1 / 1.7.0 段落全挂在它下面（读者会以为 1.5.0 包含 1.7.x 的变更）；真正的 1.5.0 内容在几十行之外另有一份——同一个版本两个段落、且全部错序                                                            | 删除孤立标题后版本序恢复单调（1.8.1 → 1.8.0 → 1.7.2 → … → 1.2.0，1.5.0 仅一份）；fixture 实测下一段紧随 header 插入、位置正确                              | —（历史数据修复，版本序人工核对）                                            |
+
+顺带了结（同轮）：
+
+- **NIT-002**：`devDependencies` 从 1 个补到 16 个（eslint 9 / typescript / typescript-eslint / prettier / flat base 全套 / commitlint 两件 / husky / lint-staged / czg / commit-and-tag-version，版本全部锚在包自己声明的 peer 范围内）。补完首跑 `npm run lint` 立即抓出 `demo-test/setup-legacy.cjs` 与 `demo-test/legacy/eslint8.test.cjs` 共 15 处 prettier/curly 积欠——正是"lint 从没在本仓跑过"的欠账，已全部修复。
+- **NIT-011 尾巴**：`.idea/` 6 个文件移出 git 索引（本地文件保留；目录本就在 `.gitignore` 里，是加忽略之前提交进来的）。
+- **NIT-004 关账**：`src/husky/*` 已是 init 实际读取的模板源（`readTemplate`），不再是死模板。
+
+发布工具迁移（非缺陷，弃用依赖清理）：
+
+- `standard-version` 自 2023 年起无人维护，且拖来 q、stringify-package、conventional-changelog-\* 全家桶等 10 个 deprecated 子依赖 → 迁移到社区维护分支 **commit-and-tag-version**，CLI 与 `.versionrc` 配置兼容。
+- peer 钉 **`^12.0.0`，不收 13**：13.2.1 的 changelog writer 不应用 preset 的 `types` / `hidden`（fixture 实测：中文分组丢失、本应隐藏的类型也出现在 CHANGELOG，属上游重构回归）；12.7.3 分组与 hidden 均正常。
+- 已知外观差异：版本标题由 standard-version 的 `### [x.y.z](compare-url)` 变为 catv 的 `## x.y.z (date)`（上游 preset 模板变化，`linkCompare` / `compareUrlFormat` 配置找不回链接样式，已接受）。
+- 同步：`scripts.release` / `release:push`、`bin/init` 注入的脚本与缺失清单、`src/versionrc` 头注释、release-guard 提示措辞、五处文档；integration runtime 经 peerDependencies 自动跟随。
+- 回归：`release.test.cjs` 两条发布用例改用 catv 二进制；反证断言改为格式无关（catv 的空段标题样式与 standard-version 不同，但「静默抬版 + 空 CHANGELOG」行为一致，release-guard 仍然必要）。
+
 ### 第六轮修复：init 安装命令对 shell 特殊字符加引号（2026-09-20）
 
 触发场景：用户在新项目接入 1.8.0，把 init 输出的一键安装命令原样粘贴进终端——`stylelint` 的联合范围里两个版本段用管道符分隔，shell 把它当成了管道，命令被拦腰截断：前半段装了一部分包，管道符之后的 8 个 stylelint 配套包**全部静默丢失**。

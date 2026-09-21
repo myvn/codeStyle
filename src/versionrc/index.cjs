@@ -1,4 +1,4 @@
-// standard-version config
+// commit-and-tag-version config（standard-version 的社区维护分支，配置兼容）
 module.exports = {
     header: "## 变更日志\n",
     types: [

@@ -53,7 +53,7 @@ node --test demo-test/scopes.test.cjs
 
 ## 当前验证状态
 
-基础测试 84 项全部通过；现代工具链测试 59 项、ESLint 8 测试 27 项、Stylelint 17 测试 8 项全部通过，合计 **178 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
+基础测试 85 项全部通过；现代工具链测试 59 项、ESLint 8 测试 27 项、Stylelint 17 测试 8 项全部通过，合计 **179 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
 
 上述 `npm test` 只验证 CLI 与配置契约；真实工具集成测试单独运行，见下文。未统计行/分支覆盖率，不代表所有功能都已覆盖。
 
@@ -103,7 +103,7 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 ### 尚未覆盖
 
 - 更多 Vue/nvue 语法边界（nvue 任务匹配与分号例外已覆盖）；
-- standard-version 的发布标签与远程推送；
+- commit-and-tag-version 的发布标签与远程推送；
 - Node 18/20、Windows 等环境矩阵；
 - 代码行/分支覆盖率统计。
 

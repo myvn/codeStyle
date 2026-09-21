@@ -189,7 +189,7 @@ module.exports = {
 | `my-code-style/stylelint/less-override` | Less 专用覆写配置             |
 | `my-code-style/commitlint`              | Commitlint 基础配置           |
 | `my-code-style/commitlint/scopes`       | 动态 scope 工具函数           |
-| `my-code-style/versionrc`               | standard-version 配置         |
+| `my-code-style/versionrc`               | commit-and-tag-version 配置   |
 
 ## CLI 初始化参数
 
@@ -213,7 +213,7 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 - **现代化 Git Hooks**：采用 Husky 9 原生极简 hook + lint-staged 互斥文件分组，串行运行、消除并发写入缓存冲突
 - **Stylelint SCSS、Less 及混合工程双支持**：支持纯 SCSS、纯 Less 以及两者共存的混合工程，放行 `@` 变量、小程序 `rpx`/`page`、深度选择器 `::v-deep` 及现代 CSS 伪类，组件内嵌多预处理器样式全面检查
 - **严格暂存区 Scope 猜测**：`guessCurrentScope()` 严格只依据 Git 暂存区推断 scope，支持多目录频次投票、重命名、物理删除、中文路径与空格路径
-- **ESM 兼容的自动版本发布**：支持 CommonJS（`.versionrc.js`）与 ESM（`.versionrc.cjs`）工程无缝对接 standard-version，一键版本递增与 CHANGELOG 生成
+- **ESM 兼容的自动版本发布**：支持 CommonJS（`.versionrc.js`）与 ESM（`.versionrc.cjs`）工程无缝对接 commit-and-tag-version（standard-version 的社区维护分支），一键版本递增与 CHANGELOG 生成
 
 ## 常见问题（使用中遇到的问题）
 
@@ -239,10 +239,10 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 178 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 179 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
-npm test                       # 只跑基础 CLI 与配置矩阵（84 项）
+npm test                       # 只跑基础 CLI 与配置矩阵（85 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
 npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（59 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
@@ -257,17 +257,17 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
 ```text
   my-code-style 测试套件
 
-  ▶ [1/4] 基础 CLI 与配置矩阵  （共 84 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [1/4] 基础 CLI 与配置矩阵  （共 85 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 7ms
       ✓ cz 交互提示为中文，且可选类型与 type-enum 一一对应 · 1ms
       ✓ 一键安装命令对含 || 的版本范围加引号，可整段粘贴执行 · 44ms
       ✓ 初始化结尾指引把 cz 用法说清楚（先 git add + 指到 README 手册） · 80ms
       …
-     ✓ 通过 84  ·  3.5s   · 最慢文件 init-matrix.test.cjs 3.2s
+     ✓ 通过 85  ·  3.7s   · 最慢文件 init-matrix.test.cjs 3.2s
 
   ▶ [2/4] 现代工具链与提交链  （共 59 项，23 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 10.4s
-      ✓ 发布防呆：HEAD 已有 v* tag 时拦截（此时 standard-version 会静默抬版并写出空 CHANGELOG） · 609ms
+      ✓ 发布防呆：HEAD 已有 v* tag 时拦截（此时 release 工具会静默抬版并写出空 CHANGELOG） · 609ms
       …
      ✓ 通过 59  ·  41.0s   · 最慢文件 commit-chain-both.test.cjs 10.6s
 
@@ -286,17 +286,17 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
-  基础 CLI 与配置矩阵         84       0       -    3.5s
+  基础 CLI 与配置矩阵         85       0       -    3.7s
   现代工具链与提交链          59       0       -   41.0s
   ESLint 8 兼容性             27       0       -   18.3s
   Stylelint 17 兼容性          8       0       -    7.2s
   ──────────────────────────────────────────────────────
-  合计                       178       0       -   81.3s
+  合计                       179       0       -   71.1s
   ──────────────────────────────────────────────────────
 
   ⏱ 最慢文件：eslint8.test.cjs 18.3s · commit-chain-both.test.cjs 10.6s · commit-chain-scss.test.cjs 10.6s
 
-  ✅ 全部通过：178/178 项，用时 81.3s
+  ✅ 全部通过：179/179 项，用时 71.1s
 ```
 
 终端里每个套件下方还有一条实时进度条（`██████░░░░ 38/66  失败 0  4.0s`）。附加参数：
@@ -353,7 +353,7 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 | `partial-staging{,-unstaged,-invalid-message,-conflict}` | 0.5–1.7s                 | 部分暂存与冲突恢复                      |
 | `error-recovery-{css,scss,less,js,ts,vue,nvue}`          | 0.5–1.4s                 | 不可修复错误的回滚                      |
 | `lint`                                                   | 3.9s                     | 32 条规则与格式化行为（无提交链）       |
-| `release`                                                | 0.8s                     | standard-version                        |
+| `release`                                                | 0.8s                     | commit-and-tag-version                  |
 
 两层并发都要控制规模，所以默认并发不交给 Node 猜，而是运行器自己算——**核数 × 1.5
 （至少 核数 - 1），再乘内存上限，最后封顶 8**（16 核机器实测：4/6/8/12/16/24 并发对应
@@ -374,7 +374,7 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 | `npm run test:integration`（运行器调度，自动并发 3）                        | 30.6s（只看集成套件那一段）                 |
 | 串行套件 + 文件级并发 23（全部一波）                                        | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL） |
 
-同机复测（178 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 70.3s、默认自动并发 3 = 81.3s、`--parallel` 四套件 = 59.1s、`npm run test:integration` = 41.5s、`node --test demo-test/integration/*.test.cjs` = 58.4s（后四项为 177 项时实测，仅基础套件 +2 用例，差值在秒级）。
+同机复测（179 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 70.4s、默认自动并发 3 = 71.1s、`--parallel` 四套件 = 66.8s、`npm run test:integration` = 41.2s、`node --test demo-test/integration/*.test.cjs` = 53.3s。
 
 （2 核沙箱里并行收益被 CPU 争抢吃掉大半，`--concurrency=1` 时单个文件只要 0.7–4.2s；
 16 核机器上集成套件那段 ≈ 最慢子文件，即"一次真实提交"的量级。）
@@ -399,7 +399,7 @@ npm run release:push
 
 也可以拆成两步：`npm run release` 只做到打 tag，之后用 `git push --follow-tags origin <分支>` 手动推送。
 
-> ⚠️ **别把两条命令连起来跑**：`release` 已经把 tag 打在 HEAD 上了，紧接着跑 `release:push`，standard-version **不会报错**，而是把版本号再抬一级、写出一个没有条目的空 CHANGELOG 并打出第二个 tag —— 等于多发一个空版本（npm 上不可撤销）。
+> ⚠️ **别把两条命令连起来跑**：`release` 已经把 tag 打在 HEAD 上了，紧接着跑 `release:push`，发布工具 **不会报错**，而是把版本号再抬一级、写出一个没有条目的空 CHANGELOG 并打出第二个 tag —— 等于多发一个空版本（npm 上不可撤销）。
 >
 > 两条命令的第一步都是 `scripts/release-guard.cjs` 发布前防呆，命中下面两种情况会直接中止并打印该执行的命令：HEAD 上已经有 `v*` tag（说明这一版已生成，只差推送）、已跟踪文件还有未提交改动（会被卷进版本提交）。未跟踪文件不拦截。
 

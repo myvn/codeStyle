@@ -28,8 +28,12 @@ function consumer(t, level) {
     const dir = fs.mkdtempSync(path.join(runtime, "consumer-"))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
     const dependencies = { eslint: "8.57.0" }
-    if (level !== "base") dependencies.vue = "^3"
-    if (level === "uniapp") dependencies["@dcloudio/uni-app"] = "3.0.0"
+    if (level !== "base") {
+        dependencies.vue = "^3"
+    }
+    if (level === "uniapp") {
+        dependencies["@dcloudio/uni-app"] = "3.0.0"
+    }
     fs.writeFileSync(
         path.join(dir, "package.json"),
         JSON.stringify({ name: "legacy-consumer", devDependencies: dependencies }),

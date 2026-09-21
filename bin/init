@@ -621,7 +621,7 @@ module.exports = {
 }
 
 function versionrcContent() {
-    return `// standard-version config — powered by my-code-style
+    return `// commit-and-tag-version config — powered by my-code-style
 module.exports = require("my-code-style/versionrc")
 `
 }
@@ -876,6 +876,9 @@ function main() {
     }
 
     const staleVersionrc = isEsm && fileExists(".versionrc.js") && !fileExists(".versionrc.cjs")
+    // 发布工具读配置的顺序是 ['.versionrc', '.versionrc.cjs', '.versionrc.json', '.versionrc.js']：
+    // 无扩展名或 .json 的旧文件会压过本次生成的 .versionrc.cjs（实测 standard-version 9.5 / catv 均如此）
+    const staleVersionrcTop = [".versionrc", ".versionrc.json"].filter((f) => fileExists(f))
 
     files.push({
         path: versionrcPath,
@@ -949,7 +952,12 @@ function main() {
     }
     if (staleVersionrc) {
         warn(
-            "检测到 ESM 项目 (type: module) 存在旧的 .versionrc.js，standard-version 需使用 .versionrc.cjs",
+            "检测到 ESM 项目 (type: module) 存在旧的 .versionrc.js，发布工具需要使用 .versionrc.cjs",
+        )
+    }
+    if (staleVersionrcTop.length > 0) {
+        warn(
+            `检测到 ${staleVersionrcTop.join("、")}：发布工具会优先读取它，本次生成的 .versionrc.cjs 不会生效；请把配置合并进来或删除旧文件`,
         )
     }
 
@@ -1098,7 +1106,7 @@ function main() {
                 "lint:fix": `${lintCommand} --fix`,
                 format: "prettier --write .",
                 prepare: "husky",
-                release: "standard-version",
+                release: "commit-and-tag-version",
                 cz: "czg",
             },
             "lint-staged": getLintStagedConfig(cssPreprocessor),
@@ -1215,7 +1223,7 @@ function checkPeerDeps({
         "husky",
         "lint-staged",
         "czg",
-        "standard-version",
+        "commit-and-tag-version",
     ]
 
     const flatDeps = useFlatConfig

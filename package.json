@@ -57,8 +57,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "node -e \"if (!process.env.CI) { try { require('child_process').execSync('husky', { stdio: 'ignore' }) } catch {} }\"",
-    "release": "node scripts/release-guard.cjs && standard-version",
-    "release:push": "node scripts/release-guard.cjs && standard-version && git push --follow-tags origin HEAD",
+    "release": "node scripts/release-guard.cjs && commit-and-tag-version",
+    "release:push": "node scripts/release-guard.cjs && commit-and-tag-version && git push --follow-tags origin HEAD",
     "pub": "npm run release:push",
     "cz": "czg",
     "link": "pnpm link --global",
@@ -74,6 +74,7 @@
     "@eslint/js": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "commit-and-tag-version": "^12.0.0",
     "czg": "^1.0.0",
     "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0",
     "eslint-config-prettier": "^10.1.8",
@@ -89,7 +90,6 @@
     "postcss-less": "^6.0.0",
     "postcss-scss": "^4.0.0",
     "prettier": "^3.0.0",
-    "standard-version": "^9.0.0",
     "stylelint": "^16.24.0 || ^17.0.0",
     "stylelint-config-html": "^2.0.0",
     "stylelint-config-recess-order": "^5.0.0 || ^6.0.0 || ^7.0.0",
@@ -163,9 +163,6 @@
     "prettier": {
       "optional": true
     },
-    "standard-version": {
-      "optional": true
-    },
     "stylelint": {
       "optional": true
     },
@@ -198,10 +195,28 @@
     },
     "vue-eslint-parser": {
       "optional": true
+    },
+    "commit-and-tag-version": {
+      "optional": true
     }
   },
   "devDependencies": {
-    "standard-version": "^9.5.0"
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint/js": "^9.39.5",
+    "commit-and-tag-version": "^12.7.3",
+    "czg": "^1.14.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^3.10.1",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0"
   },
   "keywords": [
     "eslint-config",

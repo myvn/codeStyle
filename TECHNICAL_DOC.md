@@ -35,15 +35,15 @@
 
 #### 其他配置
 
-| 导出路径                                | 实际文件                          | 说明                        |
-| --------------------------------------- | --------------------------------- | --------------------------- |
-| `my-code-style/prettier`                | `src/prettier/index.cjs`          | Prettier 格式化配置         |
-| `my-code-style/stylelint`               | `src/stylelint/index.cjs`         | Stylelint SCSS / 默认配置   |
-| `my-code-style/stylelint/less`          | `src/stylelint/less.cjs`          | Less 专用独立配置           |
-| `my-code-style/stylelint/less-override` | `src/stylelint/less-override.cjs` | Less 专用覆写配置           |
-| `my-code-style/commitlint`              | `src/commitlint/base.cjs`         | Commitlint 提交规范         |
-| `my-code-style/commitlint/scopes`       | `src/commitlint/scopes.cjs`       | 动态 scope 工具函数         |
-| `my-code-style/versionrc`               | `src/versionrc/index.cjs`         | standard-version 版本号配置 |
+| 导出路径                                | 实际文件                          | 说明                              |
+| --------------------------------------- | --------------------------------- | --------------------------------- |
+| `my-code-style/prettier`                | `src/prettier/index.cjs`          | Prettier 格式化配置               |
+| `my-code-style/stylelint`               | `src/stylelint/index.cjs`         | Stylelint SCSS / 默认配置         |
+| `my-code-style/stylelint/less`          | `src/stylelint/less.cjs`          | Less 专用独立配置                 |
+| `my-code-style/stylelint/less-override` | `src/stylelint/less-override.cjs` | Less 专用覆写配置                 |
+| `my-code-style/commitlint`              | `src/commitlint/base.cjs`         | Commitlint 提交规范               |
+| `my-code-style/commitlint/scopes`       | `src/commitlint/scopes.cjs`       | 动态 scope 工具函数               |
+| `my-code-style/versionrc`               | `src/versionrc/index.cjs`         | commit-and-tag-version 版本号配置 |
 
 ### 2.2 配置链式继承
 
@@ -131,7 +131,7 @@ base.mjs (tseslint + import-x + prettier)
 | Husky                             | >= 9.0             | Git hooks 管理                                        |
 | lint-staged                       | >= 16.0            | 暂存文件过滤检查                                      |
 | czg                               | >= 1.0             | 交互式 commit 提示                                    |
-| standard-version                  | >= 9.0             | 自动版本号 + CHANGELOG                                |
+| commit-and-tag-version            | >= 12.0            | 自动版本号 + CHANGELOG（standard-version 维护分支）   |
 
 ### 3.2 Flat Config 关键替换
 
@@ -326,7 +326,7 @@ export default [
 | `lint:fix` | `eslint . --fix` 或 `eslint . --ext ... --fix` | 执行 ESLint 自动修复（等于 `lint` 命令追加 `--fix`）                  |
 | `format`   | `prettier --write .`                           | 全项目 Prettier 格式化                                                |
 | `prepare`  | `husky`                                        | 初始化 Husky 9 Git hooks（`pnpm install` 后自动执行）                 |
-| `release`  | `standard-version`                             | 发布新版本 + 生成规范 CHANGELOG                                       |
+| `release`  | `commit-and-tag-version`                       | 发布新版本 + 生成规范 CHANGELOG                                       |
 | `cz`       | `czg`                                          | 交互式 Commit 提交提示工具                                            |
 
 ---

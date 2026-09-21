@@ -109,7 +109,7 @@ npx my-code-style-init
 3. **pnpm 10+ 的 `ERR_PNPM_IGNORED_BUILDS`**：安装 peer 时可能出现（`unrs-resolver` 等需要构建许可），执行 `pnpm approve-builds` 后重装即可，不是初始化失败。
 4. **`eslint` 声明为开口区间**（如 `>=8.0.0`）：npm 实际会装 9，所以 CLI 按 flat 生成；若确实要留在 8，请把范围收紧到 `<9`。
 5. **`init` 会改写 `package.json`**：`lint-staged` 是整体替换，自定义分组请提前备份（`--backup` 已包含 `package.json`）。
-6. **`.versionrc` / `.versionrc.json`**：已存在的这两个文件会被 standard-version 优先读取（`.cjs`/`.js` 优先级更低），init 不会删除它们。
+6. **`.versionrc` / `.versionrc.json`**：已存在的这两个文件会被发布工具优先读取（`.cjs`/`.js` 优先级更低），init 不会删除它们，并会在检测到时警告（BUG-025）。
 
 ---
 
