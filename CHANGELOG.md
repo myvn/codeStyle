@@ -1,5 +1,11 @@
 ## 变更日志
 
+## [1.8.6](https://github.com/myvn/codeStyle/compare/v1.8.5...v1.8.6) (2026-09-22)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- 下游升级实测三缺陷——stylelint×prettier 内联互搏、release 脚本纠偏、stale versionrc 清理 ([7fa54f6](https://github.com/myvn/codeStyle/commit/7fa54f67aebc4497a9ce0f612758bd84d64ca550))
+
 ## [1.8.5](https://github.com/myvn/codeStyle/compare/v1.8.4...v1.8.5) (2026-09-22)
 
 ### 🐛 Bug Fixes | Bug 修复
