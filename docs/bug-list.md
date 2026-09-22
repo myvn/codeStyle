@@ -45,7 +45,7 @@
 - **一致性三角**：npm 14 个版本 ↔ git tag 13 个 ↔ CHANGELOG 段序单调递减；仅 `v1.0.0` 无对应 tag、CHANGELOG 含 5 个发布前时代的手写历史段（1.0.1/1.0.2/1.1.0/1.3.0/1.3.1 在 npm 上无对应版本）——均为本工具接管发布链之前的遗物，不影响工具链，留档不修。
 - **自吃狗粮**：本仓实装的 16 个 devDeps 全部落在自家 peer 范围内。
 - **commitlint 矩阵**：中文类型/scope、revert、BREAKING CHANGE footer、大写类型拒绝、155 字超长拒绝全部符合预期（`subject-min-length` 未设、单字符 subject 放行，属当前配置选择，记录为可选优化）。
-- **init 边界**：中文+空格目录 ✓、预发布版本清单剥离 prerelease 后正确比对（10.2.0-beta.1 警告 / 10.4.0-beta.1 放行；base 项目不查 vue-eslint-parser 属设计内——体检范围与项目所需 peer 一致）✓、非法 JSON package.json 优雅退出且不落盘 ✓、--version 正确 ✓。
+- **init 边界**：中文+空格目录 ✓、预发布版本清单剥离 prerelease 后正确比对（10.2.0-beta.1 警告 / 10.4.0-beta.1 放行；base 项目不查 vue-eslint-parser 属设计内——体检范围与项目所需 peer 一致）✓、非法 JSON package.json 优雅退出且不落盘 ✓、--version 正确 ✓。中文目录下「疑似少生成 .stylelintrc.cjs」已定性为**设计内**：预处理器按 package.json 依赖清单检测，未装 sass/less 时明确提示跳过；`--save` 装入 less 后同一目录正常生成（反证实验闭环）。
 - **工作流安全**：仅引用 `secrets.NPM_TOKEN`、permissions 最小化（id-token: write 仅发布 job）、无硬编码敏感串、脚本全部数组参数 spawn。
 
 已知环境限制（记录，不修）：
