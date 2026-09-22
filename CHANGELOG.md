@@ -1,5 +1,11 @@
 ## 变更日志
 
+## [1.8.5](https://github.com/myvn/codeStyle/compare/v1.8.4...v1.8.5) (2026-09-22)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **stylelint:** Less 线关闭 declaration-property-value-no-unknown，修复 rpx 误报 ([ba7dda0](https://github.com/myvn/codeStyle/commit/ba7dda0d99988f1cab4b1d7ff1f73707c611a4f2))
+
 ## [1.8.4](https://github.com/myvn/codeStyle/compare/v1.8.3...v1.8.4) (2026-09-22)
 
 ### 🐛 Bug Fixes | Bug 修复
