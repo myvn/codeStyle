@@ -1,29 +1,32 @@
 ## 变更日志
 
+## [1.8.4](https://github.com/myvn/codeStyle/compare/v1.8.3...v1.8.4) (2026-09-22)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- NIT-012 规则分叉了结 + 发布工具防失控（BUG-028）+ CI 工件冒烟 ([1f24451](https://github.com/myvn/codeStyle/commit/1f24451d114ae396eb935bec9227ce93873b7cf1))
+
 ## [1.8.3](https://github.com/myvn/codeStyle/compare/v1.8.2...v1.8.3) (2026-09-21)
 
 ### 🐛 Bug Fixes | Bug 修复
 
-* 校准 peer 范围，修复 eslint 10 组合被 npm 拒装（BUG-027） ([33d211d](https://github.com/myvn/codeStyle/commit/33d211dcbdb24b2e67962c6c32d02628d13cec32))
+- 校准 peer 范围，修复 eslint 10 组合被 npm 拒装（BUG-027） ([33d211d](https://github.com/myvn/codeStyle/commit/33d211dcbdb24b2e67962c6c32d02628d13cec32))
 
 ## [1.8.2](https://github.com/myvn/codeStyle/compare/v1.8.1...v1.8.2) (2026-09-21)
 
-
 ### 🐛 Bug Fixes | Bug 修复
 
-* versionrc 静默压优先级警告 + CHANGELOG 结构修复 + 发布工具迁移 catv@12 ([d1b8abf](https://github.com/myvn/codeStyle/commit/d1b8abfcccb595c33d4b9490e87b0599fe37b6bc))
+- versionrc 静默压优先级警告 + CHANGELOG 结构修复 + 发布工具迁移 catv@12 ([d1b8abf](https://github.com/myvn/codeStyle/commit/d1b8abfcccb595c33d4b9490e87b0599fe37b6bc))
 
 ### [1.8.1](https://github.com/myvn/codeStyle/compare/v1.8.0...v1.8.1) (2026-09-20)
 
-
 ### 🐛 Bug Fixes | Bug 修复
 
-* **init:** 安装命令里的版本范围加引号，粘贴不再被 shell 截断 ([9abaf1d](https://github.com/myvn/codeStyle/commit/9abaf1d76ea3aff05f0d26d11a43e8661ed6221a))
-
+- **init:** 安装命令里的版本范围加引号，粘贴不再被 shell 截断 ([9abaf1d](https://github.com/myvn/codeStyle/commit/9abaf1d76ea3aff05f0d26d11a43e8661ed6221a))
 
 ### ✨ Features | 新功能
 
-* **init:** 输出步骤化为固定六步，dry-run 全流程预览 ([f14ca47](https://github.com/myvn/codeStyle/commit/f14ca47449b7d3e8f9a381b6e145e99232586886))
+- **init:** 输出步骤化为固定六步，dry-run 全流程预览 ([f14ca47](https://github.com/myvn/codeStyle/commit/f14ca47449b7d3e8f9a381b6e145e99232586886))
 
 ## [1.8.0](https://github.com/myvn/codeStyle/compare/v1.7.2...v1.8.0) (2026-09-20)
 
