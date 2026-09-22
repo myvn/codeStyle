@@ -30,6 +30,28 @@
 
 第九轮（1.8.3 后例行找茬）：NIT-012 三处规则分叉全部了结并配守护断言；新增 BUG-028（发布工具版本失控）；CI 增加工件冒烟 job；测试基线增至 **182 项（基础 86 / 集成 61 / legacy 27 / Stylelint 17 共 8），全绿**。
 
+第十轮（1.8.4 后系统性深度检查）：配置语义深测揪出 Less 线 rpx 误报（BUG-029）并修复，一致性三角、自吃狗粮、提交信息矩阵、init 边界、工作流安全全部体检通过；测试基线增至 **184 项（基础 86 / 集成 63 / legacy 27 / Stylelint 17 共 8），全绿**。
+
+### 第十轮：系统性深度检查——Less 线 rpx 误报修复（2026-09-22）
+
+检查方法：版本一致性三角（npm ↔ git tag ↔ CHANGELOG 程序化比对）、自吃狗粮（本仓实装依赖 vs 自家 32 条 peer 声明）、生成配置真实语义深测（stylelint 边缘 SCSS/Less fixture、commitlint 九类消息矩阵、prettier CRLF/nvue/中文）、bin/init 边界（中文空格路径 / 预发布版本清单 / 非法 JSON / --version）、工作流安全与最小权限。
+
+| 编号    | 严重度 | 问题                                                                                                                                                                                                               | 修复                                                                                                                | 回归测试                                                                    |
+| ------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| BUG-029 | P2     | Less 线 `width: 750rpx` 被 `declaration-property-value-no-unknown` 误报为 unknown value（uni-app Less 项目标配写法）。SCSS 线无此问题——上游 stylelint-config-recommended-scss 把该规则置 null，Less 线没有这层覆盖 | `src/stylelint/less.cjs` 显式 `"declaration-property-value-no-unknown": null`，与 SCSS 线上游行为对齐（附根因注释） | `lint.test.cjs`「Less 线的 rpx 值不误报」（Stylelint 16 / 17 双线各跑一次） |
+
+体检通过的项（摘要）：
+
+- **一致性三角**：npm 14 个版本 ↔ git tag 13 个 ↔ CHANGELOG 段序单调递减；仅 `v1.0.0` 无对应 tag、CHANGELOG 含 5 个发布前时代的手写历史段（1.0.1/1.0.2/1.1.0/1.3.0/1.3.1 在 npm 上无对应版本）——均为本工具接管发布链之前的遗物，不影响工具链，留档不修。
+- **自吃狗粮**：本仓实装的 16 个 devDeps 全部落在自家 peer 范围内。
+- **commitlint 矩阵**：中文类型/scope、revert、BREAKING CHANGE footer、大写类型拒绝、155 字超长拒绝全部符合预期（`subject-min-length` 未设、单字符 subject 放行，属当前配置选择，记录为可选优化）。
+- **init 边界**：中文+空格目录 ✓、预发布版本清单剥离 prerelease 后正确比对（10.2.0-beta.1 警告 / 10.4.0-beta.1 放行；base 项目不查 vue-eslint-parser 属设计内——体检范围与项目所需 peer 一致）✓、非法 JSON package.json 优雅退出且不落盘 ✓、--version 正确 ✓。
+- **工作流安全**：仅引用 `secrets.NPM_TOKEN`、permissions 最小化（id-token: write 仅发布 job）、无硬编码敏感串、脚本全部数组参数 spawn。
+
+已知环境限制（记录，不修）：
+
+- **prettier 配置 × 整目录 symlink node_modules**：当 `node_modules` 本身是指向他处的 symlink（本地开发 hack 形态）时，prettier 的配置加载器无法解析 `.prettierrc.cjs` 里的 `require("my-code-style/prettier")`（裸 `node -e` 同场景可解析，内联配置可生效——根因在 prettier 的加载链，非本包可控）。真实用户三种形态（npm 真装 / pnpm / yarn，node_modules 为真目录、条目级 symlink）均实测正常。不做内联修复——会破坏「prettier 选项以 src/prettier/index.cjs 为唯一来源」的防漂移原则。
+
 ### 第九轮修复：规则分叉了结 + 发布工具防失控 + 工件冒烟进 CI（2026-09-21）
 
 触发场景：1.8.3 发布后的例行找茬轮。复盘发现上次发版时 `commit-and-tag-version` 命令曾因环境缺依赖被 npm 的 exec 回退静默换成 13.x（`npm warn exec … will be installed`）——发布工具版本失控，且此前 fixture 中「catv 13 丢分组」的结论需要修正归因。

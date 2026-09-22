@@ -258,6 +258,22 @@ for (const [entry, ext, source] of [
             ),
         )
     })
+
+    test("Stylelint：Less 线的 rpx 值不误报 declaration-property-value-no-unknown（BUG-029）", async () => {
+        const stylelint = localRequire("stylelint")
+        const config = localRequire("my-code-style/stylelint/less")
+        const linted = await stylelint.lint({
+            config,
+            configBasedir: runtime,
+            codeFilename: path.join(runtime, "rpx.less"),
+            code: ".card { width: 750rpx; margin: 24rpx; }\n",
+        })
+        const warnings = linted.results.flatMap((item) => item.warnings)
+        const offenders = warnings.filter(
+            (warning) => warning.rule === "declaration-property-value-no-unknown",
+        )
+        assert.equal(offenders.length, 0, JSON.stringify(summarize(linted.results)))
+    })
 }
 
 test("Stylelint (my-code-style/stylelint) 统一支持 SCSS、Less 及 Vue 内嵌双预处理器", async () => {

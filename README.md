@@ -240,12 +240,12 @@ npx my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 182 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 184 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
 npm test                       # 只跑基础 CLI 与配置矩阵（86 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
-npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（61 项）
+npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（63 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
 npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
 npm run test:stylelint17:setup # 安装 Stylelint 17 隔离运行环境
@@ -267,11 +267,11 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
       …
      ✓ 通过 86  ·  3.6s   · 最慢文件 init-matrix.test.cjs 3.2s
 
-  ▶ [2/4] 现代工具链与提交链  （共 61 项，24 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [2/4] 现代工具链与提交链  （共 63 项，24 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 10.4s
       ✓ 发布防呆：HEAD 已有 v* tag 时拦截（此时 release 工具会静默抬版并写出空 CHANGELOG） · 609ms
       …
-     ✓ 通过 61  ·  41.4s   · 最慢文件 commit-chain-less.test.cjs 11.4s
+     ✓ 通过 63  ·  40.2s   · 最慢文件 commit-chain-both.test.cjs 10.7s
 
   ▶ [3/4] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 独立运行 ESLint 8 支持下限而非 ESLint 9 · 1ms
@@ -289,16 +289,16 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
   基础 CLI 与配置矩阵         86       0       -    3.6s
-  现代工具链与提交链          61       0       -   41.4s
+  现代工具链与提交链          63       0       -   40.2s
   ESLint 8 兼容性             27       0       -   18.7s
   Stylelint 17 兼容性          8       0       -    7.3s
   ──────────────────────────────────────────────────────
-  合计                       182       0       -   70.0s
+  合计                       184       0       -   69.1s
   ──────────────────────────────────────────────────────
 
   ⏱ 最慢文件：eslint8.test.cjs 18.0s · commit-chain-less.test.cjs 11.4s · commit-chain-both.test.cjs 11.3s
 
-  ✅ 全部通过：182/182 项，用时 70.0s
+  ✅ 全部通过：184/184 项，用时 69.1s
 ```
 
 终端里每个套件下方还有一条实时进度条（`██████░░░░ 38/66  失败 0  4.0s`）。附加参数：
@@ -376,7 +376,7 @@ npm run test:all -- --profile     # 看每个测试文件耗时，定位瓶颈
 | `npm run test:integration`（运行器调度，自动并发 3）                        | 30.6s（只看集成套件那一段）                 |
 | 串行套件 + 文件级并发 23（全部一波）                                        | ✗ 3.8G 内存沙箱被 OOM 压垮（19 项 SIGKILL） |
 
-同机复测（182 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 72.3s、默认自动并发 3 = 70.0s、`--parallel` 四套件 = 64.0s、`npm run test:integration` = 43.3s、`node --test demo-test/integration/*.test.cjs` = 62.4s。
+同机复测（184 项，同一台 2 核沙箱连续跑；绝对秒数随机器负载波动，相对关系稳定）：串行套件 + 文件级并发 1 = 72.3s、默认自动并发 3 = 69.1s、`--parallel` 四套件 = 64.0s、`npm run test:integration` = 43.3s、`node --test demo-test/integration/*.test.cjs` = 62.4s（部分为 182 项时实测，本轮仅集成套件 +2 用例，差值在秒级）。
 
 （2 核沙箱里并行收益被 CPU 争抢吃掉大半，`--concurrency=1` 时单个文件只要 0.7–4.2s；
 16 核机器上集成套件那段 ≈ 最慢子文件，即"一次真实提交"的量级。）

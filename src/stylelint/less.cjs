@@ -44,6 +44,11 @@ module.exports = {
         "function-no-unknown": null,
         // 允许小程序单位 rpx
         "unit-no-unknown": [true, { ignoreUnits: ["rpx"] }],
+        // 关闭属性-值匹配校验：stylelint-config-recommended 默认开启它，会把
+        // `width: 750rpx` 报成 unknown value（ Less 线没有 scss 配置包那层关闭，
+        // BUG-029 深测实测）；SCSS 线上游（recommended-scss）本就将其置 null，
+        // 这里对齐，保证 uni-app Less 项目 rpx 写法不误报。
+        "declaration-property-value-no-unknown": null,
         // 允许小程序 page 标签
         "selector-type-no-unknown": [true, { ignoreTypes: ["page"] }],
         "comment-empty-line-before": "never",
