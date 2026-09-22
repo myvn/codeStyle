@@ -58,8 +58,13 @@ if (SUPPORTED) {
 
 /** 在隔离环境里建一个消费工程，跑真实 init，然后可以用 stylelint CLI 检查它 */
 function consumer(t, { dependencies = {}, files = {} } = {}) {
-    const dir = fs.mkdtempSync(path.join(runtime, "consumer-"))
+    // 非点目录：stylelint overrides 的 files glob 不匹配点目录下的文件，
+    // 用点目录会让 config overrides 静默失效，测的不是用户的真实形态
+    const dir = fs.mkdtempSync(path.join(root, "demo-test", "consumer-sl17-"))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+    // 依赖解析走回 .runtime-sl17 的完整工具链（与旧布局的向上解析等价），
+    // 但目录本身非点，stylelint overrides 的 files glob 才能真实匹配
+    fs.symlinkSync(path.join(runtime, "node_modules"), path.join(dir, "node_modules"), "dir")
     fs.writeFileSync(
         path.join(dir, "package.json"),
         JSON.stringify({ name: "stylelint17-consumer", devDependencies: dependencies }),
@@ -197,3 +202,45 @@ test("stylelint-order（recess-order 7 的 peer）在 stylelint 17 下可用", {
     assert.notEqual(result.status, 0, "位置属性顺序错误应被 recess-order 报出")
     assert.match(result.output, /order\/properties-order|recess-order|properties-order/)
 })
+
+test(
+    "BUG-031：vue 内联 style 不被 stylelint 改写，与 prettier 收敛（stylelint 17）",
+    { skip },
+    (t) => {
+        const p = consumer(t, { dependencies: vueScss })
+        const probe = [
+            "<template>",
+            "    <view",
+            '        class="mask"',
+            '        style="',
+            "            position: fixed;",
+            "            top: 0;",
+            "            left: 0;",
+            "            right: 0;",
+            "            bottom: 0;",
+            "            z-index: 999;",
+            '            background: rgba(0, 0, 0, 0.5);"',
+            '        @tap="close"',
+            "    >",
+            "        x",
+            "    </view>",
+            "</template>",
+            "",
+            "<style scoped>",
+            ".mask {",
+            "    color: red;",
+            "}",
+            "</style>",
+            "",
+        ].join("\n")
+        p.write("src/probe.vue", probe)
+        const first = p.lint(["src/probe.vue", "--fix"])
+        assert.equal(first.status, 0, first.output)
+        const afterFix = p.read("src/probe.vue")
+        // 内联属性保持原样（recess-order 若掺进来会把 left/right 换位并弄脏字符串）
+        assert.match(afterFix, /top: 0;\n\s+left: 0;/, "内联 style 属性应原样保留\n" + afterFix)
+        const second = p.lint(["src/probe.vue", "--fix"])
+        assert.equal(second.status, 0, second.output)
+        assert.equal(p.read("src/probe.vue"), afterFix, "二次 --fix 不应再改写（收敛）")
+    },
+)

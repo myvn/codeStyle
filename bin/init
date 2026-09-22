@@ -1031,6 +1031,25 @@ function main() {
                 backedUpCount++
             }
         }
+        // 与本次生成的 .versionrc.cjs 抢生效顺序的同名旧配置（.versionrc /
+        // .versionrc.json 会直接压过生成物，ESM 项目的 .versionrc.js 徒增歧义）：
+        // 备份后移除，不留"哪份在生效"的悬案（下游升级实测 D2）
+        const staleVersionrcFiles = [
+            ...staleVersionrcTop,
+            ...(staleVersionrc ? [".versionrc.js"] : []),
+        ]
+        for (const relPath of staleVersionrcFiles) {
+            if (!fileExists(relPath)) continue
+            const staleSrc = path.resolve(PROJECT_ROOT, relPath)
+            const staleTarget = path.resolve(backupDir, relPath)
+            ensureDir(path.dirname(staleTarget))
+            fs.copyFileSync(staleSrc, staleTarget)
+            fs.rmSync(staleSrc)
+            backedUpCount++
+            console.log(
+                `      · 旧 ${relPath} 已备份到 .my-code-style-backup/ 并移除（由 ${versionrcPath} 接管）`,
+            )
+        }
     }
 
     // ESLint 8 directory traversal defaults to .js; explicitly include typed
@@ -1182,6 +1201,16 @@ function modifyPackageJson(updates) {
     // Merge scripts: updates won't overwrite existing scripts with the same key
     if (updates.scripts) {
         pkg.scripts = { ...updates.scripts, ...(pkg.scripts || {}) }
+        // 唯一纠偏例外：standard-version 已停止维护且从未是我们的 peer，旧项目
+        // 遗留的 release: standard-version 会让 pnpm release 必然 command not
+        // found（下游 1.2 → 1.8.5 升级实测）。其余自定义脚本仍尊重不覆盖。
+        if (
+            typeof pkg.scripts.release === "string" &&
+            pkg.scripts.release.includes("standard-version")
+        ) {
+            pkg.scripts.release = updates.scripts.release
+            console.log("      ✓ release 脚本已从 standard-version 纠偏为 commit-and-tag-version")
+        }
     }
 
     // Set lint-staged (replace existing lint-staged to avoid stale/duplicate patterns)
@@ -1349,79 +1378,79 @@ const PEER_SOURCE_TARGETS = [
  *      stylelint ^17），以及 typescript-eslint 与其 parser/plugin 的版本错位。
  */
 function checkInstalledVersions({ peerDeps, allPeerDeps, rootDir = PROJECT_ROOT }) {
-    const problems = [];
-    const seen = new Set();
+    const problems = []
+    const seen = new Set()
     const add = (name, message, target) => {
-        const key = `${name}\u0000${message}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        problems.push({ name, message, target });
-    };
-    const minorOf = (version) => String(version).split(".").slice(0, 2).join(".");
+        const key = `${name}\u0000${message}`
+        if (seen.has(key)) return
+        seen.add(key)
+        problems.push({ name, message, target })
+    }
+    const minorOf = (version) => String(version).split(".").slice(0, 2).join(".")
 
     // 1) 本工具的 peer 范围 vs 实际安装
     for (const dep of allPeerDeps) {
-        const range = dep === "eslint" ? peerDeps.eslint : peerDeps[dep];
-        if (!range || range === "*" || range.startsWith("npm:")) continue;
-        const installed = findInstalledPackage(dep, rootDir);
-        if (!installed) continue;
-        const allowed = satisfiesRange(range, installed.version);
-        if (allowed === null || allowed) continue;
-        add(dep, `${dep} 装了 ${installed.version}，本工具要求 ${range}`, `${dep}@${range}`);
+        const range = dep === "eslint" ? peerDeps.eslint : peerDeps[dep]
+        if (!range || range === "*" || range.startsWith("npm:")) continue
+        const installed = findInstalledPackage(dep, rootDir)
+        if (!installed) continue
+        const allowed = satisfiesRange(range, installed.version)
+        if (allowed === null || allowed) continue
+        add(dep, `${dep} 装了 ${installed.version}，本工具要求 ${range}`, `${dep}@${range}`)
     }
 
     // 2) 上游配置包的 peer vs 实际安装（配置文件本身也会挑底层版本）
     for (const dep of PEER_SOURCE_PACKAGES) {
-        const source = findInstalledPackage(dep, rootDir);
-        if (!source) continue;
+        const source = findInstalledPackage(dep, rootDir)
+        if (!source) continue
         for (const [target, range] of Object.entries(source.manifest.peerDependencies || {})) {
-            if (!PEER_SOURCE_TARGETS.includes(target)) continue;
-            if (range === "*" || String(range).startsWith("npm:")) continue;
-            const installed = findInstalledPackage(target, rootDir);
+            if (!PEER_SOURCE_TARGETS.includes(target)) continue
+            if (range === "*" || String(range).startsWith("npm:")) continue
+            const installed = findInstalledPackage(target, rootDir)
             if (!installed) {
-                if (!rangeIntervals(range).length) continue;
+                if (!rangeIntervals(range).length) continue
                 add(
                     target,
                     `${dep}@${source.version} 需要 ${target}@${range}，项目里没有安装`,
                     `${target}@${range}`,
-                );
-                continue;
+                )
+                continue
             }
-            const allowed = satisfiesRange(range, installed.version);
-            if (allowed === null || allowed) continue;
+            const allowed = satisfiesRange(range, installed.version)
+            if (allowed === null || allowed) continue
             add(
                 target,
                 `${dep}@${source.version} 要求 ${target}@${range}，实际装了 ${installed.version}`,
                 `${target}@${range}`,
-            );
+            )
         }
     }
 
     // 3) typescript-eslint 与 @typescript-eslint/parser、eslint-plugin 必须同版本
-    const meta = findInstalledPackage("typescript-eslint", rootDir);
+    const meta = findInstalledPackage("typescript-eslint", rootDir)
     if (meta) {
         for (const sibling of ["@typescript-eslint/parser", "@typescript-eslint/eslint-plugin"]) {
-            const installed = findInstalledPackage(sibling, rootDir);
-            if (!installed) continue;
-            if (minorOf(installed.version) === minorOf(meta.version)) continue;
+            const installed = findInstalledPackage(sibling, rootDir)
+            if (!installed) continue
+            if (minorOf(installed.version) === minorOf(meta.version)) continue
             add(
                 sibling,
                 `${sibling}@${installed.version} 与 typescript-eslint@${meta.version} 不是同一版本`,
                 `${sibling}@${meta.version}`,
-            );
+            )
         }
     }
 
     if (!problems.length) return 0
-    console.log("");
-    warn(`以下依赖已安装，但版本与当前配置不匹配（${problems.length} 个）：`);
-    for (const problem of problems) console.log(`      · ${problem.message}`);
-    console.log("");
-    warn("对齐命令（可整段粘贴执行；也可以把上游配置包降到匹配的大版本）：");
-    const targets = [...new Set(problems.map((problem) => problem.target))];
+    console.log("")
+    warn(`以下依赖已安装，但版本与当前配置不匹配（${problems.length} 个）：`)
+    for (const problem of problems) console.log(`      · ${problem.message}`)
+    console.log("")
+    warn("对齐命令（可整段粘贴执行；也可以把上游配置包降到匹配的大版本）：")
+    const targets = [...new Set(problems.map((problem) => problem.target))]
     console.log(
         `        ${addDevCommand(detectPackageManager())} ${targets.map(shellSafeSpec).join(" ")}`,
-    );
+    )
     return problems.length
 }
 

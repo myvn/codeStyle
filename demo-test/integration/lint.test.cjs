@@ -413,3 +413,127 @@ test("Commitlint 允许规范的初始化提交但不放过普通 init 文本", 
     assert.equal((await commitlint("chore: initialize project")).valid, true)
     assert.equal((await commitlint("init arbitrary text")).valid, false)
 })
+
+// BUG-031 探针：长短内联 style 属性 + <style> 块（属性顺序故意非 recess 序）
+const PROBE_VUE_INLINE_STYLE = [
+    "<template>",
+    "    <view",
+    '        class="mask"',
+    '        style="',
+    "            position: fixed;",
+    "            top: 0;",
+    "            left: 0;",
+    "            right: 0;",
+    "            bottom: 0;",
+    "            z-index: 999;",
+    '            background: rgba(0, 0, 0, 0.5);"',
+    '        @tap="close"',
+    "    >",
+    "        x",
+    "    </view>",
+    '        <text style="color: #fff; font-size: 28rpx">内容</text>',
+    "</template>",
+    "",
+    "<style scoped>",
+    ".mask {",
+    "    color: red;",
+    "}",
+    "</style>",
+    "",
+].join("\n")
+
+test("BUG-031：vue 内联 style 与 prettier 收敛，语义规则不受影响（stylelint 16 线）", async () => {
+    const os = require("node:os")
+    const stylelint = localRequire("stylelint")
+    const prettier = localRequire("prettier")
+    const prettierOptions = localRequire("my-code-style/prettier")
+    const config = localRequire("my-code-style/stylelint")
+    // 真实用户姿势：非点目录 + .prettierrc.cjs（overrides 的 glob 不匹配点目录）
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcslint-bug031-"))
+    try {
+        fs.writeFileSync(
+            path.join(dir, ".prettierrc.cjs"),
+            `module.exports = require(${JSON.stringify(localRequire.resolve("my-code-style/prettier"))})\n`,
+        )
+        const probePath = path.join(dir, "Probe.vue")
+        fs.writeFileSync(probePath, PROBE_VUE_INLINE_STYLE)
+        const format = (code) => prettier.format(code, { filepath: probePath, ...prettierOptions })
+        const lintFix = (code) =>
+            stylelint.lint({
+                config,
+                configBasedir: runtime,
+                code,
+                codeFilename: probePath,
+                fix: true,
+            })
+
+        // ① 用户链路（prettier 先行 → stylelint 收尾）：零警告、零改写
+        const pt = await format(PROBE_VUE_INLINE_STYLE)
+        const first = await lintFix(pt)
+        assert.equal(
+            (first.results[0]?.warnings || []).length,
+            0,
+            JSON.stringify(summarize(first.results)),
+        )
+        assert.equal(
+            first.code ?? first.output,
+            pt,
+            "stylelint --fix 不得改写 prettier 形态的 vue 文件",
+        )
+
+        // ② 反向（stylelint 先行 → prettier → stylelint 再收尾）同样收敛
+        const slFirst = await lintFix(PROBE_VUE_INLINE_STYLE)
+        const pt2 = await format(slFirst.code ?? slFirst.output)
+        const again = await lintFix(pt2)
+        assert.equal(again.code ?? again.output, pt2, "双向运行后必须收敛到同一形态")
+
+        // ③ <style> 块语义规则不受影响
+        const bad = pt.replace("color: red;", "unknown-prop: red;")
+        const semantic = await lintFix(bad)
+        assert.ok(
+            (semantic.results[0]?.warnings || []).some((w) => w.rule === "property-no-unknown"),
+            "<style> 块的语义规则应继续拦截",
+        )
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+    }
+})
+
+test("BUG-031 范围控制：recess-order 仍作用于纯样式文件（stylelint 16 线）", async () => {
+    const os = require("node:os")
+    const stylelint = localRequire("stylelint")
+    const config = localRequire("my-code-style/stylelint")
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcslint-order-"))
+    try {
+        const scssPath = path.join(dir, "order-probe.scss")
+        fs.writeFileSync(
+            scssPath,
+            ".demo {\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n}\n",
+        )
+        const source = fs.readFileSync(scssPath, "utf8")
+        const checked = await stylelint.lint({
+            config,
+            configBasedir: runtime,
+            code: source,
+            codeFilename: scssPath,
+        })
+        assert.ok(
+            (checked.results[0]?.warnings || []).some((w) => w.rule === "order/properties-order"),
+            "纯 scss 文件应继续被 recess-order 检查",
+        )
+        const fixed = await stylelint.lint({
+            config,
+            configBasedir: runtime,
+            code: source,
+            codeFilename: scssPath,
+            fix: true,
+        })
+        assert.match(
+            fixed.code ?? fixed.output,
+            /top: 0;\n\s+right: 0/,
+            "recess-order 顺序修复应生效",
+        )
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+    }
+})

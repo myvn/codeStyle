@@ -5,7 +5,6 @@ module.exports = {
         "stylelint-config-recommended",
         "stylelint-config-recommended-vue",
         "stylelint-config-html/vue",
-        "stylelint-config-recess-order",
     ],
     plugins: ["stylelint-prettier"],
     ignoreFiles: [
@@ -20,10 +19,17 @@ module.exports = {
         {
             files: ["**/*.{vue,nvue,html}"],
             customSyntax: "postcss-html",
+            // 与统一入口（index.cjs）同理：内联 style="..." 属性归 prettier 管，
+            // stylelint 侧的声明级 fixer（recess-order / stylelint-prettier）对它
+            // 的改写经 postcss-html round-trip 会有损且与 prettier 主张冲突，
+            // lint-staged 链尾的 stylelint --fix 会把提交产物改成 prettier-red
+            // 形态（BUG-031）。vue/html 只保留语义规则。
+            rules: { "prettier/prettier": null },
         },
         {
             files: ["**/*.less"],
             customSyntax: "postcss-less",
+            extends: ["stylelint-config-recess-order"],
         },
     ],
     rules: {

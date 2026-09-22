@@ -44,7 +44,7 @@
 | `my-code-style/commitlint`              | `src/commitlint/base.cjs`         | Commitlint 提交规范               |
 | `my-code-style/commitlint/scopes`       | `src/commitlint/scopes.cjs`       | 动态 scope 工具函数               |
 | `my-code-style/versionrc`               | `src/versionrc/index.cjs`         | commit-and-tag-version 版本号配置 |
-| `my-code-style/package.json`           | `package.json`                    | 包元数据（工具读取版本用）        |
+| `my-code-style/package.json`            | `package.json`                    | 包元数据（工具读取版本用）        |
 
 ### 2.2 配置链式继承
 
@@ -186,7 +186,7 @@ npx my-code-style-init
 - 检查 `.vue/.css/.scss/.less/.html` 中的样式代码
 - **小程序适配**：放行 `rpx` 单位、`page` 标签、`::v-deep` 伪类
 - **Less 适配**：放行 `@` 变量、内置函数（darken/lighten/fade）、`::v-deep` 伪元素
-- CSS 属性按 `recess-order` 自动排序
+- CSS 属性按 `recess-order` 自动排序（仅纯样式文件；`.vue`/`.html` 的内联 `style` 属性归 prettier 管，避免两大格式化器互搏，BUG-031）
 - 允许 `global`、`export` 等伪类
 
 ### 场景 4：Git 提交规范

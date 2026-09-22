@@ -86,6 +86,43 @@ test("已有 scripts 和 gitignore 保留；lint-staged 按现有设计替换", 
     assert.equal(pkg["lint-staged"]["*.custom"], undefined)
 })
 
+test("遗留的 standard-version release 脚本被纠偏，其余自定义脚本仍保留（D3）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "legacy-project",
+            scripts: { release: "standard-version", lint: "custom-lint" },
+        }),
+    })
+    assert.equal(p.init().status, 0)
+    const pkg = JSON.parse(p.read("package.json"))
+    assert.equal(
+        pkg.scripts.release,
+        "commit-and-tag-version",
+        "standard-version 已停维护且不在 peer 里，必须纠偏",
+    )
+    assert.equal(pkg.scripts.lint, "custom-lint", "非 standard-version 的自定义脚本不覆盖")
+})
+
+test("ESM 项目同名旧版配置在 --backup 下备份并移除，由 .versionrc.cjs 接管（D2）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "esm-project",
+            type: "module",
+            scripts: { release: "standard-version" },
+        }),
+        ".versionrc.js": "module.exports = { types: [] }\n",
+        ".versionrc.json": JSON.stringify({ types: [] }),
+    })
+    assert.equal(p.init("--backup").status, 0)
+    assert.ok(p.exists(".versionrc.cjs"), "生成 .versionrc.cjs")
+    assert.ok(!p.exists(".versionrc.js"), "旧 .versionrc.js 已移除")
+    assert.ok(!p.exists(".versionrc.json"), "压优先级的 .versionrc.json 已移除")
+    assert.ok(p.exists(".my-code-style-backup/.versionrc.js"), "旧 .versionrc.js 有备份")
+    assert.ok(p.exists(".my-code-style-backup/.versionrc.json"), "旧 .versionrc.json 有备份")
+    const pkg = JSON.parse(p.read("package.json"))
+    assert.equal(pkg.scripts.release, "commit-and-tag-version", "D2 场景同时命中 D3 纠偏")
+})
+
 test("项目类型可从 peerDependencies 检测", (t) => {
     const p = project(t, {
         "package.json": JSON.stringify({
