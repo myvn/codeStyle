@@ -1,7 +1,7 @@
 {
   "name": "my-code-style",
   "version": "1.8.6",
-  "description": "Lint/Format/Git 配置工程化 npm 包（ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version）",
+  "description": "Lint/Format/Git \u914d\u7f6e\u5de5\u7a0b\u5316 npm \u5305\uff08ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version\uff09",
   "type": "commonjs",
   "main": "src/eslint/uniapp.cjs",
   "repository": {
@@ -13,7 +13,8 @@
     "url": "https://github.com/myvn/codeStyle/issues"
   },
   "bin": {
-    "my-code-style-init": "./bin/init"
+    "my-code-style-init": "./bin/init",
+    "my-code-style-doctor": "./bin/doctor"
   },
   "exports": {
     ".": "./src/eslint/uniapp.cjs",

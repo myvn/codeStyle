@@ -1,0 +1,334 @@
+#!/usr/bin/env node
+// my-code-style-doctor — 项目体检：peer 是否装齐且版本达标、hooks 是否真的能跑、
+// lockfile 是否被 gitignore 排除、配置文件是否就位。一次性报红，供 CI 与人工复验。
+//
+// 背景：peerDependencies 全部 optional（包管理器零警告），"看起来配了、实际全死"
+// 可以长期潜伏（下游 1.2 → 1.8 升级实测 20 个 peer 一个没装、hook 命令被注释）。
+// init 的依赖体检只在新装/重装时打印一次；doctor 让既有项目随时可查（issue #6）。
+
+const fs = require("fs")
+const path = require("path")
+const { spawnSync } = require("child_process")
+
+const PROJECT_ROOT = process.cwd()
+let problems = 0
+
+const ok = (msg) => console.log(`  ✓ ${msg}`)
+const bad = (msg) => {
+    problems++
+    console.log(`  ✗ ${msg}`)
+}
+const info = (msg) => console.log(`  · ${msg}`)
+
+const args = process.argv.slice(2)
+const supported = new Set(["--help", "-h", "--version", "-v"])
+const unknown = args.filter((arg) => !supported.has(arg))
+if (unknown.length) {
+    console.error(`未知参数: ${unknown.join(", ")}；使用 --help 查看帮助`)
+    process.exit(1)
+}
+if (args.includes("--help") || args.includes("-h")) {
+    console.log("Usage: my-code-style-doctor [--version|-v] [--help|-h]")
+    console.log("在项目根目录运行：体检 peer 依赖、husky hooks、lockfile 入库与配置文件。")
+    console.log("退出码：0 = 全部健康；1 = 存在需要处理的问题（可用于 CI 门禁）。")
+    process.exit(0)
+}
+if (args.includes("--version") || args.includes("-v")) {
+    console.log(require("../package.json").version)
+    process.exit(0)
+}
+
+// ---- 环境解析 ----
+const projectRequire = (() => {
+    try {
+        return require("node:module").createRequire(path.join(PROJECT_ROOT, "package.json"))
+    } catch {
+        return require
+    }
+})()
+
+function readManifest() {
+    try {
+        return JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, "package.json"), "utf8"))
+    } catch {
+        return null
+    }
+}
+
+// 读取依赖包版本：优先裸包名/package.json（可能被 exports 挡，如 less），
+// 回退到 resolve(裸包名) 后读相邻 package.json
+function installedVersion(projectRequire, name) {
+    try {
+        return require(`${name}/package.json`).version
+    } catch {}
+    try {
+        const entry = projectRequire.resolve(name)
+        // 截掉入口文件取包目录（用 path.dirname；别用正则截第一个分隔符——会得到空串）
+        const dir = path.dirname(entry)
+        return JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).version
+    } catch {
+        return null
+    }
+}
+
+// 迷你 semver：覆盖本包 peer 的全部形态（^x.y.z 的 || 组合、*）
+function satisfies(version, range) {
+    const [major, minor = 0, patch = 0] = String(version)
+        .split(".")
+        .map((n) => parseInt(n, 10))
+    if ([major, minor, patch].some(Number.isNaN)) return false
+    return range
+        .split("||")
+        .map((alt) => alt.trim())
+        .some((alt) => {
+            if (!alt || alt === "*") return true
+            const caret = alt.match(/^\^(\d+)\.(\d+)\.(\d+)$/)
+            if (!caret) return false
+            const [M, m, p] = caret.slice(1).map(Number)
+            if (M > 0) return major === M
+            if (m > 0) return major === 0 && minor === m
+            return major === 0 && minor === 0 && patch === p
+        })
+}
+
+console.log(`my-code-style-doctor · 项目 ${path.basename(PROJECT_ROOT)}`)
+
+// ---- ① package.json 与 my-code-style ----
+const manifest = readManifest()
+if (!manifest) {
+    bad("package.json 不存在或不是合法 JSON（在项目根目录运行）")
+    console.log(`\n体检完成：${problems} 个问题`)
+    process.exit(1)
+}
+ok("package.json 可解析")
+
+let selfPkg = null
+try {
+    selfPkg = projectRequire("my-code-style/package.json")
+} catch {}
+if (!selfPkg) {
+    bad("my-code-style 未安装（npm i -D my-code-style）")
+    console.log(`\n体检完成：${problems} 个问题`)
+    process.exit(1)
+}
+ok(`my-code-style ${selfPkg.version}`)
+
+// ---- ② peer 依赖：装了吗？版本对吗？ ----
+// 与 init 的依赖体检（checkPeerDeps）同口径裁剪：classic import 仅 ESLint 8 legacy
+// 线需要；无预处理器且非 Vue 项目不查 stylelint 族；Vue 项目才查 vue 全家。
+// 改动需与 bin/init 两侧同步（init-matrix 回归守底）。
+function requiredPeers(manifest) {
+    const deps = {
+        ...manifest.dependencies,
+        ...manifest.devDependencies,
+        ...manifest.peerDependencies,
+    }
+    const eslintSpec = String(deps.eslint ?? "")
+    const eslintMajor = Number((eslintSpec.match(/(\d+)\./) || [])[1] ?? 0)
+    const hasLegacyEntry = [".eslintrc.cjs", ".eslintrc.js", ".eslintrc.json"].some((f) =>
+        fs.existsSync(path.join(PROJECT_ROOT, f)),
+    )
+    const hasFlatEntry = [
+        "eslint.config.mjs",
+        "eslint.config.js",
+        "eslint.config.ts",
+        "eslint.config.cjs",
+    ].some((f) => fs.existsSync(path.join(PROJECT_ROOT, f)))
+    const useFlat = hasFlatEntry || (!hasLegacyEntry && eslintMajor >= 9)
+    const isVue = !!(deps.vue || deps["@dcloudio/uni-app"] || deps["uni-app"])
+    const cssPre =
+        deps.less && (deps.sass || isVue)
+            ? "both"
+            : deps.less
+              ? "less"
+              : deps.sass || isVue
+                ? "scss"
+                : null
+
+    const list = [
+        "eslint",
+        "typescript",
+        "prettier",
+        ...(isVue ? ["eslint-plugin-vue"] : []),
+        "@commitlint/cli",
+        "@commitlint/config-conventional",
+        "husky",
+        "lint-staged",
+        "czg",
+        "commit-and-tag-version",
+    ]
+    if (useFlat) {
+        list.push(
+            "typescript-eslint",
+            "eslint-import-resolver-typescript",
+            ...(isVue ? ["vue-eslint-parser"] : []),
+            "globals",
+            "eslint-plugin-import-x",
+            "@eslint/js",
+            "eslint-plugin-prettier",
+            "eslint-config-prettier",
+        )
+    } else {
+        list.push(
+            "@typescript-eslint/parser",
+            "@typescript-eslint/eslint-plugin",
+            ...(isVue ? ["vue-eslint-parser"] : []),
+            "eslint-plugin-import",
+            "eslint-import-resolver-typescript",
+            "eslint-plugin-prettier",
+            "eslint-config-prettier",
+        )
+    }
+    if (cssPre === "scss" || cssPre === "both") {
+        list.push(
+            "stylelint",
+            "postcss-scss",
+            "postcss-html",
+            "stylelint-config-recommended",
+            "stylelint-config-recommended-scss",
+            "stylelint-config-recommended-vue",
+            "stylelint-config-html",
+            "stylelint-config-recess-order",
+            "stylelint-prettier",
+        )
+    }
+    if (cssPre === "less" || cssPre === "both") {
+        list.push(
+            "stylelint",
+            "postcss-less",
+            "postcss-html",
+            "stylelint-config-recommended",
+            "stylelint-config-recommended-vue",
+            "stylelint-config-html",
+            "stylelint-config-recess-order",
+            "stylelint-prettier",
+        )
+    }
+    return [...new Set(list)]
+}
+
+const peers = selfPkg.peerDependencies || {}
+const scopedPeers = manifest.name === "my-code-style" ? [] : requiredPeers(manifest)
+const declared = {
+    ...manifest.dependencies,
+    ...manifest.devDependencies,
+    ...manifest.peerDependencies,
+}
+const missing = []
+const mismatched = []
+const peerRanges = selfPkg.peerDependencies || {}
+for (const name of scopedPeers) {
+    const range = peerRanges[name] ?? "*"
+    const version = installedVersion(projectRequire, name)
+    if (!version) {
+        missing.push([name, range])
+        continue
+    }
+    if (!satisfies(version, range)) {
+        mismatched.push([name, version, range])
+    }
+}
+if (manifest.name === "my-code-style") {
+    info("my-code-style 仓库自身：跳过 peer 体检（狗粮环境按需自装）")
+} else if (scopedPeers.length === 0) {
+    info("未检出需要体检的 peer（项目类型判定为空）")
+} else if (missing.length === 0 && mismatched.length === 0) {
+    ok(`peer 依赖 ${scopedPeers.length} 个全部安装且版本达标`)
+} else {
+    for (const [name, range] of missing) bad(`peer ${name} 未安装（要求 ${range}）`)
+    for (const [name, version, range] of mismatched) bad(`peer ${name}@${version} 不满足 ${range}`)
+    const spec = [...missing, ...mismatched.map(([n, , r]) => [n, r])]
+        .map(([name, range]) => (range.includes("||") ? `"${name}@${range}"` : `${name}@${range}`))
+        .join(" ")
+    info(`一键补齐（按包管理器换命令）：npm i -D ${spec}`)
+}
+
+// ---- ③ husky hooks：存在 / 非空 / 可执行 / 命令可解析 ----
+const hooksDir = path.join(PROJECT_ROOT, ".husky")
+const hookNames = ["pre-commit", "commit-msg"]
+if (!fs.existsSync(hooksDir)) {
+    bad(".husky/ 不存在：先跑 init 生成 hooks，再 npm i 触发 prepare")
+} else {
+    const gitHooksPath = spawnSync("git", ["config", "core.hooksPath"], {
+        cwd: PROJECT_ROOT,
+        encoding: "utf8",
+    })
+    if (gitHooksPath.status !== 0) {
+        info("非 git 仓库或 core.hooksPath 未设置：git init + npm run prepare 后 hooks 生效")
+    } else if (gitHooksPath.stdout.trim() !== ".husky/_") {
+        bad(`core.hooksPath=${gitHooksPath.stdout.trim()}，预期 .husky/_`)
+    } else {
+        ok("core.hooksPath 指向 .husky/_")
+    }
+    for (const name of hookNames) {
+        const hookPath = path.join(hooksDir, name)
+        if (!fs.existsSync(hookPath)) {
+            bad(`.husky/${name} 缺失`)
+            continue
+        }
+        const content = fs.readFileSync(hookPath, "utf8")
+        if (!content.trim()) {
+            bad(`.husky/${name} 内容为空（曾出现注释掉命令导致门禁静默失效的案例）`)
+            continue
+        }
+        if ((fs.statSync(hookPath).mode & 0o111) === 0) {
+            bad(`.husky/${name} 缺少可执行位，git 会静默忽略（chmod +x 修复）`)
+            continue
+        }
+        let cmdOk = true
+        for (const cmd of ["lint-staged", "commitlint"]) {
+            if (!content.includes(cmd)) continue
+            const localBin = fs.existsSync(path.join(PROJECT_ROOT, "node_modules", ".bin", cmd))
+            const installed = Boolean(declared[name]) || Boolean(declared[cmd])
+            if (!localBin && !installedVersion(projectRequire, cmd) && !installed) {
+                bad(`.husky/${name} 引用的 ${cmd} 未安装：提交时会因 npx --no-install 失败`)
+                cmdOk = false
+            }
+        }
+        if (cmdOk) ok(`.husky/${name} 存在、可执行、引用命令可解析`)
+    }
+}
+
+// ---- ④ lockfile 入库（F3）：被 gitignore 的 lockfile 让版本不可复现 ----
+const lockfiles = ["pnpm-lock.yaml", "yarn.lock", "package-lock.json", "bun.lockb", "bun.lock"]
+const presentLock = lockfiles.find((f) => fs.existsSync(path.join(PROJECT_ROOT, f)))
+if (!presentLock) {
+    info("未发现 lockfile（可复现安装建议入库一份）")
+} else {
+    const check = spawnSync("git", ["check-ignore", presentLock], {
+        cwd: PROJECT_ROOT,
+        encoding: "utf8",
+    })
+    if (check.status === 0) {
+        bad(`${presentLock} 被 .gitignore 排除：不同机器/CI 的版本组合将不可复现`)
+    } else {
+        ok(`lockfile ${presentLock} 已入库`)
+    }
+}
+
+// ---- ⑤ 配置文件就位 ----
+const flatEntry = [
+    "eslint.config.mjs",
+    "eslint.config.js",
+    "eslint.config.ts",
+    "eslint.config.cjs",
+].find((f) => fs.existsSync(path.join(PROJECT_ROOT, f)))
+const configs = [
+    [".prettierrc.cjs", "prettier"],
+    [".stylelintrc.cjs", "stylelint（有 CSS 预处理器的项目）"],
+    [flatEntry || null, "eslint 入口"],
+    [".commitlintrc.cjs", "commitlint"],
+]
+let configCount = 0
+for (const [file, label] of configs) {
+    if (!file) continue
+    if (fs.existsSync(path.join(PROJECT_ROOT, file))) {
+        configCount++
+    } else {
+        info(`缺 ${file}（${label}）——需要时用 my-code-style-init 生成`)
+    }
+}
+if (configCount > 0) ok(`配置文件 ${configCount} 个就位`)
+
+console.log(`\n体检完成：${problems === 0 ? "全部健康 ✓" : `${problems} 个问题需要处理`}`)
+process.exit(problems === 0 ? 0 : 1)
