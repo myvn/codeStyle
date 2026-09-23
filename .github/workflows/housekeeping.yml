@@ -1,7 +1,7 @@
 # 一次性收尾工作流：关闭已在 v1.9.0 交付的 issues + 清理遗留 Publish 运行记录。
 # 触发条件：push 且提交信息含 [close-issues]（防止普通 push 误触发）。
 # 权限来自仓库运行时 GITHUB_TOKEN（workflow permissions 声明），无需任何外部密钥。
-# 收尾完成后本文件会被移除（见 chore 提交）。
+# 收尾完成后本文件会被移除（见 chore 提交）。# 触发提交 [close-issues]
 
 name: housekeeping
 
