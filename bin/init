@@ -926,10 +926,13 @@ function main() {
     stepHeader(3, 6, "配置文件与 Git hooks")
     let overwriteTotal = 0
     let createTotal = 0
+    // --merge 下"已存在"的语义是保留而非覆盖，统计与文案必须一致，
+    // 否则预览先吓唬人、写入段再改口"保留"，前后矛盾（下游 1.9.0 实测）
+    const verb = mergeMode ? "保留" : "覆盖"
     for (const f of files) {
         if (f.exists) {
             overwriteTotal++
-            console.log(`      覆盖 ${f.path}`)
+            console.log(`      ${verb} ${f.path}`)
         } else {
             createTotal++
             console.log(`      新建 ${f.path}`)
@@ -951,7 +954,7 @@ function main() {
     for (const h of hooks) {
         if (fileExists(h.path)) {
             overwriteTotal++
-            console.log(`      覆盖 ${h.path}`)
+            console.log(`      ${verb} ${h.path}`)
         } else {
             createTotal++
             console.log(`      新建 ${h.path}`)
@@ -959,7 +962,7 @@ function main() {
     }
 
     console.log(
-        `      小计：覆盖 ${overwriteTotal} 个 · 新建 ${createTotal} 个` +
+        `      小计：${verb} ${overwriteTotal} 个 · 新建 ${createTotal} 个` +
             (backup ? " · 旧文件将备份到 .my-code-style-backup/" : "") +
             (dryRun ? "（Dry run 预览，不写入）" : ""),
     )
@@ -1017,7 +1020,7 @@ function main() {
             success("Dry run 结束：未写入任何文件；去掉 --dry-run 执行真实初始化")
         } else {
             success(
-                `初始化完成：覆盖 ${overwriteTotal} 个 · 新建 ${createTotal} 个 · package.json 已更新`,
+                `初始化完成：${verb} ${overwriteTotal} 个 · 新建 ${createTotal} 个 · package.json 已更新`,
             )
         }
         console.log("")
@@ -1125,7 +1128,6 @@ function main() {
         // Actually write files
         for (const f of files) {
             if (mergeMode && snapshot.get(f.path)?.existed) {
-                console.log(`      · 保留 ${f.path}（--merge 不覆盖）`)
                 continue
             }
             writeFile(f.path, f.content)
@@ -1137,7 +1139,6 @@ function main() {
         }
         for (const h of hooks) {
             if (mergeMode && snapshot.get(h.path)?.existed) {
-                console.log(`      · 保留 ${h.path}（--merge 不覆盖）`)
                 continue
             }
             writeFile(h.path, h.content)
@@ -1150,6 +1151,12 @@ function main() {
                 scripts: {
                     lint: lintCommand,
                     "lint:fix": `${lintCommand} --fix`,
+                    // CI 只跑 pnpm lint 时会漏检 CSS（下游 1.9.0 反馈）：给有
+                    // 预处理器的项目一个全量 stylelint 入口；ignoreFiles 已在
+                    // 配置里排除 node_modules/dist 等，glob 全仓是安全的
+                    ...(skipStylelint
+                        ? {}
+                        : { "lint:style": 'stylelint "**/*.{vue,nvue,html,css,scss,less}"' }),
                     format: "prettier --write .",
                     prepare: "husky",
                     release: "commit-and-tag-version",
