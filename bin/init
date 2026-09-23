@@ -682,7 +682,16 @@ function getLintStagedConfig(cssPreprocessor) {
 
 function main() {
     const args = process.argv.slice(2)
-    const supported = new Set(["--dry-run", "--backup", "--version", "-v", "--help", "-h"])
+    const supported = new Set([
+        "--dry-run",
+        "--backup",
+        "--merge",
+        "--no-overwrite",
+        "--version",
+        "-v",
+        "--help",
+        "-h",
+    ])
     const unknown = args.filter((arg) => !supported.has(arg))
     if (unknown.length) {
         console.error(`未知参数: ${unknown.join(", ")}；使用 --help 查看帮助`)
@@ -690,9 +699,15 @@ function main() {
         return
     }
     if (args.includes("--help") || args.includes("-h")) {
-        console.log("Usage: my-code-style-init [--dry-run] [--backup] [--version|-v] [--help|-h]")
+        console.log(
+            "Usage: my-code-style-init [--dry-run] [--backup] [--merge] [--version|-v] [--help|-h]",
+        )
         console.log("  --backup   覆盖已有配置前将其备份到 .my-code-style-backup/ 目录")
         console.log("  --dry-run  试运行，仅输出将执行的变更，不写入任何文件")
+        console.log(
+            "  --merge    合并模式：已存在的配置一律保留，只补缺失文件（别名 --no-overwrite）",
+        )
+        console.log("  结束时自动自检 hooks（存在 / 可执行 / 命令可解析），仅提示不阻断")
         console.log("初始化会覆盖部分配置和 hooks；请先备份并运行 --dry-run。")
         return
     }
@@ -907,6 +922,7 @@ function main() {
     }
 
     const backup = args.includes("--backup")
+    const mergeMode = args.includes("--merge") || args.includes("--no-overwrite")
     stepHeader(3, 6, "配置文件与 Git hooks")
     let overwriteTotal = 0
     let createTotal = 0
@@ -1023,6 +1039,8 @@ function main() {
         // package.json is rewritten (scripts + lint-staged), so it must be backed
         // up as well — users lose custom lint-staged groups otherwise.
         for (const item of [...files, ...hooks, { path: "package.json" }]) {
+            // --merge 不覆盖已有文件，无需为其备份（package.json 例外：scripts 仍会补齐）
+            if (mergeMode && item.path !== "package.json") continue
             if (fileExists(item.path)) {
                 const srcPath = path.resolve(PROJECT_ROOT, item.path)
                 const targetPath = path.resolve(backupDir, item.path)
@@ -1034,10 +1052,10 @@ function main() {
         // 与本次生成的 .versionrc.cjs 抢生效顺序的同名旧配置（.versionrc /
         // .versionrc.json 会直接压过生成物，ESM 项目的 .versionrc.js 徒增歧义）：
         // 备份后移除，不留"哪份在生效"的悬案（下游升级实测 D2）
-        const staleVersionrcFiles = [
-            ...staleVersionrcTop,
-            ...(staleVersionrc ? [".versionrc.js"] : []),
-        ]
+        // --merge 不动用户已有配置：stale 文件保持原样（前面已给出告警）
+        const staleVersionrcFiles = mergeMode
+            ? []
+            : [...staleVersionrcTop, ...(staleVersionrc ? [".versionrc.js"] : [])]
         for (const relPath of staleVersionrcFiles) {
             if (!fileExists(relPath)) continue
             const staleSrc = path.resolve(PROJECT_ROOT, relPath)
@@ -1106,6 +1124,10 @@ function main() {
     try {
         // Actually write files
         for (const f of files) {
+            if (mergeMode && snapshot.get(f.path)?.existed) {
+                console.log(`      · 保留 ${f.path}（--merge 不覆盖）`)
+                continue
+            }
             writeFile(f.path, f.content)
         }
 
@@ -1114,23 +1136,33 @@ function main() {
             ensureDir(huskyDir)
         }
         for (const h of hooks) {
+            if (mergeMode && snapshot.get(h.path)?.existed) {
+                console.log(`      · 保留 ${h.path}（--merge 不覆盖）`)
+                continue
+            }
             writeFile(h.path, h.content)
             fs.chmodSync(path.resolve(PROJECT_ROOT, h.path), 0o755)
         }
 
         // package.json scripts + lint-staged
-        modifyPackageJson({
-            scripts: {
-                lint: lintCommand,
-                "lint:fix": `${lintCommand} --fix`,
-                format: "prettier --write .",
-                prepare: "husky",
-                release: "commit-and-tag-version",
-                cz: "czg",
+        modifyPackageJson(
+            {
+                scripts: {
+                    lint: lintCommand,
+                    "lint:fix": `${lintCommand} --fix`,
+                    format: "prettier --write .",
+                    prepare: "husky",
+                    release: "commit-and-tag-version",
+                    cz: "czg",
+                },
+                "lint-staged": getLintStagedConfig(cssPreprocessor),
             },
-            "lint-staged": getLintStagedConfig(cssPreprocessor),
-        })
+            { merge: mergeMode },
+        )
         printPackageJsonStep()
+        if (!dryRun) {
+            verifyGeneratedHooks(hooks)
+        }
 
         // The backup directory is ours, not the user's source — keep it out of git
         if (backup) {
@@ -1177,7 +1209,43 @@ function main() {
     printFooter()
 }
 
-function modifyPackageJson(updates) {
+// init 收尾 hook 自检（issue #8）：存在 / 非空 / 可执行位 / 引用命令可解析。
+// 只报告不阻断——真实提交链路才是最终裁判，这里负责把"装了但没用"提前亮出来。
+function verifyGeneratedHooks(hooks) {
+    console.log("      · hook 自检")
+    let pkg = {}
+    try {
+        pkg = JSON.parse(fs.readFileSync(path.resolve(PROJECT_ROOT, "package.json"), "utf8"))
+    } catch {}
+    for (const h of hooks) {
+        const abs = path.resolve(PROJECT_ROOT, h.path)
+        if (!fileExists(abs)) {
+            warn(`${h.path} 缺失`)
+            continue
+        }
+        const content = fs.readFileSync(abs, "utf8")
+        if (!content.trim()) {
+            warn(`${h.path} 内容为空，git 将静默跳过`)
+            continue
+        }
+        if ((fs.statSync(abs).mode & 0o111) === 0) {
+            warn(`${h.path} 缺少可执行位，git 会静默忽略（chmod +x 修复）`)
+        }
+        for (const cmd of ["lint-staged", "commitlint"]) {
+            if (!content.includes(cmd)) continue
+            const localBin = fs.existsSync(path.join(PROJECT_ROOT, "node_modules", ".bin", cmd))
+            const declared = Boolean(pkg.devDependencies?.[cmd] ?? pkg.dependencies?.[cmd])
+            if (!localBin && !declared) {
+                warn(`${h.path} 引用的 ${cmd} 未安装：安装依赖前提交会因 npx --no-install 失败`)
+            }
+        }
+    }
+    if (!fs.existsSync(path.join(PROJECT_ROOT, ".husky", "_"))) {
+        console.log("      · 提示：.husky/_ 未生成，安装依赖（触发 prepare）后 hooks 才生效")
+    }
+}
+
+function modifyPackageJson(updates, { merge = false } = {}) {
     const pkgPath = path.resolve(PROJECT_ROOT, "package.json")
     let pkg = {}
     if (fileExists("package.json")) {
@@ -1214,7 +1282,8 @@ function modifyPackageJson(updates) {
     }
 
     // Set lint-staged (replace existing lint-staged to avoid stale/duplicate patterns)
-    if (updates["lint-staged"]) {
+    // --merge 例外：用户已有分组原样保留，只补缺失
+    if (updates["lint-staged"] && !(merge && pkg["lint-staged"])) {
         pkg["lint-staged"] = updates["lint-staged"]
     }
 

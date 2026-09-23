@@ -35,6 +35,13 @@ function project(t, files = {}) {
                 encoding: "utf8",
                 timeout: 10000,
             }),
+        // 运行仓库内任意 bin（如 bin/doctor），cwd 为 fixture 目录
+        run: (binFile, ...args) =>
+            spawnSync(process.execPath, [path.join(root, binFile), ...args], {
+                cwd: dir,
+                encoding: "utf8",
+                timeout: 30000,
+            }),
     }
 }
 module.exports = { project, root }

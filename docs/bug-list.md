@@ -66,6 +66,8 @@
 
 issue #9 定性备注（README 补强，非 bug）：stylelint-order **在** peer 清单中（`^6||^7||^8`），issue 前提「不在清单里」不成立——真实缺口是 README 未显式点名「Vue/SCSS 项目必装」（pnpm 10+ 严格模式 / npm / yarn 不自动装该 peer，缺失即 `Could not find plugin`）。已补：快速开始第 3 步点名 + 排障表新增该报错行；catv 钉 ^12 的原因此前已在 README 说明。
 
+第十三轮（issues #6/#7/#8 feature 轮）：init 新增 `--merge`/`--no-overwrite` 合并模式（已有配置与 hooks 一律保留、只补缺失；package.json 只新增缺失 scripts、lint-staged 字段级保留；压优先级的 stale 配置不动、仅告警）；init 收尾自动 hook 自检（存在 / 非空 / 可执行位 / lint-staged 与 commitlint 可解析 / `.husky/_` 提示，只报告不阻断——下游两个真实失效案例的防御网）；新增独立体检命令 `my-code-style-doctor`（peer 按项目类型裁剪核对、版本范围迷你 satisfies、hooks 体检、lockfile 入库检查、配置就位盘点，退出码可直接做 CI 门禁）。doctor 开发中自身踩一坑：包目录解析用正则截第一个路径分隔符得空串、相对读到了运行目录的 package.json——改用 `path.dirname`。基线增至 **194 项（基础 93 / 集成 65 / legacy 27 / Stylelint 17 共 9），全绿**。
+
 已知环境限制（记录，不修）：
 
 - **prettier 配置 × 整目录 symlink node_modules**：当 `node_modules` 本身是指向他处的 symlink（本地开发 hack 形态）时，prettier 的配置加载器无法解析 `.prettierrc.cjs` 里的 `require("my-code-style/prettier")`（裸 `node -e` 同场景可解析，内联配置可生效——根因在 prettier 的加载链，非本包可控）。真实用户三种形态（npm 真装 / pnpm / yarn，node_modules 为真目录、条目级 symlink）均实测正常。不做内联修复——会破坏「prettier 选项以 src/prettier/index.cjs 为唯一来源」的防漂移原则。

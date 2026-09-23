@@ -114,6 +114,91 @@ test("生成的 .prettierignore 默认排除各包管理器 lockfile（BUG-034 /
     }
 })
 
+test("--merge 模式：已有配置原样保留、缺的补上、lint-staged 字段级保留（issue #7）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "merge-project",
+            type: "module",
+            scripts: { release: "standard-version", lint: "custom-lint" },
+            "lint-staged": { "*.custom": ["custom-check"] },
+        }),
+        ".prettierrc.cjs": "// my custom prettier\n",
+        ".versionrc.json": JSON.stringify({ types: [] }),
+    })
+    const r = p.init("--merge")
+    assert.equal(r.status, 0, r.stderr + r.stdout)
+    assert.equal(p.read(".prettierrc.cjs"), "// my custom prettier\n", "已有配置不覆盖")
+    assert.ok(r.stdout.includes("保留 .prettierrc.cjs"), "打印保留清单")
+    assert.ok(p.exists(".editorconfig"), "缺失文件照常生成")
+    assert.ok(p.exists(".versionrc.cjs"), "versionrc 生成物照常生成")
+    assert.ok(p.exists(".versionrc.json"), "merge 模式不动压优先级的旧配置")
+    const pkg = JSON.parse(p.read("package.json"))
+    assert.equal(pkg.scripts.lint, "custom-lint", "自定义脚本保留")
+    assert.equal(pkg.scripts.release, "commit-and-tag-version", "standard-version 纠偏仍生效")
+    assert.equal(pkg["lint-staged"]["*.custom"][0], "custom-check", "已有 lint-staged 保留")
+    assert.equal(
+        pkg["lint-staged"]["**/*.{js,ts,jsx,tsx,cjs,mjs,mts,cts}"],
+        undefined,
+        "lint-staged 字段级保留，不做键级混合",
+    )
+})
+
+test("init 收尾 hook 自检：可执行位、未安装命令告警与 prepare 提示（issue #8）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "hook-check" }),
+    })
+    const r = p.init()
+    assert.equal(r.status, 0, r.stderr)
+    assert.ok(r.stdout.includes("hook 自检"), "输出自检段")
+    assert.ok(r.stdout.includes("lint-staged 未安装"), "命令未安装时明确告警")
+    assert.ok(r.stdout.includes("prepare"), "提示 hooks 何时生效")
+    assert.ok(
+        (fs.statSync(path.join(p.dir, ".husky", "pre-commit")).mode & 0o111) !== 0,
+        "可执行位在",
+    )
+})
+
+test("doctor：裸项目报未安装并以 1 退出；--help/--version 可用（issue #6）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "bare-doctor" }),
+    })
+    const r = p.run("bin/doctor")
+    assert.equal(r.status, 1)
+    assert.match(r.stdout, /my-code-style 未安装/)
+    const help = p.run("bin/doctor", "--help")
+    assert.equal(help.status, 0)
+    assert.match(help.stdout, /Usage/)
+    const version = p.run("bin/doctor", "--version")
+    assert.equal(version.status, 0)
+    assert.match(version.stdout, /^\d+\.\d+\.\d+/)
+    const bad = p.run("bin/doctor", "--wat")
+    assert.equal(bad.status, 1)
+    assert.match(bad.stderr, /未知参数/)
+})
+
+test(
+    "doctor：完整链上 runtime 的 base 项目体检全绿退出 0（issue #6）",
+    { skip: !fs.existsSync(path.join(root, "demo-test/.runtime/node_modules/eslint")) },
+    (t) => {
+        const p = project(t, {
+            "package.json": JSON.stringify({
+                name: "healthy-doctor",
+                devDependencies: { eslint: "^9.0.0" },
+            }),
+        })
+        assert.equal(p.init().status, 0)
+        fs.symlinkSync(
+            path.join(root, "demo-test/.runtime/node_modules"),
+            path.join(p.dir, "node_modules"),
+            "dir",
+        )
+        const r = p.run("bin/doctor")
+        assert.equal(r.status, 0, r.stdout + "\n" + r.stderr)
+        assert.match(r.stdout, /全部健康/)
+        assert.match(r.stdout, /peer 依赖 \d+ 个全部安装且版本达标/)
+    },
+)
+
 test("ESM 项目同名旧版配置在 --backup 下备份并移除，由 .versionrc.cjs 接管（D2）", (t) => {
     const p = project(t, {
         "package.json": JSON.stringify({
