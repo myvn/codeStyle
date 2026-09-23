@@ -53,7 +53,7 @@ node --test demo-test/scopes.test.cjs
 
 ## 当前验证状态
 
-基础测试 88 项全部通过；现代工具链测试 65 项、ESLint 8 测试 27 项、Stylelint 17 测试 9 项全部通过，合计 **189 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
+基础测试 89 项全部通过；现代工具链测试 65 项、ESLint 8 测试 27 项、Stylelint 17 测试 9 项全部通过，合计 **190 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
 
 上述 `npm test` 只验证 CLI 与配置契约；真实工具集成测试单独运行，见下文。未统计行/分支覆盖率，不代表所有功能都已覆盖。
 

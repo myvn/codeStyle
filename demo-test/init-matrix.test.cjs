@@ -103,6 +103,17 @@ test("遗留的 standard-version release 脚本被纠偏，其余自定义脚本
     assert.equal(pkg.scripts.lint, "custom-lint", "非 standard-version 的自定义脚本不覆盖")
 })
 
+test("生成的 .prettierignore 默认排除各包管理器 lockfile（BUG-034 / issue #5）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "lockfile-ignore" }),
+    })
+    assert.equal(p.init().status, 0)
+    const ignore = p.read(".prettierignore")
+    for (const lock of ["pnpm-lock.yaml", "yarn.lock", "package-lock.json", "bun.lockb"]) {
+        assert.ok(ignore.includes(lock), `应包含 ${lock}`)
+    }
+})
+
 test("ESM 项目同名旧版配置在 --backup 下备份并移除，由 .versionrc.cjs 接管（D2）", (t) => {
     const p = project(t, {
         "package.json": JSON.stringify({

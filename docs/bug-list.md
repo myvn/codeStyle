@@ -62,6 +62,10 @@
 - **init 边界**：中文+空格目录 ✓、预发布版本清单剥离 prerelease 后正确比对（10.2.0-beta.1 警告 / 10.4.0-beta.1 放行；base 项目不查 vue-eslint-parser 属设计内——体检范围与项目所需 peer 一致）✓、非法 JSON package.json 优雅退出且不落盘 ✓、--version 正确 ✓。中文目录下「疑似少生成 .stylelintrc.cjs」已定性为**设计内**：预处理器按 package.json 依赖清单检测，未装 sass/less 时明确提示跳过；`--save` 装入 less 后同一目录正常生成（反证实验闭环）。
 - **工作流安全**：仅引用 `secrets.NPM_TOKEN`、permissions 最小化（id-token: write 仅发布 job）、无硬编码敏感串、脚本全部数组参数 spawn。
 
+第十一轮（1.8.6 后·下游 issue 清单驱动）：修复 BUG-034（init 默认 `.prettierignore` 不含各包管理器 lockfile，与 pnpm 9 的单引号紧凑 YAML 风格互搏——lint-staged 每次提交改写、下次 install 又被写回，下游实测单次 diff 7664 行）。修复：模板与狗粮同步追加 `pnpm-lock.yaml` / `yarn.lock` / `package-lock.json` / `npm-shrinkwrap.json` / `bun.lockb` / `bun.lock`；已实测 prettier 3.9 对**显式传入的路径**也尊重 `.prettierignore`（lint-staged 场景有效）。测试基线增至 **190 项（基础 89 / 集成 65 / legacy 27 / Stylelint 17 共 9），全绿**。
+
+issue #9 定性备注（README 补强，非 bug）：stylelint-order **在** peer 清单中（`^6||^7||^8`），issue 前提「不在清单里」不成立——真实缺口是 README 未显式点名「Vue/SCSS 项目必装」（pnpm 10+ 严格模式 / npm / yarn 不自动装该 peer，缺失即 `Could not find plugin`）。已补：快速开始第 3 步点名 + 排障表新增该报错行；catv 钉 ^12 的原因此前已在 README 说明。
+
 已知环境限制（记录，不修）：
 
 - **prettier 配置 × 整目录 symlink node_modules**：当 `node_modules` 本身是指向他处的 symlink（本地开发 hack 形态）时，prettier 的配置加载器无法解析 `.prettierrc.cjs` 里的 `require("my-code-style/prettier")`（裸 `node -e` 同场景可解析，内联配置可生效——根因在 prettier 的加载链，非本包可控）。真实用户三种形态（npm 真装 / pnpm / yarn，node_modules 为真目录、条目级 symlink）均实测正常。不做内联修复——会破坏「prettier 选项以 src/prettier/index.cjs 为唯一来源」的防漂移原则。

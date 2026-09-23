@@ -14,3 +14,13 @@
 *.woff2
 *.apk
 *.plist
+
+# 各包管理器 lockfile：格式所有权归包管理器——pnpm 9 的单引号紧凑风格
+# 与 prettier 的 YAML 风格互搏，lint-staged 每次提交都会改写、下次 install
+# 又被包管理器写回（下游实测单次 diff 7664 行，BUG-034 / issue #5）
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+npm-shrinkwrap.json
+bun.lockb
+bun.lock
