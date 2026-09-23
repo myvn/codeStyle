@@ -193,6 +193,11 @@ test("显式 .ts 扩展名 import 项目：init 自动注入兼容段（BUG-037�
         /"import-x\/extensions": "warn"/,
         "降级为 warn（两种写法均可，保留风格信号）",
     )
+    assert.match(
+        config,
+        /\{ts,tsx,mts,cts,vue,nvue\}/,
+        "兼容段 files 覆盖 vue/nvue（BUG-038：SFC 内显式 import 不得报 error）",
+    )
 })
 
 test("无显式扩展名 import 的干净项目：不注入兼容段，保持严格（BUG-037）", (t) => {

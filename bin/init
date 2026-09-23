@@ -621,7 +621,9 @@ function eslintFlatConfigContent(projectType, { compatExplicitTsImports = false 
 // 两种写法的"风格不一致"仍会以警告提示，团队可渐进统一；想恢复严格检查
 // （error + 只允许省略）删除此段即可。
 {
-    files: ["**/*.{ts,tsx,mts,cts}"],
+    // 含 vue/nvue：SFC <script setup> 内的显式 .ts import 同样走兼容口径，
+    // 否则 .vue 文件会绕过此段仍按 error 报（BUG-038）
+    files: ["**/*.{ts,tsx,mts,cts,vue,nvue}"],
     rules: { "import-x/extensions": "warn" },
 }`
         : ""

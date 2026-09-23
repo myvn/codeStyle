@@ -222,6 +222,7 @@ npx my-code-style-init [--dry-run] [--backup] [--merge] [--version|-v] [--help|-
 init 会**自动检测**：命中显式扩展名 import 时，生成的 `eslint.config.mjs` 注入兼容段——该规则**降级为 warn**，`pnpm lint` 退出码不受影响：
 
 - **带 `.ts` 与不带 `.ts` 都可以写**，两种风格共存不报错；
+- 兼容段同样覆盖 **Vue SFC（`.vue`/`.nvue`）**：`<script setup>` 里的显式扩展名 import 不会绕过兼容段报错（BUG-038）；
 - 不一致的写法仍会出 warning，作为渐进统一的风格信号；
 - 团队统一后想恢复严格检查（error 级、只允许省略），删除 `eslint.config.mjs` 里的兼容段即可。
 

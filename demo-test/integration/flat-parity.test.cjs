@@ -54,7 +54,13 @@ test("BUG-037：显式 .ts 扩展名项目 init 注入兼容段，fresh init 即
     fs.symlinkSync(path.join(runtime, "node_modules"), path.join(dir, "node_modules"), "junction")
     fs.writeFileSync(
         path.join(dir, "package.json"),
-        JSON.stringify({ name: "explicit-ext", version: "1.0.0", type: "module" }),
+        // vue 依赖 → init 生成 vue3 配置，.vue 用例走真实 SFC 解析（BUG-038 场景）
+        JSON.stringify({
+            name: "explicit-ext",
+            version: "1.0.0",
+            type: "module",
+            dependencies: { vue: "^3" },
+        }),
     )
     fs.mkdirSync(path.join(dir, "src", "types"), { recursive: true })
     fs.writeFileSync(
@@ -69,6 +75,12 @@ test("BUG-037：显式 .ts 扩展名项目 init 注入兼容段，fresh init 即
     fs.writeFileSync(
         path.join(dir, "src", "use.ts"),
         'import type { Foo } from "./types/Foo.ts"\nimport { helper } from "./types/Helper"\nexport const f: Foo = { a: helper }\n',
+    )
+    // SFC <script setup> 内的显式 .ts import：compat 段 files 必须覆盖 .vue，
+    // 否则 .vue 绕过兼容段按 error 报（BUG-038，下游 165 errors 的根因）
+    fs.writeFileSync(
+        path.join(dir, "src", "App.vue"),
+        '<script setup lang="ts">\nimport type { Foo } from "./types/Foo.ts"\nimport { helper } from "./types/Helper"\nconst f: Foo = { a: helper() }\n</script>\n\n<template>\n    <view class="card">{{ f.a }}</view>\n</template>\n',
     )
     const init = spawnSync(process.execPath, [path.join(root, "bin/init")], {
         cwd: dir,
