@@ -158,6 +158,74 @@ test("init 收尾 hook 自检：可执行位、未安装命令告警与 prepare 
     )
 })
 
+test("有 CSS 预处理器时生成 lint:style 全量检查入口，无则不生成", (t) => {
+    const withCss = project(t, {
+        "package.json": JSON.stringify({
+            name: "with-css",
+            devDependencies: { sass: "^1" },
+        }),
+    })
+    assert.equal(withCss.init().status, 0)
+    const pkg1 = JSON.parse(withCss.read("package.json"))
+    assert.match(pkg1.scripts["lint:style"], /stylelint/)
+    const noCss = project(t, {
+        "package.json": JSON.stringify({ name: "no-css" }),
+    })
+    assert.equal(noCss.init().status, 0)
+    const pkg2 = JSON.parse(noCss.read("package.json"))
+    assert.equal(pkg2.scripts["lint:style"], undefined, "无预处理器不生成 lint:style")
+})
+
+test("doctor 识别 ESM-only peer（exports 仅 import 条件）为已安装（BUG-035）", (t) => {
+    const esmPkg = (name, version) =>
+        JSON.stringify({
+            name,
+            version,
+            type: "module",
+            exports: { ".": { import: "./index.js" } },
+        })
+    const p = project(t, {
+        "package.json": JSON.stringify({
+            name: "esm-only-doctor",
+            type: "module",
+            devDependencies: { eslint: "^9", sass: "^1" },
+        }),
+        "node_modules/stylelint-config-recommended/package.json": esmPkg(
+            "stylelint-config-recommended",
+            "18.0.0",
+        ),
+        "node_modules/stylelint-config-recommended/index.js": "export default {}\n",
+        "node_modules/stylelint-config-recommended-scss/package.json": esmPkg(
+            "stylelint-config-recommended-scss",
+            "17.0.1",
+        ),
+        "node_modules/stylelint-config-recommended-scss/index.js": "export default {}\n",
+    })
+    const r = p.run("bin/doctor")
+    assert.equal(r.status, 1, "其余 peer 未装，整体仍应为 1")
+    const offending = r.stdout
+        .split("\n")
+        .filter((line) => line.includes("✗") && /stylelint-config-recommended(-scss)? /.test(line))
+    assert.deepEqual(offending, [], `ESM-only 包不得误报未安装：\n${offending.join("\n")}`)
+})
+
+test("--merge 预览与完成统计用「保留」语义，不再先报「覆盖」（BUG-036）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "merge-preview" }),
+        ".prettierrc.cjs": "// custom\n",
+    })
+    const dry = p.init("--merge", "--dry-run")
+    assert.equal(dry.status, 0)
+    assert.ok(dry.stdout.includes("保留 .prettierrc.cjs"), "预览逐项为保留")
+    assert.ok(!dry.stdout.includes("覆盖 .prettierrc.cjs"), "预览不得出现「覆盖」文案")
+    assert.ok(dry.stdout.includes("小计：保留 1 个"), "小计统计语义一致")
+    assert.ok(!dry.stdout.includes("小计：覆盖"))
+    const real = p.init("--merge")
+    assert.equal(real.status, 0)
+    assert.ok(real.stdout.includes("初始化完成：保留"), "完成统计同样用保留语义")
+    assert.equal(p.read(".prettierrc.cjs"), "// custom\n", "内容确实未被覆盖")
+})
+
 test("doctor：裸项目报未安装并以 1 退出；--help/--version 可用（issue #6）", (t) => {
     const p = project(t, {
         "package.json": JSON.stringify({ name: "bare-doctor" }),

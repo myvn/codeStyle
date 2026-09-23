@@ -55,15 +55,36 @@ function readManifest() {
     }
 }
 
-// 读取依赖包版本：优先裸包名/package.json（可能被 exports 挡，如 less），
-// 回退到 resolve(裸包名) 后读相邻 package.json
+// 从 startDir 逐级向上直读 node_modules/<name>/package.json（纯文件系统，不经过
+// 模块解析）。必须走这条路：ESM-only 包（如 stylelint-config-recommended@18，
+// 下游 1.9.0 实测 BUG-035）的 exports 常常只有 "import" 条件且不暴露
+// "./package.json"，CJS require/resolve 双双抛 ERR_PACKAGE_PATH_NOT_EXPORTED，
+// 曾被误判为"未安装"。读文件天然兼容 ESM-only / exports 任意形态 / pnpm 符号链接。
+function findPkgUp(startDir, name) {
+    let cur = startDir
+    while (true) {
+        try {
+            return JSON.parse(
+                fs.readFileSync(path.join(cur, "node_modules", name, "package.json"), "utf8"),
+            )
+        } catch {}
+        const parent = path.dirname(cur)
+        if (parent === cur) return null
+        cur = parent
+    }
+}
+
+// 读取依赖包版本：文件系统链优先， exotic 布局回退模块解析
 function installedVersion(projectRequire, name) {
+    // ① 项目根向上（标准安装）；② 本脚本位置向上（npx 临时目录 / monorepo hoisting /
+    //    pnpm 内部 .pnpm 的真实包经符号链接可达）
+    const direct = findPkgUp(PROJECT_ROOT, name) ?? findPkgUp(__dirname, name)
+    if (direct?.version) return direct.version
     try {
         return require(`${name}/package.json`).version
     } catch {}
     try {
         const entry = projectRequire.resolve(name)
-        // 截掉入口文件取包目录（用 path.dirname；别用正则截第一个分隔符——会得到空串）
         const dir = path.dirname(entry)
         return JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).version
     } catch {
