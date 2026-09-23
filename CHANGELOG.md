@@ -1,5 +1,12 @@
 ## 变更日志
 
+## [1.9.2](https://github.com/myvn/codeStyle/compare/v1.9.1...v1.9.2) (2026-09-23)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **init:** 兼容段 off→warn——带/不带 .ts 扩展名 import 双向兼容 ([a26cfb6](https://github.com/myvn/codeStyle/commit/a26cfb6884b96c466e45b935a606c217bd39069c))
+- **init:** 显式 .ts 扩展名 import 自动兼容，fresh init 保持绿起点（BUG-037） ([4c63221](https://github.com/myvn/codeStyle/commit/4c632219817cf188d80963a45076817bcfd9d6ef))
+
 ## [1.9.1](https://github.com/myvn/codeStyle/compare/v1.9.0...v1.9.1) (2026-09-23)
 
 ### 🐛 Bug Fixes | Bug 修复
