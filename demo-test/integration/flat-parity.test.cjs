@@ -62,8 +62,13 @@ test("BUG-037：显式 .ts 扩展名项目 init 注入兼容段，fresh init 即
         "export interface Foo {\n    a: number\n}\n",
     )
     fs.writeFileSync(
+        path.join(dir, "src", "types", "Helper.ts"),
+        "export function helper() {\n    return 1\n}\n",
+    )
+    // 混合写法：带与不带扩展名共存（BUG-037 验收要求"两种都兼容"）
+    fs.writeFileSync(
         path.join(dir, "src", "use.ts"),
-        'import type { Foo } from "./types/Foo.ts"\nexport const f: Foo = { a: 1 }\n',
+        'import type { Foo } from "./types/Foo.ts"\nimport { helper } from "./types/Helper"\nexport const f: Foo = { a: helper }\n',
     )
     const init = spawnSync(process.execPath, [path.join(root, "bin/init")], {
         cwd: dir,
@@ -79,4 +84,6 @@ test("BUG-037：显式 .ts 扩展名项目 init 注入兼容段，fresh init 即
         timeout: 60000,
     })
     assert.equal(lint.status, 0, `fresh lint 应为绿起点：\n${lint.stdout}\n${lint.stderr}`)
+    // 两种写法均不得产生 error 级问题（ 防止 "0 errors" 汇总行误判）
+    assert.doesNotMatch(lint.stdout + lint.stderr, /\berror\b/, "不得有 error 级问题")
 })

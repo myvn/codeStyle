@@ -217,7 +217,13 @@ npx my-code-style-init [--dry-run] [--backup] [--merge] [--version|-v] [--help|-
 
 ### 显式扩展名 import 的兼容行为
 
-`import-x/extensions` 默认要求相对导入**省略** `.ts/.tsx` 扩展名。Vite 等 bundler resolution 项目常写 `import x from "@/types/Foo.ts"`（合法但与该规则冲突）。init 会**自动检测**：命中显式扩展名 import 时，生成的 `eslint.config.mjs` 注入兼容段（对 TS 文件关闭该规则），保证 fresh init 就是绿起点；团队统一"省略扩展名"风格时删除该段即可恢复严格检查。
+`import-x/extensions` 默认要求相对导入**省略** `.ts/.tsx` 扩展名。Vite 等 bundler resolution 项目常写 `import x from "@/types/Foo.ts"`（合法但与该规则冲突）。
+
+init 会**自动检测**：命中显式扩展名 import 时，生成的 `eslint.config.mjs` 注入兼容段——该规则**降级为 warn**，`pnpm lint` 退出码不受影响：
+
+- **带 `.ts` 与不带 `.ts` 都可以写**，两种风格共存不报错；
+- 不一致的写法仍会出 warning，作为渐进统一的风格信号；
+- 团队统一后想恢复严格检查（error 级、只允许省略），删除 `eslint.config.mjs` 里的兼容段即可。
 
 ## 项目体检：my-code-style-doctor
 

@@ -617,11 +617,12 @@ function eslintFlatConfigContent(projectType, { compatExplicitTsImports = false 
     const compatBlock = compatExplicitTsImports
         ? `,
 // 兼容存量代码：检测到项目存在显式 .ts/.tsx 扩展名 import（Vite 等 bundler
-// resolution 下合法），自动关闭扩展名强制，避免初始化后大量报错。
-// 团队统一"省略扩展名"风格时删除此段即可恢复严格检查。
+// resolution 下合法）。降级为 warn：带与不带扩展名都可写、不再报错阻断，
+// 两种写法的"风格不一致"仍会以警告提示，团队可渐进统一；想恢复严格检查
+// （error + 只允许省略）删除此段即可。
 {
     files: ["**/*.{ts,tsx,mts,cts}"],
-    rules: { "import-x/extensions": "off" },
+    rules: { "import-x/extensions": "warn" },
 }`
         : ""
     return `// ESLint Flat Config — powered by my-code-style
@@ -898,7 +899,7 @@ function main() {
         const compatExplicitTsImports = detectExplicitTsImports()
         if (compatExplicitTsImports) {
             console.log(
-                "      · 检测到显式 .ts 扩展名 import：已注入兼容段关闭 import-x/extensions（统一省略风格时删除该段）",
+                "      · 检测到显式 .ts 扩展名 import：已注入兼容段（import-x/extensions 降级为 warn，带/不带扩展名均可写；统一风格时删除该段）",
             )
         }
         files.push({

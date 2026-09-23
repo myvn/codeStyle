@@ -188,7 +188,11 @@ test("显式 .ts 扩展名 import 项目：init 自动注入兼容段（BUG-037�
     assert.ok(r.stdout.includes("显式 .ts 扩展名"), "输出兼容提示")
     const config = p.read("eslint.config.mjs")
     assert.match(config, /兼容存量代码/, "注入兼容段")
-    assert.match(config, /"import-x\/extensions": "off"/, "关闭扩展名强制")
+    assert.match(
+        config,
+        /"import-x\/extensions": "warn"/,
+        "降级为 warn（两种写法均可，保留风格信号）",
+    )
 })
 
 test("无显式扩展名 import 的干净项目：不注入兼容段，保持严格（BUG-037）", (t) => {
