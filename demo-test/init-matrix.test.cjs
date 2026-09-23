@@ -168,12 +168,36 @@ test("有 CSS 预处理器时生成 lint:style 全量检查入口，无则不生
     assert.equal(withCss.init().status, 0)
     const pkg1 = JSON.parse(withCss.read("package.json"))
     assert.match(pkg1.scripts["lint:style"], /stylelint/)
+    assert.match(pkg1.scripts["lint:all"], /&& stylelint/, "lint:all 串联两个 lint")
     const noCss = project(t, {
         "package.json": JSON.stringify({ name: "no-css" }),
     })
     assert.equal(noCss.init().status, 0)
     const pkg2 = JSON.parse(noCss.read("package.json"))
     assert.equal(pkg2.scripts["lint:style"], undefined, "无预处理器不生成 lint:style")
+})
+
+test("显式 .ts 扩展名 import 项目：init 自动注入兼容段（BUG-037）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "explicit-ext", type: "module" }),
+        "src/types/Foo.ts": "export interface Foo {\n    a: number\n}\n",
+        "src/use.ts": 'import type { Foo } from "./types/Foo.ts"\nexport const f: Foo = { a: 1 }\n',
+    })
+    const r = p.init()
+    assert.equal(r.status, 0, r.stderr)
+    assert.ok(r.stdout.includes("显式 .ts 扩展名"), "输出兼容提示")
+    const config = p.read("eslint.config.mjs")
+    assert.match(config, /兼容存量代码/, "注入兼容段")
+    assert.match(config, /"import-x\/extensions": "off"/, "关闭扩展名强制")
+})
+
+test("无显式扩展名 import 的干净项目：不注入兼容段，保持严格（BUG-037）", (t) => {
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "clean-imports", type: "module" }),
+        "src/use.ts": 'import type { Foo } from "./types/Foo"\nexport const f: Foo = { a: 1 }\n',
+    })
+    assert.equal(p.init().status, 0)
+    assert.doesNotMatch(p.read("eslint.config.mjs"), /兼容存量代码/)
 })
 
 test("doctor 识别 ESM-only peer（exports 仅 import 条件）为已安装（BUG-035）", (t) => {

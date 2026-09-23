@@ -43,3 +43,40 @@ test("flat 与 legacy 分层对齐：nvue 覆写完整选项、uniapp globals �
         { js: "never", jsx: "never", ts: "never", tsx: "never" },
     ])
 })
+
+test("BUG-037：显式 .ts 扩展名项目 init 注入兼容段，fresh init 即绿起点", (t) => {
+    const fs = require("node:fs")
+    const { spawnSync } = require("node:child_process")
+    const { root, runtime } = require("./_runtime.cjs")
+    // 非点目录（stylelint overrides 的 glob 不匹配点路径，教训自 BUG-031）
+    const dir = fs.mkdtempSync(path.join(root, "demo-test", "explicit-ext-"))
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+    fs.symlinkSync(path.join(runtime, "node_modules"), path.join(dir, "node_modules"), "junction")
+    fs.writeFileSync(
+        path.join(dir, "package.json"),
+        JSON.stringify({ name: "explicit-ext", version: "1.0.0", type: "module" }),
+    )
+    fs.mkdirSync(path.join(dir, "src", "types"), { recursive: true })
+    fs.writeFileSync(
+        path.join(dir, "src", "types", "Foo.ts"),
+        "export interface Foo {\n    a: number\n}\n",
+    )
+    fs.writeFileSync(
+        path.join(dir, "src", "use.ts"),
+        'import type { Foo } from "./types/Foo.ts"\nexport const f: Foo = { a: 1 }\n',
+    )
+    const init = spawnSync(process.execPath, [path.join(root, "bin/init")], {
+        cwd: dir,
+        encoding: "utf8",
+        timeout: 30000,
+    })
+    assert.equal(init.status, 0, init.stderr)
+    assert.match(init.stdout, /显式 \.ts 扩展名/)
+    assert.match(fs.readFileSync(path.join(dir, "eslint.config.mjs"), "utf8"), /兼容存量代码/)
+    const lint = spawnSync(path.join(runtime, "node_modules/.bin/eslint"), ["src"], {
+        cwd: dir,
+        encoding: "utf8",
+        timeout: 60000,
+    })
+    assert.equal(lint.status, 0, `fresh lint 应为绿起点：\n${lint.stdout}\n${lint.stderr}`)
+})
