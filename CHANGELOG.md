@@ -1,5 +1,12 @@
 ## 变更日志
 
+## [1.9.3](https://github.com/myvn/codeStyle/compare/v1.9.2...v1.9.3) (2026-09-23)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **init:** BUG-038 兼容段 files 补 vue/nvue——SFC 内显式 .ts import 不再报 error ([c2298af](https://github.com/myvn/codeStyle/commit/c2298af354592f4f9232d3571be5ff31075a81e5))
+- **peer:** typescript 放宽至 ^5.0.0 || ^6.0.0——TS 6（Vite 8 模板默认）不再堵死装机（BUG-039） ([fa633f1](https://github.com/myvn/codeStyle/commit/fa633f1a0f65229609cd6a38f88d032d08124e50))
+
 ## [1.9.2](https://github.com/myvn/codeStyle/compare/v1.9.1...v1.9.2) (2026-09-23)
 
 ### 🐛 Bug Fixes | Bug 修复
