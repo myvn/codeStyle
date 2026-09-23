@@ -26,7 +26,7 @@ npx my-code-style-init --dry-run
 npx my-code-style-init                # 需保留旧文件时加 --backup
 
 # 3. 按 CLI 输出的缺失依赖清单安装 peerDependencies（会按包管理器生成命令，别漏 typescript 和 stylelint-order——后者是 recess-order 7 的 peer，Vue/SCSS 项目缺了它 stylelint 直接崩）
-pnpm add -D my-code-style eslint@^9.0.0 typescript@^5.0.0 prettier@^3.0.0 ...   # 以 CLI 实际输出为准
+pnpm add -D my-code-style eslint@^9.0.0 typescript@^6.0.0 prettier@^3.0.0 ...   # 以 CLI 实际输出为准
 
 # 4. 初始化 hooks 并首次检查
 pnpm prepare                          # npm: npm run prepare
@@ -264,6 +264,7 @@ npx my-code-style-doctor
 | `pnpm prepare` 输出 `.git can't be found`，hooks 不生效              | husky 必须在 git 仓库内执行                                                                      | 先 `git init`、再 `pnpm prepare`；验证 `git config core.hooksPath` 输出 `.husky/_`                                                                                                                                                                      |
 | 安装依赖报 `ERR_PNPM_IGNORED_BUILDS`（如 `unrs-resolver`）           | pnpm 10+ 默认拦截依赖的构建脚本                                                                  | 执行 `pnpm approve-builds` 后重新安装，不是初始化失败                                                                                                                                                                                                   |
 | `eslint` 声明 `>=8.0.0` 却生成了 Flat Config                         | 无上界范围 npm 实际会装 9，CLI 按 9 生成                                                         | 确定留在 8 就把范围收紧到 `<9`（如 `~8.57.0`）后重跑 init                                                                                                                                                                                               |
+| 首次接入存量/脚手架项目，`lint:style` 集中报几十个属性顺序错         | stylelint-order（recess-order）按既有排序规约检查，脚手架模板（如 Vite 的 `style.css`）不满足    | 一次性 `stylelint "**/*.{vue,nvue,html,css,scss,less}" --fix` 自动归位后再提交；此后保持绿色。属存量风格收敛，非本配置引入的错误                                                                                                                        |
 | 重复 init 后，改过的 `.prettierrc.cjs` / hooks 被覆盖                | 除 ESLint 入口与已存在的 `.gitignore` 外，目标文件一律覆盖                                       | 先用 `--dry-run` 看清单、用 `--backup` 留档（备份含 `package.json`，目录会自动写入 `.gitignore`）                                                                                                                                                       |
 | 自定义 `lint-staged` 分组消失                                        | `lint-staged` 为整体替换，避免残留失效分组                                                       | 从 `.my-code-style-backup/package.json` 恢复后手动合并                                                                                                                                                                                                  |
 | 提交时 lint 报错、提交失败                                           | 修不了的错误（语法错误、非法 CSS 属性）会阻止提交                                                | 按提示修复；紧急情况可用 `git commit --no-verify`，但请在 **CI 用 `pnpm lint` 兜底**                                                                                                                                                                    |

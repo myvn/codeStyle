@@ -374,7 +374,11 @@ test("缺失依赖提示包含 typescript，并按包管理器给出可执行命
         const result = p.init()
         assert.equal(result.status, 0, result.stderr)
         // typescript is a non-optional peer of @typescript-eslint/parser
-        assert.match(result.stdout, /typescript@\^5\.0\.0/, `${lock}: 应提示安装 typescript`)
+        assert.match(
+            result.stdout,
+            /typescript@\^5\.0\.0 \|\| \^6\.0\.0/,
+            `${lock}: 应提示安装 typescript`,
+        )
         assert.ok(result.stdout.includes(installCommand), `${lock}: 期望安装命令 ${installCommand}`)
         assert.ok(
             result.stdout.includes(prepareCommand),
