@@ -43,3 +43,59 @@ test("flat 与 legacy 分层对齐：nvue 覆写完整选项、uniapp globals �
         { js: "never", jsx: "never", ts: "never", tsx: "never" },
     ])
 })
+
+test("BUG-037：显式 .ts 扩展名项目 init 注入兼容段，fresh init 即绿起点", (t) => {
+    const fs = require("node:fs")
+    const { spawnSync } = require("node:child_process")
+    const { root, runtime } = require("./_runtime.cjs")
+    // 非点目录（stylelint overrides 的 glob 不匹配点路径，教训自 BUG-031）
+    const dir = fs.mkdtempSync(path.join(root, "demo-test", "explicit-ext-"))
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+    fs.symlinkSync(path.join(runtime, "node_modules"), path.join(dir, "node_modules"), "junction")
+    fs.writeFileSync(
+        path.join(dir, "package.json"),
+        // vue 依赖 → init 生成 vue3 配置，.vue 用例走真实 SFC 解析（BUG-038 场景）
+        JSON.stringify({
+            name: "explicit-ext",
+            version: "1.0.0",
+            type: "module",
+            dependencies: { vue: "^3" },
+        }),
+    )
+    fs.mkdirSync(path.join(dir, "src", "types"), { recursive: true })
+    fs.writeFileSync(
+        path.join(dir, "src", "types", "Foo.ts"),
+        "export interface Foo {\n    a: number\n}\n",
+    )
+    fs.writeFileSync(
+        path.join(dir, "src", "types", "Helper.ts"),
+        "export function helper() {\n    return 1\n}\n",
+    )
+    // 混合写法：带与不带扩展名共存（BUG-037 验收要求"两种都兼容"）
+    fs.writeFileSync(
+        path.join(dir, "src", "use.ts"),
+        'import type { Foo } from "./types/Foo.ts"\nimport { helper } from "./types/Helper"\nexport const f: Foo = { a: helper }\n',
+    )
+    // SFC <script setup> 内的显式 .ts import：compat 段 files 必须覆盖 .vue，
+    // 否则 .vue 绕过兼容段按 error 报（BUG-038，下游 165 errors 的根因）
+    fs.writeFileSync(
+        path.join(dir, "src", "App.vue"),
+        '<script setup lang="ts">\nimport type { Foo } from "./types/Foo.ts"\nimport { helper } from "./types/Helper"\nconst f: Foo = { a: helper() }\n</script>\n\n<template>\n    <view class="card">{{ f.a }}</view>\n</template>\n',
+    )
+    const init = spawnSync(process.execPath, [path.join(root, "bin/init")], {
+        cwd: dir,
+        encoding: "utf8",
+        timeout: 30000,
+    })
+    assert.equal(init.status, 0, init.stderr)
+    assert.match(init.stdout, /显式 \.ts 扩展名/)
+    assert.match(fs.readFileSync(path.join(dir, "eslint.config.mjs"), "utf8"), /兼容存量代码/)
+    const lint = spawnSync(path.join(runtime, "node_modules/.bin/eslint"), ["src"], {
+        cwd: dir,
+        encoding: "utf8",
+        timeout: 60000,
+    })
+    assert.equal(lint.status, 0, `fresh lint 应为绿起点：\n${lint.stdout}\n${lint.stderr}`)
+    // 两种写法均不得产生 error 级问题（ 防止 "0 errors" 汇总行误判）
+    assert.doesNotMatch(lint.stdout + lint.stderr, /\berror\b/, "不得有 error 级问题")
+})

@@ -555,7 +555,55 @@ module.exports = config
 `
 }
 
-function eslintFlatConfigContent(projectType) {
+/**
+ * 检测项目源码是否存在显式 .ts/.tsx/.mts/.cts 扩展名 import（下游 1.9.1 实测：
+ * Vite 等 bundler resolution 项目大量使用 `import xxx from "@/types/Foo.ts"`，
+ * 全部合法，但默认的 import-x/extensions 强制省略扩展名会让 fresh init 直接
+ * 报数百个错误）。命中则生成的配置注入兼容段，fresh init 保持"绿起点"。
+ */
+function detectExplicitTsImports() {
+    const roots = ["src", "app", "pages", "scripts"].filter((dir) =>
+        fs.existsSync(path.resolve(PROJECT_ROOT, dir)),
+    )
+    const scanRoots = roots.length > 0 ? roots : ["."]
+    const exts = new Set([".ts", ".tsx", ".mts", ".cts", ".vue", ".js", ".jsx", ".mjs", ".cjs"])
+    const pattern =
+        /(?:from\s+|import\s*\(\s*|require\s*\(\s*)["'][^"']+:?[\w@/.-]*\.(?:ts|tsx|mts|cts)["']/
+    let scanned = 0
+    const walk = (dir) => {
+        let entries
+        try {
+            entries = fs.readdirSync(dir, { withFileTypes: true })
+        } catch {
+            return false
+        }
+        for (const entry of entries) {
+            if (scanned > 2000) return false
+            const full = path.join(dir, entry.name)
+            if (entry.isDirectory()) {
+                if (
+                    entry.name === "node_modules" ||
+                    entry.name === "dist" ||
+                    entry.name.startsWith(".")
+                )
+                    continue
+                if (walk(full)) return true
+            } else if (exts.has(path.extname(entry.name))) {
+                scanned++
+                try {
+                    if (pattern.test(fs.readFileSync(full, "utf8"))) return true
+                } catch {}
+            }
+        }
+        return false
+    }
+    for (const root of scanRoots) {
+        if (walk(path.resolve(PROJECT_ROOT, root))) return true
+    }
+    return false
+}
+
+function eslintFlatConfigContent(projectType, { compatExplicitTsImports = false } = {}) {
     let importPath = "my-code-style/eslint/flat"
     let varName = "baseConfig"
     if (projectType === "uniapp") {
@@ -566,11 +614,24 @@ function eslintFlatConfigContent(projectType) {
         varName = "vue3Config"
     }
 
+    const compatBlock = compatExplicitTsImports
+        ? `,
+// 兼容存量代码：检测到项目存在显式 .ts/.tsx 扩展名 import（Vite 等 bundler
+// resolution 下合法）。降级为 warn：带与不带扩展名都可写、不再报错阻断，
+// 两种写法的"风格不一致"仍会以警告提示，团队可渐进统一；想恢复严格检查
+// （error + 只允许省略）删除此段即可。
+{
+    // 含 vue/nvue：SFC <script setup> 内的显式 .ts import 同样走兼容口径，
+    // 否则 .vue 文件会绕过此段仍按 error 报（BUG-038）
+    files: ["**/*.{ts,tsx,mts,cts,vue,nvue}"],
+    rules: { "import-x/extensions": "warn" },
+}`
+        : ""
     return `// ESLint Flat Config — powered by my-code-style
 // https://www.npmjs.com/package/my-code-style
 import ${varName} from "${importPath}"
 
-export default [...${varName}]
+export default [...${varName}${compatBlock}]
 `
 }
 
@@ -837,6 +898,12 @@ function main() {
         console.log("      保留已有 ESLint 配置，不生成额外入口")
     } else if (useFlatConfig) {
         console.log("      生成 Flat Config 入口 eslint.config.mjs")
+        const compatExplicitTsImports = detectExplicitTsImports()
+        if (compatExplicitTsImports) {
+            console.log(
+                "      · 检测到显式 .ts 扩展名 import：已注入兼容段（import-x/extensions 降级为 warn，带/不带扩展名均可写；统一风格时删除该段）",
+            )
+        }
         files.push({
             path: "eslint.config.mjs",
             exists:
@@ -844,7 +911,7 @@ function main() {
                 fileExists("eslint.config.js") ||
                 fileExists("eslint.config.ts") ||
                 fileExists("eslint.config.cjs"),
-            content: eslintFlatConfigContent(projectType),
+            content: eslintFlatConfigContent(projectType, { compatExplicitTsImports }),
         })
     } else {
         console.log("      生成传统格式入口 .eslintrc.cjs")
@@ -984,11 +1051,13 @@ function main() {
         stepHeader(4, 6, "package.json")
         if (dryRun) {
             console.log(
-                "      · 将更新 scripts（lint / lint:fix / format / prepare / release / cz）与 lint-staged",
+                "      · 将更新 scripts（lint / lint:fix / lint:style / lint:all / format / prepare / release / cz）与 lint-staged",
             )
             return
         }
-        console.log("      ✓ scripts 已更新（lint / lint:fix / format / prepare / release / cz）")
+        console.log(
+            "      ✓ scripts 已更新（lint / lint:fix / lint:style / lint:all / format / prepare / release / cz）",
+        )
         console.log("      ✓ lint-staged 已按检测到的 CSS 预处理器生成")
     }
 
@@ -1156,7 +1225,10 @@ function main() {
                     // 配置里排除 node_modules/dist 等，glob 全仓是安全的
                     ...(skipStylelint
                         ? {}
-                        : { "lint:style": 'stylelint "**/*.{vue,nvue,html,css,scss,less}"' }),
+                        : {
+                              "lint:style": 'stylelint "**/*.{vue,nvue,html,css,scss,less}"',
+                              "lint:all": `${lintCommand} && stylelint "**/*.{vue,nvue,html,css,scss,less}"`,
+                          }),
                     format: "prettier --write .",
                     prepare: "husky",
                     release: "commit-and-tag-version",

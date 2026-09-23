@@ -32,9 +32,9 @@ test("peer 范围覆盖我们声明支持的上游大版本（校准防回退，
         }
     }
     // 有意不放宽的两项：catv 13 的 changelog writer 丢失 types/hidden 分组（上游回归）；
-    // typescript 7 超出 typescript-eslint 的支持上限（>=4.8.4 <6.1.0）
+    // typescript 7 超出 typescript-eslint 的支持上限（>=4.8.4 <6.1.0）——6.0.x 在内（BUG-039）
     assert.equal(peers["commit-and-tag-version"], "^12.0.0")
-    assert.equal(peers.typescript, "^5.0.0")
+    assert.equal(peers.typescript, "^5.0.0 || ^6.0.0")
     // 消费者工具读取包版本需要 ./package.json 导出
     assert.equal(pkg.exports["./package.json"], "./package.json")
 })
