@@ -1,7 +1,7 @@
 {
   "name": "my-code-style",
-  "version": "1.8.6",
-  "description": "Lint/Format/Git \u914d\u7f6e\u5de5\u7a0b\u5316 npm \u5305\uff08ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version\uff09",
+  "version": "1.9.0",
+  "description": "Lint/Format/Git 配置工程化 npm 包（ESLint + Prettier + Stylelint + Commitlint + Husky + standard-version）",
   "type": "commonjs",
   "main": "src/eslint/uniapp.cjs",
   "repository": {

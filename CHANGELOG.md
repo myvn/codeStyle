@@ -1,5 +1,16 @@
 ## 变更日志
 
+## [1.9.0](https://github.com/myvn/codeStyle/compare/v1.8.6...v1.9.0) (2026-09-23)
+
+### ✨ Features | 新功能
+
+- **cli:** 新增 my-code-style-doctor 独立体检命令 ([fd3ac0d](https://github.com/myvn/codeStyle/commit/fd3ac0da3ac123f1bf69e755da1de288bdf5eeb4)), closes [#6](https://github.com/myvn/codeStyle/issues/6)
+- **init:** --merge 合并模式 + 收尾 hook 自检 ([f6f6fa7](https://github.com/myvn/codeStyle/commit/f6f6fa7f391f4371a9cd76ff8e436c7061b25335)), closes [#7](https://github.com/myvn/codeStyle/issues/7) [#8](https://github.com/myvn/codeStyle/issues/8)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **prettier:** 默认 prettierignore 纳入各包管理器 lockfile（BUG-034） ([ece6d03](https://github.com/myvn/codeStyle/commit/ece6d035d3d71e64e1aca541dd49efaab615da48)), closes [#9](https://github.com/myvn/codeStyle/issues/9)
+
 ## [1.8.6](https://github.com/myvn/codeStyle/compare/v1.8.5...v1.8.6) (2026-09-22)
 
 ### 🐛 Bug Fixes | Bug 修复
