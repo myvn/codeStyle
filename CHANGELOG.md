@@ -1,5 +1,12 @@
 ## 变更日志
 
+## [1.9.1](https://github.com/myvn/codeStyle/compare/v1.9.0...v1.9.1) (2026-09-23)
+
+### 🐛 Bug Fixes | Bug 修复
+
+- **doctor:** ESM-only peer 误报未安装——版本探测改文件系统链优先 ([418aeb5](https://github.com/myvn/codeStyle/commit/418aeb5c90b097719a37aa96ee9bf140a4550b45))
+- **init:** --merge 统计语义「保留/覆盖」对齐 + 新增 lint:style 全量样式入口 ([9ebe796](https://github.com/myvn/codeStyle/commit/9ebe796b7959052c1880af1af164247abcc16a98))
+
 ## [1.9.0](https://github.com/myvn/codeStyle/compare/v1.8.6...v1.9.0) (2026-09-23)
 
 ### ✨ Features | 新功能
