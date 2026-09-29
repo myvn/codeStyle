@@ -66,10 +66,6 @@ export const commonRules = {
     "no-param-reassign": "off",
     "no-redeclare": "off",
     "prefer-promise-reject-errors": "off",
-
-    // Standard JS uses @stylistic style/quotes — disable to avoid conflict
-    "style/quotes": "off",
-    "style/semi": "off",
 }
 
 /**

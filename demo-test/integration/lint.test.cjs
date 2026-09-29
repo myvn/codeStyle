@@ -276,6 +276,50 @@ for (const [entry, ext, source] of [
     })
 }
 
+test("Stylelint：Less 线的变量媒体查询与 @import 选项不误报（BUG-040 / BUG-041）", async () => {
+    const stylelint = localRequire("stylelint")
+    const config = localRequire("my-code-style/stylelint/less")
+    const lint = (code, name) =>
+        stylelint.lint({
+            config,
+            configBasedir: runtime,
+            codeFilename: path.join(runtime, name),
+            code,
+        })
+    // Less 变量出现在媒体查询里 / Less 的 @import 选项，在 CSS 语法里都非法。
+    // stylelint-config-recommended 开启的这两条规则会判死，且都没有 fixer。
+    const media = await lint(
+        "@screen-md: 768px;\n\n.toolbar {\n    @media (max-width: @screen-md) {\n        display: block;\n    }\n}\n",
+        "media.less",
+    )
+    const imports = await lint(
+        '@import (reference) "mixins.less";\n\n.card {\n    color: red;\n}\n',
+        "imports.less",
+    )
+    for (const [name, res] of [
+        ["media.less", media],
+        ["imports.less", imports],
+    ]) {
+        const offenders = res.results
+            .flatMap((item) => item.warnings)
+            .filter((warning) =>
+                ["media-query-no-invalid", "at-rule-prelude-no-invalid"].includes(warning.rule),
+            )
+        assert.deepEqual(
+            offenders,
+            [],
+            `${name} 不该有误报：${JSON.stringify(summarize(res.results))}`,
+        )
+    }
+    // 放行误报不能连带放走真错误
+    const bad = await lint(".card {\n    colour: red;\n}\n", "bad.less")
+    assert.ok(
+        bad.results.some((item) =>
+            item.warnings.some((warning) => warning.rule === "property-no-unknown"),
+        ),
+    )
+})
+
 test("Stylelint (my-code-style/stylelint) 统一支持 SCSS、Less 及 Vue 内嵌双预处理器", async () => {
     const stylelint = localRequire("stylelint")
     const config = localRequire("my-code-style/stylelint")

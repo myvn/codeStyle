@@ -55,6 +55,16 @@ module.exports = {
         // BUG-029 深测实测）；SCSS 线上游（recommended-scss）本就将其置 null，
         // 这里对齐，保证 uni-app Less 项目 rpx 写法不误报。
         "declaration-property-value-no-unknown": null,
+        // 同 BUG-029 的机理：Less 用 @ 写变量，媒体查询里的 `@screen-md` 在 CSS
+        // 语法里不是合法值，stylelint-config-recommended 开启的 media-query-no-invalid
+        // 会报 "Invalid media query"（BUG-040 实测：下游 18 处命中，且无 fixer，
+        // --fix 后原地不动 → 门禁永久红）。SCSS 线由 recommended-scss 置 null，
+        // Less 线没有那层覆盖，这里对齐。
+        "media-query-no-invalid": null,
+        // Less 的 `@import (reference) "m.less"` / `@import (less) "t.css"` 选项在
+        // CSS 语法里同样非法，at-rule-prelude-no-invalid 会把整个 prelude 判死
+        // （BUG-041 实测：下游 3 处命中，无 fixer）。同样对齐 SCSS 线上游的 null。
+        "at-rule-prelude-no-invalid": null,
         // 允许小程序 page 标签
         "selector-type-no-unknown": [true, { ignoreTypes: ["page"] }],
         "comment-empty-line-before": "never",
