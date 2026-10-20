@@ -833,10 +833,14 @@ function main() {
 
     const eslintUnannounced = eslintVersion !== null && eslintVersion > 10
 
-    // Do not silently mix an installed major version with an incompatible format.
+    // ESLint 8.21+ 已支持 Flat Config（8.57 为常见存量版本），init 已在步骤 2 支持“保留已有配置”，不应在此阻断；
+    // 仅 ESLint 9+ 已移除 .eslintrc，需拦截 legacy 独占场景。--merge 显式保留用户配置时放行前置校验。
+    const mergeMode = args.includes("--merge") || args.includes("--no-overwrite")
     if (
-        (eslintVersion >= 9 && hasLegacyConfigFile && !hasFlatConfigFile) ||
-        (eslintVersion === 8 && hasFlatConfigFile)
+        !mergeMode &&
+        eslintVersion >= 9 &&
+        hasLegacyConfigFile &&
+        !hasFlatConfigFile
     ) {
         console.error("ESLint 版本与已有配置格式冲突；请先手动迁移或确认配置格式，未修改任何文件")
         process.exitCode = 1
@@ -969,7 +973,6 @@ function main() {
     }
 
     const backup = args.includes("--backup")
-    const mergeMode = args.includes("--merge") || args.includes("--no-overwrite")
     stepHeader(3, 6, "配置文件与 Git hooks")
     let overwriteTotal = 0
     let createTotal = 0

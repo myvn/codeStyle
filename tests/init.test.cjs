@@ -93,7 +93,6 @@ for (const name of [
 for (const [version, name] of [
     ["^9", ".eslintrc.cjs"],
     ["^9", ".eslintrc.json"],
-    ["^8", "eslint.config.js"],
 ]) {
     test(`format conflict exits without writes: ${version} ${name}`, (t) => {
         const f = fixture(t, { "package.json": manifest(version), [name]: "custom" })
@@ -102,6 +101,19 @@ for (const [version, name] of [
         assert.deepEqual(f.snapshot(), before)
     })
 }
+test("ESLint 8 with Flat Config is preserved (8.57 compat)", (t) => {
+    const f = fixture(t, { "package.json": manifest("^8.57.0"), "eslint.config.js": "custom config" })
+    // 1.9.6 前置校验曾误拦 (eslintVersion===8 && hasFlatConfigFile)；1.9.7 起放行并保留已有配置
+    assert.equal(f.run().status, 0)
+    assert.equal(f.read("eslint.config.js"), "custom config")
+    // --dry-run / --merge 亦应 0 退出且保留已有配置
+    const f2 = fixture(t, { "package.json": manifest("^8.57.0"), "eslint.config.js": "custom config" })
+    const before2 = f2.snapshot()
+    assert.equal(f2.run("--dry-run").status, 0)
+    assert.deepEqual(f2.snapshot(), before2)
+    assert.equal(f2.run("--merge").status, 0)
+    assert.equal(f2.read("eslint.config.js"), "custom config")
+})
 test("legacy config without declared ESLint requires explicit migration", (t) => {
     const f = fixture(t, { "package.json": '{"name":"fixture"}', ".eslintrc.js": "custom" })
     const before = f.snapshot()
