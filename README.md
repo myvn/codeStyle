@@ -33,6 +33,8 @@ pnpm prepare                          # npm: npm run prepare
 pnpm lint
 ```
 
+> **pnpm 10+ 用户注意**：依赖里带构建脚本的包（`esbuild`、`unrs-resolver` 等）默认被拦截，安装后补一条 `pnpm approve-builds` 放行即可，不是初始化失败。想写进配置：pnpm 10.26 起用 `pnpm-workspace.yaml` 的 `allowBuilds`（`包名: true` 映射，取代已弃用的 `onlyBuiltDependencies` 列表），pnpm 11+ 已不再读取旧键（pnpm 12 会静默忽略，仍报 `ERR_PNPM_IGNORED_BUILDS`）。
+
 init 脚本会自动检测技术栈类型（uni-app / Vue 3 / Node 基础库）、ESLint 版本、CSS 预处理器和包管理器，按需生成配置文件，并在结尾列出尚未安装的 peerDependencies 与对应安装命令。
 
 初始化后：`lint-staged` 会在 `git commit` 时自动修复暂存文件，`commitlint` 校验提交信息，`pnpm release` 生成版本与 CHANGELOG。全过程细节见 [docs/init-flow.md](docs/init-flow.md)，收益与代价评估见 [docs/manual.md](docs/manual.md)。
@@ -234,7 +236,7 @@ npx my-code-style-doctor
 
 对既有项目随时复验（init 的依赖体检只在新装/重装时打印一次）：
 
-- **peer 依赖**：按项目类型裁剪核对（与 init 同口径——ESLint 8 才查 classic import、无预处理器不查 stylelint 族），缺失/版本越界逐项报红，并输出可整段粘贴的补齐命令；
+- **peer 依赖**：按项目类型裁剪核对（与 init 同口径——ESLint 8 才查 classic import、不涉样式的项目不查 stylelint 族）。stylelint 变体**以项目实际的配置为准**（`.stylelintrc.cjs` extends 的是 `stylelint/less` 就只查 Less 线的 peer，不会给纯 Less 项目索要 `postcss-scss`），没有配置文件时才回落到依赖推断；缺失/版本越界逐项报红，并输出可整段粘贴的补齐命令；
 - **husky hooks**：存在 / 非空 / 可执行位 / 引用命令可解析 / `core.hooksPath` 指向；
 - **lockfile**：是否被 `.gitignore` 排除（排除 = 不同机器版本组合不可复现）；
 - **配置文件**：四件套是否就位。
@@ -262,7 +264,7 @@ npx my-code-style-doctor
 | 只装了 `my-code-style`，`pnpm lint` 报找不到 eslint                  | peerDependencies 全部是 optional，不会自动安装                                                   | 按 CLI 结尾输出的清单装全，**别漏 `typescript`**（`@typescript-eslint/parser` / `typescript-eslint` 的必需 peer）                                                                                                                                       |
 | stylelint 报 `Could not find plugin "stylelint-order"`               | recess-order 7 把 stylelint-order 声明为 peer（非依赖），pnpm 10+ 严格模式 / npm / yarn 不自动装 | 显式安装 `stylelint-order`（对齐 peer 范围 `^6 \|\| ^7 \|\| ^8`；Vue/SCSS 项目必装）                                                                                                                                                                    |
 | `pnpm prepare` 输出 `.git can't be found`，hooks 不生效              | husky 必须在 git 仓库内执行                                                                      | 先 `git init`、再 `pnpm prepare`；验证 `git config core.hooksPath` 输出 `.husky/_`                                                                                                                                                                      |
-| 安装依赖报 `ERR_PNPM_IGNORED_BUILDS`（如 `unrs-resolver`）           | pnpm 10+ 默认拦截依赖的构建脚本                                                                  | 执行 `pnpm approve-builds` 后重新安装，不是初始化失败                                                                                                                                                                                                   |
+| 安装依赖报 `ERR_PNPM_IGNORED_BUILDS`（如 `unrs-resolver`）           | pnpm 10+ 默认拦截依赖的构建脚本                                                                  | 执行 `pnpm approve-builds` 后重新安装，不是初始化失败；要写进配置就用 `pnpm-workspace.yaml` 的 `allowBuilds`（pnpm 10.26+，取代已弃用的 `onlyBuiltDependencies`；pnpm 11+ 不再读旧键）                                                                  |
 | `eslint` 声明 `>=8.0.0` 却生成了 Flat Config                         | 无上界范围 npm 实际会装 9，CLI 按 9 生成                                                         | 确定留在 8 就把范围收紧到 `<9`（如 `~8.57.0`）后重跑 init                                                                                                                                                                                               |
 | 首次接入存量/脚手架项目，`lint:style` 集中报几十个属性顺序错         | stylelint-order（recess-order）按既有排序规约检查，脚手架模板（如 Vite 的 `style.css`）不满足    | 一次性 `stylelint "**/*.{vue,nvue,html,css,scss,less}" --fix` 自动归位后再提交；此后保持绿色。属存量风格收敛，非本配置引入的错误                                                                                                                        |
 | 重复 init 后，改过的 `.prettierrc.cjs` / hooks 被覆盖                | 除 ESLint 入口与已存在的 `.gitignore` 外，目标文件一律覆盖                                       | 先用 `--dry-run` 看清单、用 `--backup` 留档（备份含 `package.json`，目录会自动写入 `.gitignore`）                                                                                                                                                       |
@@ -281,16 +283,16 @@ npx my-code-style-doctor
 ## 测试套件
 
 ```bash
-npm run test:all               # 全量运行 200 项：用例明细 + 分类统计 + 最慢文件定位
+npm run test:all               # 全量运行 209 项：用例明细 + 分类统计 + 最慢文件定位
 npm run diagnose               # 换机器后先跑它：进程 / git / 文件系统 / hooks 各占多少
 npm run sweep                  # 给本机找最佳文件级并发（扫 integration 套件）
-npm test                       # 只跑基础 CLI 与配置矩阵（98 项）
+npm test                       # 只跑基础 CLI 与配置矩阵（104 项）
 npm run test:integration:setup # 安装现代化隔离依赖运行环境
-npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（66 项）
+npm run test:integration       # Flat Config、真实 Husky 及提交链路测试（67 项）
 npm run test:legacy:setup      # 安装 ESLint 8 隔离运行环境
-npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（27 项）
+npm run test:legacy            # ESLint 8.57.0 兼容性回归测试（28 项）
 npm run test:stylelint17:setup # 安装 Stylelint 17 隔离运行环境
-npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
+npm run test:stylelint17       # Stylelint 17 生态兼容性回归（10 项）
 ```
 
 `npm run test:all` 由 `scripts/test-all.cjs` 驱动，输出**套件 → 用例 → 汇总**三层：
@@ -299,50 +301,50 @@ npm run test:stylelint17       # Stylelint 17 生态兼容性回归（8 项）
 ```text
   my-code-style 测试套件
 
-  ▶ [1/4] 基础 CLI 与配置矩阵  （共 98 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [1/4] 基础 CLI 与配置矩阵  （共 104 项，5 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 运行器 TAP 解析：统计通过与失败、SKIP 与每用例耗时 · 7ms
       ✓ cz 交互提示为中文，且可选类型与 type-enum 一一对应 · 1ms
       ✓ peer 范围覆盖我们声明支持的上游大版本（校准防回退，BUG-027） · 0ms
       ✓ 一键安装命令对含 || 的版本范围加引号，可整段粘贴执行 · 40ms
       ✓ 初始化结尾指引把 cz 用法说清楚（先 git add + 指到 README 手册） · 80ms
       …
-     ✓ 通过 98  ·  4.2s   · 最慢文件 init-matrix.test.cjs 4.0s
+     ✓ 通过 104  ·  4.2s   · 最慢文件 init-matrix.test.cjs 4.0s
 
-  ▶ [2/4] 现代工具链与提交链  （共 66 项，24 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [2/4] 现代工具链与提交链  （共 67 项，24 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 完整提交链：JS/TS/Vue/nvue/CSS/less 自动修复及二次复检 · 10.4s
       ✓ 发布防呆：HEAD 已有 v* tag 时拦截（此时 release 工具会静默抬版并写出空 CHANGELOG） · 609ms
       …
-     ✓ 通过 66  ·  43.8s   · 最慢文件 commit-chain-both.test.cjs 11.9s
+     ✓ 通过 67  ·  43.8s   · 最慢文件 commit-chain-both.test.cjs 11.9s
 
-  ▶ [3/4] ESLint 8 兼容性  （共 27 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [3/4] ESLint 8 兼容性  （共 28 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 独立运行 ESLint 8 支持下限而非 ESLint 9 · 1ms
       ✓ ESLint 8 base：实际 CLI 加载生成配置并接受正常文件 · 1.3s
       …
-     ✓ 通过 27  ·  20.2s
+     ✓ 通过 28  ·  20.2s
 
-  ▶ [4/4] Stylelint 17 兼容性  （共 9 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
+  ▶ [4/4] Stylelint 17 兼容性  （共 10 项，1 文件 · 3 文件并发（自动：2 核 / 内存 4G））
       ✓ 隔离环境装的是 stylelint 17（不是 16） · 2ms
       ✓ 生成的 .stylelintrc.cjs 在 stylelint 17 下可加载并放过正常 SCSS · 700ms
       …
-     ✓ 通过 9  ·  8.8s
+     ✓ 通过 10  ·  8.8s
 
   ──────────────────────────────────────────────────────
   套件                      通过    失败    跳过    用时
   ──────────────────────────────────────────────────────
-  基础 CLI 与配置矩阵         98       0       -    4.2s
-  现代工具链与提交链          66       0       -   43.8s
-  ESLint 8 兼容性             27       0       -   20.2s
-  Stylelint 17 兼容性          9       0       -    8.8s
+  基础 CLI 与配置矩阵        104       0       -    4.2s
+  现代工具链与提交链          67       0       -   43.8s
+  ESLint 8 兼容性             28       0       -   20.2s
+  Stylelint 17 兼容性         10       0       -    8.8s
   ──────────────────────────────────────────────────────
-  合计                       200       0       -   77.1s
+  合计                       209       0       -   77.1s
   ──────────────────────────────────────────────────────
 
   ⏱ 最慢文件：eslint8.test.cjs 18.0s · commit-chain-less.test.cjs 11.4s · commit-chain-both.test.cjs 11.3s
 
-  ✅ 全部通过：200/200 项，用时 77.1s
+  ✅ 全部通过：209/209 项，用时 77.1s
 ```
 
-终端里每个套件下方还有一条实时进度条（`██████░░░░ 38/66  失败 0  4.0s`）。附加参数：
+终端里每个套件下方还有一条实时进度条（`██████░░░░ 38/67  失败 0  4.0s`）。附加参数：
 
 | 参数                     | 作用                                                       |
 | ------------------------ | ---------------------------------------------------------- |

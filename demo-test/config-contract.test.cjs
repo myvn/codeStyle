@@ -2,7 +2,7 @@ const { test } = require("node:test")
 const assert = require("node:assert/strict")
 const fs = require("node:fs")
 const path = require("node:path")
-const { root } = require("./helpers.cjs")
+const { project, root } = require("./helpers.cjs")
 const pkg = require("../package.json")
 
 test("所有公共导出目标存在且可通过包名解析", () => {
@@ -183,4 +183,115 @@ test("cz 交互提示为中文，且可选类型与 type-enum 一一对应", () 
         )
         assert.ok(item.emoji, `${item.value} 应带 emoji（useEmoji 关闭时不影响显示）`)
     }
+})
+
+test("传统 ESLint 分层带 root: true，斩断 eslintrc 的祖先级联（BUG-042）", () => {
+    // eslintrc 会一路向上合并祖先目录的 .eslintrc：monorepo 根的规则漏进子项目、
+    // 根配置引用子项目没装的插件时整条 lint 直接崩（ESLint couldn't find the plugin）。
+    // 本包的 stylelint 配置一直带 root: true，ESLint 三层必须对齐（实测见 legacy 套件）。
+    for (const [name, config] of [
+        ["base", require("my-code-style/eslint")],
+        ["vue3", require("my-code-style/eslint/vue3")],
+        ["uniapp", require("my-code-style/eslint/uniapp")],
+    ]) {
+        assert.equal(config.root, true, `${name} 缺 root: true`)
+    }
+})
+
+test("ESLint 分层不残留 eslint-plugin-style 死规则（BUG-044）", () => {
+    // eslint-plugin-style 不是本包 peer、两条线的 plugins 里都没有它，severity 为 off
+    // 时 ESLint 静默忽略（legacy CI 一直这么过的）——纯死配置，只会让人误以为要装插件。
+    for (const config of [
+        require("my-code-style/eslint"),
+        require("my-code-style/eslint/vue3"),
+        require("my-code-style/eslint/uniapp"),
+    ]) {
+        assert.deepEqual(
+            Object.keys(config.rules).filter((rule) => rule.startsWith("style/")),
+            [],
+        )
+    }
+    const flatShared = fs.readFileSync(path.join(root, "src/eslint/flat/_shared.mjs"), "utf8")
+    assert.doesNotMatch(flatShared, /"style\//, "flat 线同样不该残留 style/* 规则")
+})
+
+test("Less 变体关掉两条 CSS 语法误报规则（BUG-040 / BUG-041）", () => {
+    // 上游 stylelint-config-recommended 开启这两条，Less 的 @ 语法必然被判死且无 fixer；
+    // SCSS 线由 recommended-scss 置 null，Less 线没有那层覆盖（与 BUG-029 同机理）。
+    for (const [name, config] of [
+        ["less", require("my-code-style/stylelint/less")],
+        ["less-override", require("my-code-style/stylelint/less-override")],
+    ]) {
+        assert.equal(
+            config.rules["media-query-no-invalid"],
+            null,
+            `${name} 未关闭 media-query-no-invalid`,
+        )
+        assert.equal(
+            config.rules["at-rule-prelude-no-invalid"],
+            null,
+            `${name} 未关闭 at-rule-prelude-no-invalid`,
+        )
+    }
+})
+
+test("样式变体判定：配置内容优先，依赖兜底（BUG-043）", (t) => {
+    const variant = require("../src/stylelint/variant.cjs")
+    const cases = [
+        ['module.exports = require("my-code-style/stylelint/less")\n', "less"],
+        ['module.exports = require("my-code-style/stylelint")\n', "scss"],
+        [
+            'module.exports = { extends: ["my-code-style/stylelint", "my-code-style/stylelint/less"] }\n',
+            "both",
+        ],
+        ['module.exports = { customSyntax: "postcss-less" }\n', "less"],
+        ['module.exports = { extends: ["stylelint-config-recommended-scss"] }\n', "scss"],
+        ['module.exports = { rules: { "color-no-invalid-hex": true } }\n', "unknown"],
+    ]
+    for (const [content, expected] of cases) {
+        const p = project(t, { ".stylelintrc.cjs": content })
+        assert.equal(variant.variantFromConfig(p.dir), expected, content)
+    }
+    // 没有配置文件 → null（交给依赖判定）
+    assert.equal(variant.variantFromConfig(project(t, {}).dir), null)
+    // package.json 的 stylelint 字段也算配置（stylelint 的 searchPlaces 里它优先）
+    const inPkg = project(t, {
+        "package.json": JSON.stringify({
+            name: "pkg-field",
+            stylelint: { extends: ["my-code-style/stylelint/less"] },
+        }),
+    })
+    assert.equal(variant.variantFromConfig(inPkg.dir), "less")
+
+    // 依赖判定：sass/less 组合，Vue 默认走统一入口
+    assert.equal(variant.variantFromDeps({ less: "^4" }), "less")
+    assert.equal(variant.variantFromDeps({ sass: "^1" }), "scss")
+    assert.equal(variant.variantFromDeps({ sass: "^1", less: "^4" }), "both")
+    assert.equal(variant.variantFromDeps({}), null)
+    assert.equal(variant.variantFromDepsWithVueDefault({}, true), "scss")
+    assert.equal(variant.variantFromDepsWithVueDefault({}, false), null)
+
+    // doctor 口径：Vue + Less（无 sass）但配置用 Less 入口 → less，不再索要 scss peer
+    const lessVue = project(t, {
+        "package.json": JSON.stringify({
+            name: "less-vue",
+            devDependencies: { vue: "^3", less: "^4" },
+        }),
+        ".stylelintrc.cjs": 'module.exports = require("my-code-style/stylelint/less")\n',
+    })
+    assert.equal(variant.detectVariant(lessVue.dir, { vue: "^3", less: "^4" }, true), "less")
+    // 反向：同一批依赖但配置用统一入口 → scss（顶层 extends 缺 peer 会直接加载失败）
+    const scssVue = project(t, {
+        "package.json": JSON.stringify({
+            name: "scss-vue",
+            devDependencies: { vue: "^3", less: "^4" },
+        }),
+        ".stylelintrc.cjs": 'module.exports = require("my-code-style/stylelint")\n',
+    })
+    assert.equal(variant.detectVariant(scssVue.dir, { vue: "^3", less: "^4" }, true), "scss")
+    // 无配置时回落到依赖 + Vue 默认
+    const noConfig = project(t, {
+        "package.json": JSON.stringify({ name: "no-config", devDependencies: { vue: "^3" } }),
+    })
+    assert.equal(variant.detectVariant(noConfig.dir, { vue: "^3" }, true), "scss")
 })

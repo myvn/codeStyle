@@ -53,7 +53,7 @@ node --test demo-test/scopes.test.cjs
 
 ## 当前验证状态
 
-基础测试 98 项全部通过；现代工具链测试 66 项、ESLint 8 测试 27 项、Stylelint 17 测试 9 项全部通过，合计 **200 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
+基础测试 104 项全部通过；现代工具链测试 67 项、ESLint 8 测试 28 项、Stylelint 17 测试 10 项全部通过，合计 **209 项、0 TODO**（`scripts/test-all.cjs` 提供分类统计、实时进度与总条数）。此前的 Less 依赖提示遗漏、Commitlint init 绕过和 nvue 解析错误均已修复，原 TODO 断言已成为强制回归检查。
 
 上述 `npm test` 只验证 CLI 与配置契约；真实工具集成测试单独运行，见下文。未统计行/分支覆盖率，不代表所有功能都已覆盖。
 
@@ -107,7 +107,7 @@ Husky 测试仅在 `.runtime` 内临时 Git 仓库创建本地空提交，设置
 - Node 18/20、Windows 等环境矩阵；
 - 代码行/分支覆盖率统计。
 
-## 完整提交链路回归（本套件共 59 项，其中完整提交链 7 项 + 空提交守卫 1 项 + 发布防呆 4 项）
+## 完整提交链路回归（本套件共 67 项，其中完整提交链 7 项 + 空提交守卫 1 项 + 发布防呆 4 项）
 
 运行 `npm run test:integration`（包含规则测试及完整 Git 提交链路），或 `npm run test:all`。
 
@@ -168,7 +168,7 @@ npm run test:legacy
 
 `setup-legacy.cjs` 安装到被忽略的 `.runtime-legacy/`，固定 ESLint 8 支持下限 **8.57.0**；不与 `.runtime/` 的 ESLint 9 共用依赖。安装不使用 `--force` 或 `--legacy-peer-deps`。测试每次复制当前源码，在独立消费工程中执行 CLI 生成传统配置，并实际调用 ESLint 8 API 和命令行。
 
-27 项覆盖：
+28 项覆盖：
 
 - 确认运行的是 ESLint 8.57.0；
 - 基础 TS、Vue、uni-app 的正常代码、格式修复及幂等复检、错误脚本拒绝（9 项）；
@@ -177,7 +177,8 @@ npm run test:legacy
 - 生成的 lint 脚本确实遍历 TS、Vue、nvue 并拒绝错误代码（3 项）；
 - Vue essential 的重复属性规则实际生效；
 - 引号规则与 Prettier 一致（含双引号的字符串不再产生不可修复错误）；
-- 生成的 lint 脚本忽略 `dist/`、`coverage/` 等构建产物。
+- 生成的 lint 脚本忽略 `dist/`、`coverage/` 等构建产物；
+- `root: true` 真的斩断祖先目录的 eslintrc 级联（monorepo 根加规则 + 引用子项目没装的插件，BUG-042）。
 
 修复前真实复现 `plugin:vue/vue3-essential` 无法加载；现在使用 Vue 插件 10 的 `plugin:vue/essential`。同时修复传统 nvue 覆写、CommonJS require 规则，以及目录 lint 的扩展名漏检。
 
@@ -196,7 +197,7 @@ npm run test:stylelint17
 而 stylelint 17 时代整条配置链都换了主版本（config-recommended 18、recommended-scss 17、
 postcss-html 2、stylelint-order 8）。
 
-这个运行时装的正是 17 线，8 项用例用**真实 stylelint 17 CLI** 加载 init 生成的
+这个运行时装的正是 17 线，10 项用例用**真实 stylelint 17 CLI** 加载 init 生成的
 `.stylelintrc.cjs`，覆盖：
 
 - 隔离环境确实是 stylelint 17（不是 16）；配置包分别是 18 / postcss-html 2；
@@ -204,6 +205,8 @@ postcss-html 2、stylelint-order 8）。
 - `--fix` 生效且幂等（第二次不再改动文件）；
 - Vue 单文件内嵌 SCSS 被检查；
 - Less 工程走 `my-code-style/stylelint/less` 分支配置；
+- Less 变量媒体查询与 `@import (reference)` 不被误报（`media-query-no-invalid` /
+  `at-rule-prelude-no-invalid`，BUG-040 / BUG-041），同时语义规则仍拦得住；
 - 混合 SCSS + Less 工程两种文件都能检查；
 - `stylelint-order`（recess-order 7 的 peer）可用，位置属性顺序错误会被报出。
 

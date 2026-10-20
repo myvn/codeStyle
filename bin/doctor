@@ -9,6 +9,8 @@
 const fs = require("fs")
 const path = require("path")
 const { spawnSync } = require("child_process")
+// 样式变体判定与 bin/init 共用原语，避免两侧口径漂移（BUG-043）
+const styleVariant = require("../src/stylelint/variant.cjs")
 
 const PROJECT_ROOT = process.cwd()
 let problems = 0
@@ -136,8 +138,8 @@ ok(`my-code-style ${selfPkg.version}`)
 
 // ---- ② peer 依赖：装了吗？版本对吗？ ----
 // 与 init 的依赖体检（checkPeerDeps）同口径裁剪：classic import 仅 ESLint 8 legacy
-// 线需要；无预处理器且非 Vue 项目不查 stylelint 族；Vue 项目才查 vue 全家。
-// 改动需与 bin/init 两侧同步（init-matrix 回归守底）。
+// 线需要；不涉样式的项目不查 stylelint 族（变体判定见 src/stylelint/variant.cjs）；
+// Vue 项目才查 vue 全家。改动需与 bin/init 两侧同步（init-matrix 回归守底）。
 function requiredPeers(manifest) {
     const deps = {
         ...manifest.dependencies,
@@ -157,14 +159,11 @@ function requiredPeers(manifest) {
     ].some((f) => fs.existsSync(path.join(PROJECT_ROOT, f)))
     const useFlat = hasFlatEntry || (!hasLegacyEntry && eslintMajor >= 9)
     const isVue = !!(deps.vue || deps["@dcloudio/uni-app"] || deps["uni-app"])
-    const cssPre =
-        deps.less && (deps.sass || isVue)
-            ? "both"
-            : deps.less
-              ? "less"
-              : deps.sass || isVue
-                ? "scss"
-                : null
+    // 样式变体以项目实际的 stylelint 配置为准（配置顶层 extends 缺 peer 会直接加载
+    // 失败），没有配置时才回落到依赖推断。此前这里只看依赖，`less && (sass || isVue)`
+    // 把「Vue + Less」判成 both，给纯 Less 项目索要 postcss-scss /
+    // stylelint-config-recommended-scss（BUG-043，下游 Vue 3 + Less 项目实测）。
+    const cssPre = styleVariant.detectVariant(PROJECT_ROOT, deps, isVue)
 
     const list = [
         "eslint",

@@ -206,3 +206,56 @@ test("ESLint 8 忽略构建产物：dist/ 中的错误不会污染 lint 结果",
         `dist/ 不应被检查: ${JSON.stringify(reports.map((report) => report.filePath))}`,
     )
 })
+
+test("ESLint 8 root: true 斩断祖先目录的 eslintrc 级联（BUG-042）", (t) => {
+    // monorepo 场景：祖先目录有一份公司级 .eslintrc.cjs（加了本包没声明的 eqeqeq，
+    // 还引用了子项目没装的 eslint-plugin-unicorn）。没有 root: true 时 eslintrc 会把它
+    // 静默合并进来 —— 实测两个后果：eqeqeq 报错混进结果；插件解析失败让整条 lint 直接崩
+    // （ESLint couldn't find the plugin "eslint-plugin-unicorn"，exit 2）。
+    const sandbox = fs.mkdtempSync(path.join(runtime, "cascade-"))
+    t.after(() => fs.rmSync(sandbox, { recursive: true, force: true }))
+    const monorepo = path.join(sandbox, "monorepo")
+    const app = path.join(monorepo, "app")
+    fs.mkdirSync(path.join(app, "src"), { recursive: true })
+    // 依赖解析走 runtime 的完整工具链（monorepo 根装依赖、子包不装，是常见形态）
+    fs.symlinkSync(path.join(runtime, "node_modules"), path.join(monorepo, "node_modules"), "dir")
+    fs.writeFileSync(
+        path.join(monorepo, ".eslintrc.cjs"),
+        'module.exports = {\n    plugins: ["unicorn"],\n    rules: { eqeqeq: "error", "unicorn/no-null": "error" },\n}\n',
+    )
+    fs.writeFileSync(
+        path.join(app, "package.json"),
+        JSON.stringify({ name: "cascade-app", devDependencies: { eslint: "8.57.0" } }),
+    )
+    const init = spawnSync(process.execPath, [path.join(root, "bin/init")], {
+        cwd: app,
+        encoding: "utf8",
+        timeout: 10000,
+    })
+    assert.equal(init.status, 0, init.stderr)
+    assert.ok(fs.existsSync(path.join(app, ".eslintrc.cjs")), "ESLint 8 项目应生成传统入口")
+    fs.writeFileSync(
+        path.join(app, "src/demo.ts"),
+        'export function check(a: number) {\n    if (a == 1) {\n        console.log("eq")\n    }\n}\n',
+    )
+    const result = spawnSync(
+        process.execPath,
+        [
+            path.join(path.dirname(req.resolve("eslint/package.json")), "bin/eslint.js"),
+            ".",
+            "--ext",
+            ".ts",
+            "--format",
+            "json",
+        ],
+        {
+            cwd: app,
+            encoding: "utf8",
+            timeout: 15000,
+            env: { ...process.env, ESLINT_USE_FLAT_CONFIG: "false" },
+        },
+    )
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    const [report] = JSON.parse(result.stdout)
+    assert.deepEqual(report.messages, [], JSON.stringify(report.messages))
+})

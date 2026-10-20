@@ -7,6 +7,10 @@ const { spawnSync } = require("node:child_process")
 const { project, root } = require("./helpers.cjs")
 const cases = require("./fixtures/projects.json")
 
+// doctor 第①步要求项目里能解析到 my-code-style，否则会在 peer 体检之前就退出。
+// fixture 里塞一份真实的 package.json（peer 范围取自仓库自身），体检才会真的跑起来。
+const selfPkg = fs.readFileSync(path.join(root, "package.json"), "utf8")
+
 for (const scenario of cases) {
     test(`初始化场景：${scenario.name}`, (t) => {
         const pkgData = {
@@ -223,6 +227,8 @@ test("doctor 识别 ESM-only peer（exports 仅 import 条件）为已安装（B
             type: "module",
             devDependencies: { eslint: "^9", sass: "^1" },
         }),
+        // 没有它 doctor 会在第①步就以「my-code-style 未安装」退出，peer 体检根本跑不到
+        "node_modules/my-code-style/package.json": selfPkg,
         "node_modules/stylelint-config-recommended/package.json": esmPkg(
             "stylelint-config-recommended",
             "18.0.0",
@@ -240,6 +246,56 @@ test("doctor 识别 ESM-only peer（exports 仅 import 条件）为已安装（B
         .split("\n")
         .filter((line) => line.includes("✗") && /stylelint-config-recommended(-scss)? /.test(line))
     assert.deepEqual(offending, [], `ESM-only 包不得误报未安装：\n${offending.join("\n")}`)
+})
+
+test("doctor：纯 Less 项目不被索要 SCSS 线的 peer（BUG-043）", (t) => {
+    // 下游 Vue 3 + Less（无 sass）项目实测：doctor 把 `less && (sass || isVue)` 判成
+    // both，于是索要 postcss-scss / stylelint-config-recommended-scss —— 项目的
+    // .stylelintrc.cjs extends 的是 my-code-style/stylelint/less，这两个包装了也用不上，
+    // 「一键补齐」还会诱导用户装无用依赖。变体必须以项目实际的 stylelint 配置为准。
+    const deps = { vue: "^3", less: "^4" }
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "pure-less-doctor", devDependencies: deps }),
+        ".stylelintrc.cjs": 'module.exports = require("my-code-style/stylelint/less")\n',
+        "node_modules/my-code-style/package.json": selfPkg,
+    })
+    const r = p.run("bin/doctor")
+    const missing = r.stdout
+        .split("\n")
+        .filter((line) => line.includes("✗") && line.includes("peer "))
+    const scssOnly = missing.filter((line) =>
+        /postcss-scss|stylelint-config-recommended-scss/.test(line),
+    )
+    assert.deepEqual(scssOnly, [], `纯 Less 项目不该被索要 SCSS peer：\n${scssOnly.join("\n")}`)
+    // 走的是 Less 分支：Less 线的 peer 仍要被检查（没装就该报缺失）
+    assert.ok(
+        missing.some((line) => line.includes("postcss-less")),
+        `应改查 Less 线的 peer：\n${missing.join("\n")}`,
+    )
+    assert.doesNotMatch(r.stdout, /一键补齐.*postcss-scss/)
+})
+
+test("doctor：配置用统一入口时仍索要 SCSS 线的 peer（BUG-043 反向守护）", (t) => {
+    // 统一入口顶层就 extends 了 recommended-scss，缺 peer 时 stylelint 直接加载失败，
+    // 所以「不索要 scss peer」只对真的用 Less 入口的项目成立，不能一刀切。
+    const deps = { vue: "^3", less: "^4" }
+    const p = project(t, {
+        "package.json": JSON.stringify({ name: "unified-doctor", devDependencies: deps }),
+        ".stylelintrc.cjs": 'module.exports = require("my-code-style/stylelint")\n',
+        "node_modules/my-code-style/package.json": selfPkg,
+    })
+    const r = p.run("bin/doctor")
+    const missing = r.stdout
+        .split("\n")
+        .filter((line) => line.includes("✗") && line.includes("peer "))
+    assert.ok(
+        missing.some((line) => line.includes("postcss-scss")),
+        `统一入口必须检查 postcss-scss：\n${missing.join("\n")}`,
+    )
+    assert.ok(
+        missing.some((line) => line.includes("stylelint-config-recommended-scss")),
+        `统一入口必须检查 recommended-scss：\n${missing.join("\n")}`,
+    )
 })
 
 test("--merge 预览与完成统计用「保留」语义，不再先报「覆盖」（BUG-036）", (t) => {
@@ -281,6 +337,15 @@ test(
     "doctor：完整链上 runtime 的 base 项目体检全绿退出 0（issue #6）",
     { skip: !fs.existsSync(path.join(root, "demo-test/.runtime/node_modules/eslint")) },
     (t) => {
+        // 基础套件可能先于集成套件跑（两者并行时是竞态），而 doctor 第①步要能解析到
+        // my-code-style —— 集成 runtime 的源码副本由 _runtime.cjs 同步，这里自给自足，
+        // 缺了就照同一份规则补上，避免「单独跑基础套件」时误报未安装。
+        const runtimeCopy = path.join(root, "demo-test/.runtime/node_modules/my-code-style")
+        if (!fs.existsSync(path.join(runtimeCopy, "package.json"))) {
+            fs.mkdirSync(runtimeCopy, { recursive: true })
+            fs.cpSync(path.join(root, "src"), path.join(runtimeCopy, "src"), { recursive: true })
+            fs.copyFileSync(path.join(root, "package.json"), path.join(runtimeCopy, "package.json"))
+        }
         const p = project(t, {
             "package.json": JSON.stringify({
                 name: "healthy-doctor",

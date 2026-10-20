@@ -12,6 +12,8 @@
 
 const fs = require("fs")
 const path = require("path")
+// 样式变体判定与 bin/doctor 共用原语，避免两侧口径漂移（BUG-043）
+const styleVariant = require("../src/stylelint/variant.cjs")
 
 const PROJECT_ROOT = process.cwd()
 const PACKAGE_DIR = path.resolve(__dirname, "..")
@@ -489,37 +491,15 @@ function detectCssPreprocessor() {
           }
         : {}
 
-    const hasSass = allDeps["sass"] || allDeps["node-sass"] || allDeps["sass-loader"]
-    const hasLess = allDeps["less"] || allDeps["less-loader"]
+    // 依赖优先（项目意图的更强信号）；认不出再看已有的 stylelint 配置。
+    // 判定原语与 bin/doctor 共用（src/stylelint/variant.cjs），两侧不会漂移；
+    // doctor 的优先级相反（配置优先），因为它要判的是「哪条线会被真正加载」。
+    const fromDeps = styleVariant.variantFromDeps(allDeps)
+    if (fromDeps) return fromDeps
 
-    if (hasSass && hasLess) return "both"
-    if (hasLess && !hasSass) return "less"
-    if (hasSass) return "scss"
-
-    // Fallback: check for existing stylelint config
-    if (fileExists(".stylelintrc.cjs") || fileExists(".stylelintrc.js")) {
-        const stylelintFile = fileExists(".stylelintrc.cjs")
-            ? ".stylelintrc.cjs"
-            : ".stylelintrc.js"
-        let content = ""
-        try {
-            content = fs.readFileSync(path.resolve(PROJECT_ROOT, stylelintFile), "utf8")
-        } catch {}
-        // "my-code-style/stylelint" is a prefix of "my-code-style/stylelint/less",
-        // so the Less entry must be matched before the SCSS one.
-        const usesLess =
-            /my-code-style\/stylelint\/less(?:-override)?/.test(content) ||
-            content.includes("postcss-less") ||
-            content.includes("stylelint-config-recommended-less")
-        const usesScss =
-            /my-code-style\/stylelint(?![-\w/])/.test(content) ||
-            content.includes("postcss-scss") ||
-            content.includes("stylelint-config-recommended-scss")
-        if (usesLess && usesScss) return "both"
-        if (usesLess) return "less"
-        if (usesScss) return "scss"
-        return "scss"
-    }
+    const fromConfig = styleVariant.variantFromConfig(PROJECT_ROOT)
+    if (fromConfig === "unknown") return "scss" // 有配置但认不出变体：按统一入口处理
+    if (fromConfig) return fromConfig
 
     // 无 package.json 时无法判断项目类型，不猜测样式方案（避免凭空安装一堆 stylelint 依赖）
     if (!pkg) {

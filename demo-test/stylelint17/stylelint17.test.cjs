@@ -174,6 +174,37 @@ test("stylelint 17 下 Less 工程使用 less 分支配置", { skip }, (t) => {
     assert.match(result.output, /property-no-unknown/)
 })
 
+test(
+    "stylelint 17 下 Less 变量媒体查询与 @import 选项不误报（BUG-040 / BUG-041）",
+    { skip },
+    (t) => {
+        // Less 用 @ 写变量：`@media (max-width: @screen-md)` 与 `@import (reference) "m.less"`
+        // 在 CSS 语法里都非法，stylelint-config-recommended 开启的 media-query-no-invalid /
+        // at-rule-prelude-no-invalid 会判死且都没有 fixer（--fix 后原地不动 → 门禁永久红）。
+        // SCSS 线由 recommended-scss 把两条置 null，Less 线没有那层覆盖，必须在 less.cjs 里补。
+        const p = consumer(t, {
+            dependencies: vueLess,
+            files: {
+                "src/media.less":
+                    "@screen-md: 768px;\n\n.toolbar {\n    display: flex;\n\n    @media (max-width: @screen-md) {\n        display: block;\n    }\n}\n",
+                "src/imports.less":
+                    '@import (reference) "mixins.less";\n\n.card {\n    color: red;\n}\n',
+            },
+        })
+        assert.match(p.read(".stylelintrc.cjs"), /my-code-style\/stylelint\/less/)
+        for (const file of ["src/media.less", "src/imports.less"]) {
+            const result = p.lint([file])
+            assert.equal(result.status, 0, `${file} 不该有误报：${result.output}`)
+            assert.doesNotMatch(result.output, /media-query-no-invalid|at-rule-prelude-no-invalid/)
+        }
+        // 语义规则仍在：误报放行不能把真错误一起放走
+        p.write("src/bad.less", ".a {\n    colour: red;\n}\n")
+        const bad = p.lint(["src/bad.less"])
+        assert.notEqual(bad.status, 0)
+        assert.match(bad.output, /property-no-unknown/)
+    },
+)
+
 test("stylelint 17 下混合 SCSS + Less 工程两种文件都能检查", { skip }, (t) => {
     const p = consumer(t, {
         dependencies: vueBoth,

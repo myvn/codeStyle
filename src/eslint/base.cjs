@@ -5,6 +5,12 @@ const prettierConfig = require("../prettier/index.cjs")
 const { overrides: _prettierOverrides, ...prettierOptions } = prettierConfig
 
 module.exports = {
+    // 阻止 eslintrc 的级联合并：没有它，祖先目录（monorepo 根 / 上层目录）的
+    // .eslintrc 会被静默合并进来 —— 实测两个后果：① 根配置里本包没声明的规则
+    // （eqeqeq 之类）漏进子项目，报出与本包口径无关的错；② 根配置引用的插件
+    // 子项目没装时整条 lint 直接崩（ESLint couldn't find the plugin）。
+    // 本包的 stylelint 配置一直带 root: true，ESLint 侧对齐（BUG-042）。
+    root: true,
     env: {
         browser: true,
         es2021: true,
@@ -88,10 +94,6 @@ module.exports = {
         "no-param-reassign": "off",
         "no-redeclare": "off",
         "prefer-promise-reject-errors": "off",
-
-        // Standard JS 风格规则已通过手动配置实现，不再依赖 eslint-config-standard
-        "style/quotes": "off",
-        "style/semi": "off",
     },
     settings: {
         "import/parsers": { "@typescript-eslint/parser": [".ts", ".tsx"] },
