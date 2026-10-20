@@ -1,5 +1,12 @@
 ## 变更日志
 
+## [1.9.7](https://github.com/myvn/codeStyle/compare/v1.9.6...v1.9.7) (2026-10-20)
+
+
+### 🐛 Bug Fixes | Bug 修复
+
+* **init:** 允许 ESLint 8.57 配合 Flat Config，移除对 eslint@8 + eslint.config.js 的误拦截 ([5e1f8c0](https://github.com/myvn/codeStyle/commit/5e1f8c0e4a73400422b47be15d6090816646a946))
+
 ## [1.9.6](https://github.com/myvn/codeStyle/compare/v1.9.5...v1.9.6) (2026-10-20)
 
 
