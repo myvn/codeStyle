@@ -1,5 +1,12 @@
 ## 变更日志
 
+## [1.9.5](https://github.com/myvn/codeStyle/compare/v1.9.4...v1.9.5) (2026-10-20)
+
+
+### 🐛 Bug Fixes | Bug 修复
+
+* **config:** Less 线误报、ESLint root、doctor 变体判定 ([7c9cc87](https://github.com/myvn/codeStyle/commit/7c9cc8771bbf5a94c61117d7afdf111a21ea162d))
+
 ## [1.9.4](https://github.com/myvn/codeStyle/compare/v1.9.3...v1.9.4) (2026-09-28)
 
 ## [1.9.3](https://github.com/myvn/codeStyle/compare/v1.9.2...v1.9.3) (2026-09-23)
