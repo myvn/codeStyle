@@ -1,5 +1,12 @@
 ## 变更日志
 
+## [1.9.6](https://github.com/myvn/codeStyle/compare/v1.9.5...v1.9.6) (2026-10-20)
+
+
+### 🐛 Bug Fixes | Bug 修复
+
+* 1.9.5 落地优化——Stylelint 15 兼容、doctor 分级、dist-tag 同步 ([584d7cc](https://github.com/myvn/codeStyle/commit/584d7cc257700f59a75a918793c807fbd34b23b3))
+
 ## [1.9.5](https://github.com/myvn/codeStyle/compare/v1.9.4...v1.9.5) (2026-10-20)
 
 
