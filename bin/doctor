@@ -14,11 +14,16 @@ const styleVariant = require("../src/stylelint/variant.cjs")
 
 const PROJECT_ROOT = process.cwd()
 let problems = 0
+let warnings = 0
 
 const ok = (msg) => console.log(`  ✓ ${msg}`)
 const bad = (msg) => {
     problems++
     console.log(`  ✗ ${msg}`)
+}
+const warn = (msg) => {
+    warnings++
+    console.log(`  ! ${msg}`)
 }
 const info = (msg) => console.log(`  · ${msg}`)
 
@@ -32,7 +37,7 @@ if (unknown.length) {
 if (args.includes("--help") || args.includes("-h")) {
     console.log("Usage: my-code-style-doctor [--version|-v] [--help|-h]")
     console.log("在项目根目录运行：体检 peer 依赖、husky hooks、lockfile 入库与配置文件。")
-    console.log("退出码：0 = 全部健康；1 = 存在需要处理的问题（可用于 CI 门禁）。")
+    console.log("退出码：0 = 无阻断问题（建议项 ! 不计入退出码，可用于 CI 门禁）；1 = 存在阻断问题。")
     process.exit(0)
 }
 if (args.includes("--version") || args.includes("-v")) {
@@ -255,8 +260,11 @@ if (manifest.name === "my-code-style") {
 } else if (missing.length === 0 && mismatched.length === 0) {
     ok(`peer 依赖 ${scopedPeers.length} 个全部安装且版本达标`)
 } else {
+    // 缺失视为阻断（对应 peer 的项目类型下 lint 会直接失败）；版本不满足多为旧链
+    // 仍可工作（如 ESLint 8 / Stylelint 15），记为建议而非阻断（1.9.5 落地反馈：统一
+    // 报红易被误判为环境已坏）。peer 均为 optional，是否升级由团队决定。
     for (const [name, range] of missing) bad(`peer ${name} 未安装（要求 ${range}）`)
-    for (const [name, version, range] of mismatched) bad(`peer ${name}@${version} 不满足 ${range}`)
+    for (const [name, version, range] of mismatched) warn(`peer ${name}@${version} 不满足 ${range}（可选择性升级）`)
     const spec = [...missing, ...mismatched.map(([n, , r]) => [n, r])]
         .map(([name, range]) => (range.includes("||") ? `"${name}@${range}"` : `${name}@${range}`))
         .join(" ")
@@ -350,5 +358,9 @@ for (const [file, label] of configs) {
 }
 if (configCount > 0) ok(`配置文件 ${configCount} 个就位`)
 
-console.log(`\n体检完成：${problems === 0 ? "全部健康 ✓" : `${problems} 个问题需要处理`}`)
+if (warnings > 0 && problems === 0) {
+    console.log(`\n体检完成：全部健康 ✓（${warnings} 个建议项可选择性处理）`)
+} else {
+    console.log(`\n体检完成：${problems === 0 ? "全部健康 ✓" : `${problems} 个问题需要处理`}${warnings ? `（另有 ${warnings} 个建议）` : ""}`)
+}
 process.exit(problems === 0 ? 0 : 1)

@@ -91,6 +91,24 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PUBLISH_LOG: ${{ runner.temp }}/npm-publish.log
 
+      - name: 同步 dist-tag latest（防私有源 latest 滞留在旧版）
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" >> "$HOME/.npmrc"
+          fi
+          # 私有源曾出现 latest 固定在 1.0.1 的问题：npm publish 默认会打 latest tag，
+          # 但若仓库配置了 dist-tag 或曾手动改过，latest 可能未跟随新版。此处显式同步，
+          # 确保默认安装拿到最新版；失败不阻断发布（网络抖动不应让整条 workflow 红）。
+          if npm dist-tag add "my-code-style@${version}" latest 2>&1 | tee /tmp/dist-tag.log; then
+            echo "✅ dist-tag latest 已同步到 ${version}"
+          else
+            echo "::warning::dist-tag 同步失败（不阻断发布，请手动执行 npm dist-tag add my-code-style@${version} latest）："
+            cat /tmp/dist-tag.log || true
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v3
         with:

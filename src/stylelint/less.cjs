@@ -1,3 +1,16 @@
+// Stylelint 16+ 才引入 at-rule-prelude-no-invalid；存量项目若仍用
+// Stylelint 15，静态写入该规则会报 Unknown rule 阻断提交（1.9.5 落地反馈）。
+// 动态探测宿主是否已注册该规则，未注册时不注入，保持两版本开箱即用。
+const supportsAtRulePrelude = (() => {
+    try {
+        const sl = require("stylelint")
+        return Boolean(sl.rules && "at-rule-prelude-no-invalid" in sl.rules)
+    } catch {
+        // 未安装 stylelint 时交由运行时校验；为与 1.9.5 语义一致默认视为支持
+        return true
+    }
+})()
+
 // Stylelint config for Vue/Less projects
 module.exports = {
     root: true,
@@ -64,7 +77,8 @@ module.exports = {
         // Less 的 `@import (reference) "m.less"` / `@import (less) "t.css"` 选项在
         // CSS 语法里同样非法，at-rule-prelude-no-invalid 会把整个 prelude 判死
         // （BUG-041 实测：下游 3 处命中，无 fixer）。同样对齐 SCSS 线上游的 null。
-        "at-rule-prelude-no-invalid": null,
+        // Stylelint 15 尚无该规则，静态写入会报 Unknown rule 阻断提交，故动态注入。
+        ...(supportsAtRulePrelude ? { "at-rule-prelude-no-invalid": null } : {}),
         // 允许小程序 page 标签
         "selector-type-no-unknown": [true, { ignoreTypes: ["page"] }],
         "comment-empty-line-before": "never",
